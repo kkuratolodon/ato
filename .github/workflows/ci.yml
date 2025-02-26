@@ -2,7 +2,9 @@ name: Node.js CI/CD Pipeline
 
 on:
   push:
-    branches: [ "**" ]   
+    branches: [ "**" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   build:
