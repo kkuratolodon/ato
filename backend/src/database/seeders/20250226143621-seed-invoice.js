@@ -2,7 +2,7 @@
 const { faker } = require('@faker-js/faker');
 
 module.exports = {
-  async up(queryInterface, Sequelize) {
+  async up(queryInterface) {
     const invoices = [];
 
     for (let i = 0; i < 10; i++) { // Menambahkan 10 data random
@@ -24,7 +24,7 @@ module.exports = {
     await queryInterface.bulkInsert('Invoice', invoices);
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.bulkDelete('Invoice', null, {});
   }
 };
