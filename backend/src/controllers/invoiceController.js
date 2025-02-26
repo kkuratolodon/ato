@@ -5,6 +5,6 @@ exports.uploadInvoice = async (req,res) => {
         const result = await InvoiceService.uploadInvoice();
         return res.status(501).json(result); // status 501 = not implemented  
     } catch(error){
-        return res.status(500).json({message: "internal Server Error"})
+        return res.status(500).json({message: "Internal server error"})
     }
 }
