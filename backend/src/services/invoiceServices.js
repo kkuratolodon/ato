@@ -1,5 +1,14 @@
-exports.uploadInvoice = async() => {
-    return {
-        message:"Invoice upload service called"
+class InvoiceService {
+    constructor() {
+
     }
-}
+  
+    async uploadInvoice() {
+      return {
+        message: "Invoice upload service called"
+      };
+    }
+  }
+  
+module.exports = new InvoiceService();
+  

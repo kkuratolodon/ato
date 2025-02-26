@@ -1,6 +1,6 @@
 const request = require('supertest')
 const app = require('../src/app')
-const InvoiceService = require('../src/services/invoiceServices')
+const invoiceService = require('../src/services/invoiceServices')
 
 describe("Invoice Upload Endpoint",() => {
     test("Invoice upload service called success",async() => {
@@ -12,7 +12,7 @@ describe("Invoice Upload Endpoint",() => {
     })
 
     test("Invoice upload service called error",async() => {
-        jest.spyOn(InvoiceService,'uploadInvoice').mockRejectedValue(new Error("Error"))
+        jest.spyOn(invoiceService,'uploadInvoice').mockRejectedValue(new Error("Error"))
 
         const response = await request(app).post('/api/invoices/upload').send();
         expect(response.status).toBe(500);
