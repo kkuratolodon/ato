@@ -119,3 +119,54 @@ describe("PDF File Size Validation", () => {
       expect(result).toBe(true);
     });
 });
+
+describe("PDF Encryption Check with Real Implementation", () => {
+    const unencryptedPdfBuffer = Buffer.from(
+      "%PDF-1.3\n" +
+      "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
+      "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
+      "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
+      "xref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\n" +
+      "trailer\n<</Size 4/Root 1 0 R>>\n" +
+      "startxref\n178\n%%EOF"
+    );
+
+    const encryptedPdfBuffer = Buffer.from(
+      "%PDF-1.3\n" +
+      "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
+      "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
+      "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
+      "4 0 obj\n<</Filter/Standard/V 1/R 2/O<1234567890ABCDEF1234567890ABCDEF>/U<ABCDEF1234567890ABCDEF1234567890>/P -3904>>\nendobj\n" +
+      "xref\n0 5\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\n0000000183 00000 n\n" +
+      "trailer\n<</Size 5/Root 1 0 R/Encrypt 4 0 R>>\n" +
+      "startxref\n291\n%%EOF"
+    );
+    
+    beforeAll(() => {
+      mockFs({
+        "samples/unencrypted.pdf": unencryptedPdfBuffer,
+        "samples/encrypted.pdf": encryptedPdfBuffer,
+      });
+    });
+  
+    afterAll(() => {
+      mockFs.restore();
+    });
+  
+    test("Should detect unencrypted PDF correctly", async () => {
+      const filePath = path.resolve("samples/unencrypted.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
+  
+      const result = await invoiceService.isPdfEncrypted(fileBuffer);
+      expect(result).toBe(false);
+    });
+  
+    test("Should detect encrypted PDF correctly", async () => {
+      const filePath = path.resolve("samples/encrypted.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
+  
+      const result = await invoiceService.isPdfEncrypted(fileBuffer);
+      expect(result).toBe(true);
+    });
+  
+});
