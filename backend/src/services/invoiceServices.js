@@ -44,7 +44,7 @@ class InvoiceService {
         return true;
     }
 
-    /**
+  /**
    * Validates the size of a file
    * @param {Buffer} fileBuffer - The file buffer to validate
    * @returns {Promise<boolean>} - Returns true if validation passes
@@ -59,9 +59,24 @@ class InvoiceService {
 
     return true;
   }
+
+  /**
+   * Checks if a PDF file is encrypted.
+   * 
+   * This function analyzes a PDF buffer to determine if it's encrypted
+   * by searching for the '/Encrypt' entry in the PDF trailer section.
+   * 
+   * @param {Buffer} pdfBuffer - Buffer containing the PDF file data to check
+   * @returns {boolean} - Returns true if the PDF is encrypted, false otherwise
+   */
+  async isPdfEncrypted(pdfBuffer) {
+    const bufferSize = pdfBuffer.length;
+    const searchSize = Math.min(bufferSize, 8192); 
+    
+    const pdfTrailer = pdfBuffer.slice(bufferSize - searchSize).toString('utf-8');
+    return pdfTrailer.includes('/Encrypt');
+  }
 }
-  
-  
-  
+   
 module.exports = new InvoiceService();
   
