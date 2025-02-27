@@ -3,6 +3,7 @@ const path = require("path");
 class InvoiceService {
     constructor() {}
   
+    // eslint-disable-next-line no-unused-vars
     async uploadInvoice(file) {
       return {
         message: "Invoice upload service called"
@@ -74,7 +75,50 @@ class InvoiceService {
     const pdfTrailer = pdfBuffer.slice(bufferSize - searchSize).toString('utf-8');
     return pdfTrailer.includes('/Encrypt');
   }
+
+  /**
+   * Checks the integrity of a PDF file.
+   * 
+   * This function validates that a PDF file has the proper structure
+   * by checking for required PDF components including trailer, xref table,
+   * startxref position, and proper EOF marker placement.
+   * 
+   * @param {Buffer} buffer - Buffer containing the PDF file data to check
+   * @returns {Promise<boolean>} - Returns true if the PDF has proper structure, false otherwise
+   */
+  async checkPdfIntegrity(buffer) {
+    if (!buffer || buffer.length === 0) {
+      return false;
+    }
+
+    const content = buffer.toString('utf-8');
+    
+    const hasTrailer = content.includes('trailer');
+    const hasEOF = content.includes('%%EOF');
+    const hasXref = content.includes('xref');
+    const hasStartXref = content.includes('startxref');
+    
+    if (!hasTrailer || !hasEOF || !hasXref || !hasStartXref) {
+      return false;
+    }
+
+    const startXrefPos = content.lastIndexOf('startxref');
+    const eofPos = content.lastIndexOf('%%EOF');
+
+    const startXrefSection = content.substring(startXrefPos, eofPos);
+    const matches = startXrefSection.match(/startxref\s*(\d+)/);
+    
+    if (!matches || !matches[1]) {
+      return false;
+    }
+
+    if (!content.match(/\d+ \d+ obj/)) {
+      return false;
+    }
+
+    return true;
+    
+  }
 }
    
 module.exports = new InvoiceService();
-  
