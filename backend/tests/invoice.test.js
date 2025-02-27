@@ -76,3 +76,46 @@ describe("PDF Validation Format", () => {
         ).rejects.toThrow("Invalid PDF file");
     });
 });
+
+describe("PDF File Size Validation", () => {
+    const validPdfBuffer = Buffer.alloc(10 * 1024 * 1024, "%PDF-1.4 Valid PDF File"); 
+    const largePdfBuffer = Buffer.alloc(21 * 1024 * 1024, "%PDF-1.4 Valid PDF File"); 
+    const edgePdfBuffer = Buffer.alloc(20 * 1024 * 1024, "%PDF-1.4 Valid PDF File"); 
+  
+    beforeAll(() => {
+      mockFs({
+        "samples/valid.pdf": validPdfBuffer,
+        "samples/large.pdf": largePdfBuffer,
+        "samples/edge.pdf": edgePdfBuffer,
+      });
+    });
+  
+    afterAll(() => {
+      mockFs.restore();
+    });
+  
+    test("Should accept a valid PDF file under 20MB", async () => {
+      const filePath = path.resolve("samples/valid.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
+  
+      const result = await invoiceService.validateSizeFile(fileBuffer);
+      expect(result).toBe(true);
+    });
+  
+    test("Should reject a PDF file larger than 20MB", async () => {
+      const filePath = path.resolve("samples/large.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
+  
+      await expect(
+        invoiceService.validateSizeFile(fileBuffer)
+      ).rejects.toThrow("File exceeds maximum allowed size of 20MB");
+    });
+  
+    test("Should accept a PDF file exactly 20MB (Edge Case)", async () => {
+      const filePath = path.resolve("samples/edge.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
+  
+      const result = await invoiceService.validateSizeFile(fileBuffer);
+      expect(result).toBe(true);
+    });
+});
