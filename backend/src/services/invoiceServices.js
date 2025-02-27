@@ -43,9 +43,24 @@ class InvoiceService {
 
         return true;
     }
+
+    /**
+   * Validates the size of a file
+   * @param {Buffer} fileBuffer - The file buffer to validate
+   * @returns {Promise<boolean>} - Returns true if validation passes
+   * @throws {Error} - Throws an error if validation fails
+   */
+  async validateSizeFile(fileBuffer) {
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    
+    if (fileBuffer.length > MAX_FILE_SIZE) {
+      throw new Error(`File exceeds maximum allowed size of 20MB`);
+    }
+
+    return true;
+  }
 }
   
-
   
   
 module.exports = new InvoiceService();
