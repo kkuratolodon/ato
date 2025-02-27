@@ -1,8 +1,8 @@
-const isValidPdfUrl = (documentUrl) => {
+const isValidPdfUrl = () => {
     // TODO
 };
 
-const analyzeInvoice = async (documentUrl) => {
+const analyzeInvoice = async () => {
     // TODO
 };
 
