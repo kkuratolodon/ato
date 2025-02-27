@@ -1,9 +1,7 @@
 class InvoiceService {
-    constructor() {
-
-    }
+    constructor() {}
   
-    async uploadInvoice() {
+    async uploadInvoice(file) {
       return {
         message: "Invoice upload service called"
       };
