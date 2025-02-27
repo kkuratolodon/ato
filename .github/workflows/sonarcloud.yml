@@ -1,4 +1,4 @@
-name: SonarCloud
+name: SonarQube
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0 
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -35,7 +35,7 @@ jobs:
         working-directory: backend
         run: npm run build 
 
-      - name: Cache SonarCloud packages
+      - name: Cache SonarQube packages
         uses: actions/cache@v3
         with:
           path: ~/.sonar/cache
@@ -49,7 +49,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
           restore-keys: ${{ runner.os }}-node
 
-      - name: Run SonarCloud analysis
+      - name: Run SonarQube analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: npx sonar-scanner
