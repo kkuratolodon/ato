@@ -39,6 +39,12 @@
       "text",
       "lcov"
     ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/database/**",
+      "!src/models/index.js"
+    ],
     "testEnvironment": "node"
   }
+
 }
