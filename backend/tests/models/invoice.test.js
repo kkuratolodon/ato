@@ -8,10 +8,8 @@ describe("Invoice Model", () => {
   beforeAll(async () => {
     sequelize = new Sequelize("sqlite::memory:", { logging: false });
 
-    // Model diinisialisasi, tapi BELUM ada constraints yang benar
     Invoice = InvoiceModel(sequelize, DataTypes);
 
-    // Sinkronisasi tabel (create table)
     await sequelize.sync({ force: true });
   });
 
@@ -38,7 +36,7 @@ describe("Invoice Model", () => {
       status: "Pending",
     });
 
-    expect(invoice.file_url).toBeNull(); // Seharusnya null karena tidak diisi
+    expect(invoice.file_url).toBeNull();
   });
 
   test("should ensure total_amount is greater than 0", async () => {
@@ -47,7 +45,7 @@ describe("Invoice Model", () => {
         invoice_date: new Date(),
         due_date: new Date(),
         purchase_order_id: 123,
-        total_amount: -100, // Ini harus gagal
+        total_amount: -100,
         subtotal_amount: 900.50,
         payment_terms: "Net 30",
         status: "Pending",
