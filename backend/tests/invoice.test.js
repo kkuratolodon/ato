@@ -1,5 +1,6 @@
 const request = require('supertest')
 const app = require('../src/app')
+const path = require('path')
 const invoiceService = require('../src/services/invoiceServices')
 
 describe("Invoice Upload Endpoint",() => {
@@ -15,7 +16,7 @@ describe("Invoice Upload Endpoint",() => {
         
     })
     test("Invoice upload service without file",async() => {
-        const response = (await request(app).post('/api/invoices/upload')).send();
+        const response = await request(app).post('/api/invoices/upload').send();
 
         expect(response.status).toBe(400);
         expect(response.body.message).toBe("No file uploaded");

@@ -3,7 +3,8 @@ class InvoiceService {
   
     async uploadInvoice(file) {
       return {
-        message: "Invoice upload service called"
+        message: "Invoice upload service called",
+        filename: file.originalname
       };
     }
   }
