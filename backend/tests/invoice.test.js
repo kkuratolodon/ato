@@ -4,17 +4,32 @@ const invoiceService = require('../src/services/invoiceServices')
 
 describe("Invoice Upload Endpoint",() => {
     test("Invoice upload service called success",async() => {
-        const response = await request(app).post('/api/invoices/upload').send();
+        const mockFileName = "test-invoice.pdf"
+
+        const filePath = path.join(__dirname,'test-files',mockFileName)
+        const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
 
         expect(response.status).toBe(501);
         expect(response.body.message).toBe("Invoice upload service called");
+        expect(response.body.filename).toBe(mockFileName)
+        
+    })
+    test("Invoice upload service without file",async() => {
+        const response = (await request(app).post('/api/invoices/upload')).send();
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("No file uploaded");
         
     })
 
     test("Invoice upload service called error",async() => {
-        jest.spyOn(invoiceService,'uploadInvoice').mockRejectedValue(new Error("Error"))
+        const mockFileName = "test-invoice.pdf"
 
-        const response = await request(app).post('/api/invoices/upload').send();
+        jest.spyOn(invoiceService,'uploadInvoice').mockRejectedValue(new Error("Error"))
+        
+        const filePath = path.join(__dirname,'test-files',mockFileName)
+        const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
+
         expect(response.status).toBe(500);
         expect(response.body.message).toBe("Internal server error");
     })
