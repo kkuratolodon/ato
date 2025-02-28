@@ -4,7 +4,10 @@ const path = require('path')
 const invoiceService = require('../src/services/invoiceServices')
 
 describe("Invoice Upload Endpoint",() => {
-    test("Invoice upload service called success",async() => {
+    afterEach(()=> {
+        jest.restoreAllMocks();
+    });
+    test("Invoice upload service called success (real function)",async() => {
         const mockFileName = "test-invoice.pdf"
 
         const filePath = path.join(__dirname,'test-files',mockFileName)
@@ -13,7 +16,21 @@ describe("Invoice Upload Endpoint",() => {
         expect(response.status).toBe(501);
         expect(response.body.message).toBe("Invoice upload service called");
         expect(response.body.filename).toBe(mockFileName)
-        
+    })
+    test("Invoice upload service called success (mocked)",async() => {
+        const mockFileName = "test-invoice.pdf"
+
+        jest.spyOn(invoiceService,'uploadInvoice').mockResolvedValue({
+                message: "Invoice upload service called",
+                filename: mockFileName
+        })
+
+        const filePath = path.join(__dirname,'test-files',mockFileName)
+        const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
+
+        expect(response.status).toBe(501);
+        expect(response.body.message).toBe("Invoice upload service called");
+        expect(response.body.filename).toBe(mockFileName)
     })
     test("Invoice upload service without file",async() => {
         const response = await request(app).post('/api/invoices/upload').send();
