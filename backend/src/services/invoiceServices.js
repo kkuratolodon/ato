@@ -108,7 +108,7 @@ class InvoiceService {
     const startXrefSection = content.substring(startXrefPos, eofPos);
     const matches = startXrefSection.match(/startxref\s*(\d+)/);
     
-    if (!matches || !matches[1]) {
+    if (!matches?.[1]) {
       return false;
     }
 
