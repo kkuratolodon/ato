@@ -3,14 +3,16 @@ const path = require("path");
 class InvoiceService {
     constructor() {}
   
-    // eslint-disable-next-line no-unused-vars
     async uploadInvoice(file) {
+      if (!file) {
+        throw new Error("File not found");
+      }
       return {
         message: "Invoice upload service called",
-        filename: file.originalname
+        filename: file.originalname,
       };
     }
-
+    
     /**
      * Validates if a file is a valid PDF
      * This function checks three criteria to determine if a file is a valid PDF:
