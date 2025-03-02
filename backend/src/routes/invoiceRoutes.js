@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const invoiceController = require('../controllers/invoiceController');
+const InvoiceController = require('../controllers/invoiceController');
 
-router.post('/upload', invoiceController.uploadInvoice);
+router.post('/upload', InvoiceController.uploadMiddleware, InvoiceController.uploadInvoice);
 
 module.exports = router;
