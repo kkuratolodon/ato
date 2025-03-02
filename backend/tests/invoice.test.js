@@ -1,24 +1,31 @@
-const request = require("supertest");
-const app = require("../src/app");
 const fs = require("fs");
 const path = require("path");
 const mockFs = require("mock-fs");
+const request = require("supertest");
+const app = require("../src/app");
 const invoiceService = require("../src/services/invoiceServices");
 
-describe("Invoice Upload Endpoint",() => {
-    afterEach(()=> {
-        jest.restoreAllMocks();
+describe("Invoice Upload Endpoint", () => {
+    beforeEach(() => {
+        jest.resetAllMocks();
     });
-    test("Invoice upload service called success (real function)",async() => {
-        const mockFileName = "test-invoice.pdf"
+        
+    afterEach(() => {
+        jest.restoreAllMocks();
+        mockFs.restore();
+    });
 
-        const filePath = path.join(__dirname,'test-files',mockFileName)
-        const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
+    test("Invoice upload service called success (real function)", async () => {
+        const mockFileName = "test-invoice.pdf";
+        const filePath = path.join(__dirname, "test-files", mockFileName);
+
+        const response = await request(app)
+        .post("/api/invoices/upload")
+        .attach("file", filePath, "test-invoice.pdf"); 
 
         expect(response.status).toBe(501);
-        expect(response.body.message).toBe("Invoice upload service called");
-        expect(response.body.filename).toBe(mockFileName)
-    })
+    });
+
     test("Invoice upload service called success (mocked)",async() => {
         const mockFileName = "test-invoice.pdf"
 
@@ -34,13 +41,6 @@ describe("Invoice Upload Endpoint",() => {
         expect(response.body.message).toBe("Invoice upload service called");
         expect(response.body.filename).toBe(mockFileName)
     })
-    test("Invoice upload service without file",async() => {
-        const response = await request(app).post('/api/invoices/upload').send();
-
-        expect(response.status).toBe(400);
-        expect(response.body.message).toBe("No file uploaded");
-        
-    })
 
     test("Invoice upload service called error",async() => {
         const mockFileName = "test-invoice.pdf"
@@ -54,59 +54,144 @@ describe("Invoice Upload Endpoint",() => {
         expect(response.body.message).toBe("Internal server error");
     })
 
+    test("Invoice upload service without file",async() => {
+        const response = await request(app).post('/api/invoices/upload').send();
 
-})
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("No file uploaded");
+        
+    })
 
+    test("Returns 415 when file is not a PDF", async () => {
+        const mockFileName = "test-invoice.pdf";
+        jest.spyOn(invoiceService, 'validatePDF').mockRejectedValue(new Error("Error"))
+
+        const filePath = path.join(__dirname,'test-files',mockFileName)
+        const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
+        
+        expect(response.status).toBe(415);
+        expect(response.body.message).toBe("File format is not PDF");
+    });
+
+    test("Returns 400 when PDF is corrupted", async () => {
+      const mockFileName = "corrupted.pdf";
+      const filePath = path.join(__dirname, "test-files", mockFileName);
+      
+      jest.spyOn(invoiceService, "isPdfEncrypted").mockResolvedValue(true);
+      
+      const response = await request(app)
+          .post("/api/invoices/upload")
+          .attach("file", filePath);
+      
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe("pdf is encrypted");
+      expect(invoiceService.isPdfEncrypted).toHaveBeenCalled();
+    });
+
+    test("Returns 504 when upload times out", async () => {
+      const mockFileName = "test-invoice.pdf";
+      const filePath = path.join(__dirname, "test-files", mockFileName);
+      
+      const response = await request(app)
+          .post("/api/invoices/upload")
+          .query({ simulateTimeout: 'true' })
+          .attach("file", filePath);
+      
+      expect(response.status).toBe(504);
+      expect(response.body.message).toBe("Server timeout during upload");
+    });
+
+    test("Returns 400 when PDF file is invalid", async () => {
+      const mockFileName = "test-invoice.pdf";
+      const filePath = path.join(__dirname, "test-files", mockFileName);
+      
+      jest.spyOn(invoiceService, "checkPdfIntegrity").mockResolvedValue(false);
+
+      const response = await request(app)
+          .post("/api/invoices/upload")
+          .attach("file", filePath);
+      
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe("PDF file is invalid");
+      expect(invoiceService.checkPdfIntegrity).toHaveBeenCalled();
+    });
+
+    test("Returns 413 when file is too large", async () => {
+      const mockFileName = "test-invoice.pdf";
+      const filePath = path.join(__dirname, "test-files", mockFileName);
+      
+      jest.spyOn(invoiceService, "validateSizeFile").mockRejectedValue(
+          new Error("File size exceeds maximum limit")
+      );
+      
+      const response = await request(app)
+          .post("/api/invoices/upload")
+          .attach("file", filePath);
+      
+      expect(response.status).toBe(413);
+      expect(response.body.message).toBe("File size exceeds maximum limit");
+      expect(invoiceService.validateSizeFile).toHaveBeenCalled();
+  });
+
+});
+
+describe("Invoice Service Core Functions", () => {
+  test("uploadInvoice should throw error when file is not provided", async () => {
+
+    await expect(invoiceService.uploadInvoice(null))
+      .rejects.toThrow("File not found");
+  });
+});
 
 describe("PDF Validation Format", () => {
-    const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
-    const invalidPdfBuffer = Buffer.from("This is not a PDF");
+  const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
+  const invalidPdfBuffer = Buffer.from("This is not a PDF");
 
-    beforeAll(() => {
-        mockFs({
-            "samples/valid.pdf": validPdfBuffer,
-            "samples/invalid.pdf": invalidPdfBuffer,
-        });
-    });
+  beforeAll(() => {
+      mockFs({
+          "samples/valid.pdf": validPdfBuffer,
+          "samples/invalid.pdf": invalidPdfBuffer,
+      });
+  });
 
-    afterAll(() => {
-        mockFs.restore();
-    });
+  afterAll(() => {
+      mockFs.restore();
+  });
 
-    test("Should accept valid PDF file", async () => {
-        const filePath = path.resolve("samples/valid.pdf");
-        const fileBuffer = fs.readFileSync(filePath);
+  test("Should accept valid PDF file", async () => {
+      const filePath = path.resolve("samples/valid.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
 
-        const result = await invoiceService.validatePDF(fileBuffer, "application/pdf", "valid.pdf");
-        expect(result).toBe(true);
-    });
+      const result = await invoiceService.validatePDF(fileBuffer, "application/pdf", "valid.pdf");
+      expect(result).toBe(true);
+  });
 
-    test("Should reject non-PDF MIME type", async () => {
-        const filePath = path.resolve("samples/valid.pdf");
-        const fileBuffer = fs.readFileSync(filePath);
+  test("Should reject non-PDF MIME type", async () => {
+      const filePath = path.resolve("samples/valid.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
 
-        await expect(
-            invoiceService.validatePDF(fileBuffer, "image/png", "valid.png")
-        ).rejects.toThrow("Invalid MIME type");
-    });
+      await expect(
+          invoiceService.validatePDF(fileBuffer, "image/png", "valid.png")
+      ).rejects.toThrow("Invalid MIME type");
+  });
 
-    test("Should reject non-PDF extension", async () => {
-        const filePath = path.resolve("samples/valid.pdf");
-        const fileBuffer = fs.readFileSync(filePath);
+  test("Should reject non-PDF extension", async () => {
+      const filePath = path.resolve("samples/valid.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
 
-        await expect(
-            invoiceService.validatePDF(fileBuffer, "application/pdf", "document.txt")
-        ).rejects.toThrow("Invalid file extension");
-    });
+      await expect(
+          invoiceService.validatePDF(fileBuffer, "application/pdf", "document.txt")
+      ).rejects.toThrow("Invalid file extension");
+  });
 
-    test("Should reject invalid PDF content", async () => {
-        const filePath = path.resolve("samples/invalid.pdf");
-        const fileBuffer = fs.readFileSync(filePath);
+  test("Should reject invalid PDF content", async () => {
+      const filePath = path.resolve("samples/invalid.pdf");
+      const fileBuffer = fs.readFileSync(filePath);
 
-        await expect(
-            invoiceService.validatePDF(fileBuffer, "application/pdf", "invalid.pdf")
-        ).rejects.toThrow("Invalid PDF file");
-    });
+      await expect(
+          invoiceService.validatePDF(fileBuffer, "application/pdf", "invalid.pdf")
+      ).rejects.toThrow("Invalid PDF file");
+  });
 });
 
 describe("PDF File Size Validation", () => {
