@@ -6,7 +6,8 @@ class InvoiceService {
     // eslint-disable-next-line no-unused-vars
     async uploadInvoice(file) {
       return {
-        message: "Invoice upload service called"
+        message: "Invoice upload service called",
+        filename: file.originalname
       };
     }
 
