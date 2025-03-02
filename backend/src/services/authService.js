@@ -10,6 +10,10 @@ const dbConfig = {
 };
 
 exports.authenticate = async (clientId, clientSecret) => {
+  if (clientId === undefined || clientSecret === undefined) {
+    return false;
+  }
+  
   const connection = await mysql.createConnection(dbConfig);
   try {
     const query = `
