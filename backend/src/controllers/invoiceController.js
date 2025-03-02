@@ -1,4 +1,4 @@
-const invoiceService = require('../services/invoiceService');
+const invoiceService = require('../services/invoiceServices');
 const authService = require('../services/authService');
 const multer = require('multer');
 const upload = multer();
