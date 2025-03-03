@@ -59,7 +59,7 @@ describe('Invoice Routes', () => {
 
   test('POST /api/invoices/upload harus return 401 jika authMiddleware memanggil res.status(401)', async () => {
     // 1. Mock authMiddleware -> balas 401
-    authMiddleware.mockImplementation((req, res, next) => {
+    authMiddleware.mockImplementation((req, res) => {
       return res.status(401).json({ message: 'Unauthorized' });
     });
     // 2. Middleware/controller lain seharusnya tidak dipanggil

@@ -27,7 +27,7 @@ const uploadFile = async (fileBuffer) => {
         const fileURL = data.Location; 
         return fileURL; 
     } catch (error) {
-        // console.error("S3 Upload Error:", error);
+        console.error("S3 Upload Error:", error);
         throw error;
     }
 };
