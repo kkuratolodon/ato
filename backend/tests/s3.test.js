@@ -39,8 +39,7 @@ describe("S3 Service", () => {
     });
 
     test("Upload a file to S3 failure", async () => {
-        const fileContent = Buffer.from("test file content");    
-        const key = "1234456.pdf";
+        const fileContent = Buffer.from("test file content");            
 
         s3.upload.mockImplementationOnce(() => {
             throw new Error("Upload failed");

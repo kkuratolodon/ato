@@ -8,19 +8,13 @@ const s3 = new AWS.S3({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
 
-const generateFileKey = (userId) => {
-    const timestamp = Date.now(); 
-    return `${userId}-${timestamp}.pdf`;
-};
-
 
 /**
  * Upload a file to S3
- * @param {Buffer} fileBuffer - File content as a buffer
- * @param {string} userId - User ID of the file uploader
+ * @param {Buffer} fileBuffer - File content as a buffer 
  * @returns {Promise} - Resolves to the uploaded file URL
  */
-const uploadFile = async (fileBuffer, userId) => {
+const uploadFile = async (fileBuffer) => {
     const fileName = `${uuidv4()}.pdf`;
     const params = {
         Bucket: bucketName,
