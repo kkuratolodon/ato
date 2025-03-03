@@ -37,7 +37,7 @@ class InvoiceService {
         }
 
         const pdfSignature = "%PDF-";
-        const fileHeader = fileBuffer.slice(0, 5).toString();
+        const fileHeader = fileBuffer.subarray(0, 5).toString();
         if (fileHeader !== pdfSignature) {
             throw new Error("Invalid PDF file");
         }
@@ -74,7 +74,7 @@ class InvoiceService {
     const bufferSize = pdfBuffer.length;
     const searchSize = Math.min(bufferSize, 8192); 
     
-    const pdfTrailer = pdfBuffer.slice(bufferSize - searchSize).toString('utf-8');
+    const pdfTrailer = pdfBuffer.subarray(bufferSize - searchSize).toString('utf-8');
     return pdfTrailer.includes('/Encrypt');
   }
 
@@ -108,13 +108,13 @@ class InvoiceService {
     const eofPos = content.lastIndexOf('%%EOF');
 
     const startXrefSection = content.substring(startXrefPos, eofPos);
-    const matches = startXrefSection.match(/startxref\s*(\d+)/);
+    const regex = /startxref\s*(\d+)/;
+    const matches = regex.exec(startXrefSection);
+
     
-    if (!matches?.[1]) {
+    if (!matches?.[1] || !/\d+ \d+ obj/.exec(content)) {
       return false;
-    } else if (!content.match(/\d+ \d+ obj/)) {
-      return false;
-    }
+    }    
 
     return true;
     
