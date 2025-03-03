@@ -3,9 +3,13 @@ const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
   class Invoice extends Model {
-    // static associate(models) {
-    //   // define association here
-    // }
+    static associate(models) {
+      Invoice.belongsTo(models.Partner, { 
+        foreignKey: 'partner_id', 
+        targetKey: 'uuid',
+        as: 'partner'
+      });
+    }
   }
 
   Invoice.init({
@@ -29,6 +33,10 @@ module.exports = (sequelize, DataTypes) => {
       validate: {
         isIn: [["Pending", "Paid", "Overdue"]]
       }
+    },
+    partner_id: { 
+      type: DataTypes.STRING(45), 
+      allowNull: false,
     }
   }, {
     sequelize,
