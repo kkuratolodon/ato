@@ -2,12 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const mockFs = require("mock-fs");
 const request = require("supertest");
-const app = require("../src/app");
-const invoiceService = require("../src/services/invoiceServices");
+const app = require("../../src/app");
+const invoiceService = require("../../src/services/invoiceServices");
+const authService = require('../../src/services/authService');
+
 
 describe("Invoice Upload Endpoint", () => {
     beforeEach(() => {
         jest.resetAllMocks();
+        jest.spyOn(authService, 'authenticate').mockResolvedValue(true);
     });
         
     afterEach(() => {
@@ -17,7 +20,7 @@ describe("Invoice Upload Endpoint", () => {
 
     test("Invoice upload service called success (real function)", async () => {
         const mockFileName = "test-invoice.pdf";
-        const filePath = path.join(__dirname, "test-files", mockFileName);
+        const filePath = path.join(__dirname, "../test-files", mockFileName);
 
         const response = await request(app)
         .post("/api/invoices/upload")
@@ -34,7 +37,7 @@ describe("Invoice Upload Endpoint", () => {
                 filename: mockFileName
         })
 
-        const filePath = path.join(__dirname,'test-files',mockFileName)
+        const filePath = path.join(__dirname,'../test-files',mockFileName)
         const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
 
         expect(response.status).toBe(501);
@@ -47,7 +50,7 @@ describe("Invoice Upload Endpoint", () => {
 
         jest.spyOn(invoiceService,'uploadInvoice').mockRejectedValue(new Error("Error"))
         
-        const filePath = path.join(__dirname,'test-files',mockFileName)
+        const filePath = path.join(__dirname,'../test-files',mockFileName)
         const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
 
         expect(response.status).toBe(500);
@@ -66,7 +69,7 @@ describe("Invoice Upload Endpoint", () => {
         const mockFileName = "test-invoice.pdf";
         jest.spyOn(invoiceService, 'validatePDF').mockRejectedValue(new Error("Error"))
 
-        const filePath = path.join(__dirname,'test-files',mockFileName)
+        const filePath = path.join(__dirname,'../test-files',mockFileName)
         const response = await request(app).post('/api/invoices/upload').attach("file",filePath);
         
         expect(response.status).toBe(415);
@@ -75,7 +78,7 @@ describe("Invoice Upload Endpoint", () => {
 
     test("Returns 400 when PDF is corrupted", async () => {
       const mockFileName = "corrupted.pdf";
-      const filePath = path.join(__dirname, "test-files", mockFileName);
+      const filePath = path.join(__dirname, "../test-files", mockFileName);
       
       jest.spyOn(invoiceService, "isPdfEncrypted").mockResolvedValue(true);
       
@@ -90,7 +93,7 @@ describe("Invoice Upload Endpoint", () => {
 
     test("Returns 504 when upload times out", async () => {
       const mockFileName = "test-invoice.pdf";
-      const filePath = path.join(__dirname, "test-files", mockFileName);
+      const filePath = path.join(__dirname, "../test-files", mockFileName);
       
       const response = await request(app)
           .post("/api/invoices/upload")
@@ -103,7 +106,7 @@ describe("Invoice Upload Endpoint", () => {
 
     test("Returns 400 when PDF file is invalid", async () => {
       const mockFileName = "test-invoice.pdf";
-      const filePath = path.join(__dirname, "test-files", mockFileName);
+      const filePath = path.join(__dirname, "../test-files", mockFileName);
       
       jest.spyOn(invoiceService, "checkPdfIntegrity").mockResolvedValue(false);
 
@@ -118,7 +121,7 @@ describe("Invoice Upload Endpoint", () => {
 
     test("Returns 413 when file is too large", async () => {
       const mockFileName = "test-invoice.pdf";
-      const filePath = path.join(__dirname, "test-files", mockFileName);
+      const filePath = path.join(__dirname, "../test-files", mockFileName);
       
       jest.spyOn(invoiceService, "validateSizeFile").mockRejectedValue(
           new Error("File size exceeds maximum limit")

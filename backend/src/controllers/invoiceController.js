@@ -1,7 +1,6 @@
 const invoiceService = require('../services/invoiceServices');
+const authService = require('../services/authService');
 const multer = require('multer');
-
-
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -49,39 +48,52 @@ exports.uploadMiddleware = (req, res, next) => {
 */
 exports.uploadInvoice = async (req, res) => {
   try {
-      const { buffer, originalname, mimetype } = req.file;
-      
-      if (req.query.simulateTimeout === 'true') {
-          return res.status(504).json({ message: "Server timeout during upload" });
-      }
-      
-      try {
-          await invoiceService.validatePDF(buffer, mimetype, originalname);
-      } catch (error) {
-          return res.status(415).json({ message: "File format is not PDF"});
-      }
-      
-      const isEncrypted = await invoiceService.isPdfEncrypted(buffer);
-      if (isEncrypted) {
-          console.log("error di encrypted")
-          return res.status(400).json({ message: "pdf is encrypted"});
-      }
-      
-      const isValidPdf = await invoiceService.checkPdfIntegrity(buffer);
-      if (!isValidPdf) {
-          return res.status(400).json({ message: "PDF file is invalid" });
-      }
-      
-      try {
-          await invoiceService.validateSizeFile(buffer);
-      } catch (error) {
-          return res.status(413).json({ message: "File size exceeds maximum limit" });
-      }
-      
-      const result = await invoiceService.uploadInvoice(req.file);
-      return res.status(501).json(result);
+    const { client_id, client_secret } = req.body;
+    const { buffer, originalname, mimetype } = req.file;
+
+    // 1. Autentikasi
+    const isAuthorized = await authService.authenticate(client_id, client_secret);
+    if (!isAuthorized) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // 2. Simulasi timeout
+    if (req.query.simulateTimeout === 'true') {
+      return res.status(504).json({ message: "Server timeout during upload" });
+    }
+
+    // 3. Validasi bahwa file benar-benar PDF
+    try {
+      await invoiceService.validatePDF(buffer, mimetype, originalname);
+    } catch (error) {
+      return res.status(415).json({ message: "File format is not PDF" });
+    }
+
+    // 4. Cek apakah PDF terenkripsi
+    const isEncrypted = await invoiceService.isPdfEncrypted(buffer);
+    if (isEncrypted) {
+      return res.status(400).json({ message: "pdf is encrypted" });
+    }
+
+    // 5. Cek integritas PDF
+    const isValidPdf = await invoiceService.checkPdfIntegrity(buffer);
+    if (!isValidPdf) {
+      return res.status(400).json({ message: "PDF file is invalid" });
+    }
+
+    // 6. Validasi ukuran file
+    try {
+      await invoiceService.validateSizeFile(buffer);
+    } catch (error) {
+      return res.status(413).json({ message: "File size exceeds maximum limit" });
+    }
+
+    // 7. Jika semua valid, lanjutkan proses upload
+    const result = await invoiceService.uploadInvoice(req.file);
+    return res.status(501).json(result);
+
   } catch (error) {
-      console.log("DEBUG: Internal Server Error", error.stack);
-      return res.status(500).json({ message: "Internal server error" });
+    console.log("DEBUG: Internal Server Error", error.stack);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

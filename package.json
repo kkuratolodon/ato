@@ -1,8 +1,5 @@
 {
   "dependencies": {
-    "pdf-parse": "^1.1.1"
-  },
-  "devDependencies": {
-    "mock-fs": "^5.5.0"
+    "aws-sdk": "^2.1692.0"
   }
 }
