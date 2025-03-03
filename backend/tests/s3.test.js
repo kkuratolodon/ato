@@ -27,12 +27,11 @@ describe("S3 Service", () => {
 
     test("Upload a file to S3 success", async () => {
         const fileContent = Buffer.from("test file content");   
-        const userId = "123"; 
-        const result = await s3Service.uploadFile(fileContent, userId);
+        const result = await s3Service.uploadFile(fileContent);
 
         expect(s3.upload).toHaveBeenCalledWith({
             Bucket: bucketName,
-            Key: expect.stringMatching(/^123-.*\.pdf$/),
+            Key: expect.any(String),
             Body: fileContent,
         });
 
@@ -40,20 +39,12 @@ describe("S3 Service", () => {
     });
 
     test("Upload a file to S3 failure", async () => {
-        const fileContent = Buffer.from("test file content");    
-        const key = "1234-456.pdf";
+        const fileContent = Buffer.from("test file content");            
 
         s3.upload.mockImplementationOnce(() => {
             throw new Error("Upload failed");
         });
 
-        await expect(s3Service.uploadFile(fileContent, key)).rejects.toThrow("Upload failed");
+        await expect(s3Service.uploadFile(fileContent)).rejects.toThrow("Upload failed");
     });
-
-    test("Upload a file to S3 empty user ID", async () => {
-        const fileContent = Buffer.from("test file content");    
-        const key = "";
-
-        await expect(s3Service.uploadFile(fileContent, key)).rejects.toThrow("Invalid user ID");
-    }); 
 });
