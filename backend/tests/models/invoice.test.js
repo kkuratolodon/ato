@@ -52,4 +52,10 @@ describe("Invoice Model", () => {
       })
     ).rejects.toThrow();
   });
+
+
+  test('should have partner_id column', async () => {
+    const tableDefinition = await sequelize.getQueryInterface().describeTable('Invoice');
+    expect(tableDefinition).toHaveProperty('partner_id');
+  });
 });
