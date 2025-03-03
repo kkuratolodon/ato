@@ -1,18 +1,63 @@
 const { Sequelize, DataTypes } = require("sequelize");
 const InvoiceModel = require("../../src/models/invoice");
+const PartnerModel = require("../../src/models/partner");
 
-describe("Invoice Model - Extended Tests", () => {
-  let sequelize, Invoice;
+describe("Invoice Model", () => {
+  let sequelize, Invoice, Partner;
 
   beforeAll(async () => {
     // Initialize Sequelize with an in-memory SQLite database
     sequelize = new Sequelize("sqlite::memory:", { logging: false });
+  
+    // Initialize models
+    Partner = PartnerModel(sequelize, DataTypes);
     Invoice = InvoiceModel(sequelize, DataTypes);
+    
+    // Set up the associations between models
+    Invoice.associate({ Partner });
     await sequelize.sync({ force: true });
   });
+  
 
   afterAll(async () => {
     await sequelize.close();
+  });
+
+  // ===== RELATIONSHIP TEST =====
+
+  test("should associate with Partner model correctly", async () => {
+    const partner = await Partner.create({
+      uuid: "partner-uuid-123",
+      name: "Partner A",
+      email: "test2@example.com",
+      password: "password123",
+      created_at: new Date(),
+    });
+
+    // Create an Invoice with the partner_id
+    const invoiceData = {
+      invoice_date: new Date("2023-01-01"),
+      due_date: new Date("2023-01-15"),
+      purchase_order_id: 456,
+      total_amount: 1500.00,
+      subtotal_amount: 1400.00,
+      discount_amount: 100.00,
+      payment_terms: "Net 15",
+      file_url: "http://example.com/invoice.pdf",
+      status: "Paid",
+      partner_id: partner.uuid,
+    };
+    const invoice = await Invoice.create(invoiceData);
+
+    const fetchedInvoice = await Invoice.findByPk(invoice.id, {
+      include: [{
+        model: Partner,
+        as: 'partner', 
+      }],
+    });
+
+    expect(fetchedInvoice.partner.uuid).toBe(partner.uuid);
+    expect(fetchedInvoice.partner.name).toBe("Partner A");
   });
 
   // ===== POSITIVE CASES =====
@@ -28,7 +73,7 @@ describe("Invoice Model - Extended Tests", () => {
       payment_terms: "Net 15",
       file_url: "http://example.com/invoice.pdf",
       status: "Paid",
-      partner_id: "partner-uuid-456",
+      partner_id: "partner-uuid-123",
     };
     const invoice = await Invoice.create(invoiceData);
     expect(invoice.invoice_date).toEqual(invoiceData.invoice_date);
@@ -47,7 +92,7 @@ describe("Invoice Model - Extended Tests", () => {
       subtotal_amount: 1900.00,
       payment_terms: "Net 30",
       status: "Pending",
-      partner_id: "partner-uuid-789",
+      partner_id: "partner-uuid-123",
     });
     invoice.status = "Overdue";
     await invoice.save();
@@ -95,7 +140,7 @@ describe("Invoice Model - Extended Tests", () => {
       subtotal_amount: extremeAmount - 1000,
       payment_terms: "Net 60",
       status: "Paid",
-      partner_id: "partner-uuid-extreme",
+      partner_id: "partner-uuid-123",
     });
     expect(invoice.total_amount).toBeCloseTo(extremeAmount);
   });
@@ -109,7 +154,7 @@ describe("Invoice Model - Extended Tests", () => {
       subtotal_amount: 450.00,
       payment_terms: "Net 15",
       status: "Pending",
-      partner_id: "partner-uuid-321",
+      partner_id: "partner-uuid-123",
       extra_field: "this should be ignored",
     };
     const invoice = await Invoice.create(invoiceData);
@@ -125,7 +170,7 @@ describe("Invoice Model - Extended Tests", () => {
       subtotal_amount: 900.00,
       payment_terms: "Net 30",
       status: "Pending",
-      partner_id: "partner-uuid-555",
+      partner_id: "partner-uuid-123",
     })).rejects.toThrow();
   });
 });
