@@ -109,10 +109,9 @@ class InvoiceService {
 
     const startXrefSection = content.substring(startXrefPos, eofPos);
     const regex = /startxref\s*(\d+)/;
-    const matches = regex.exec(startXrefSection);
+    const matches = startXrefSection.match(regex);
 
-    
-    return !!(matches?.[1] && /\d+ \d+ obj/.exec(content));
+    return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
     
   }
 }
