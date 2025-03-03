@@ -13,9 +13,30 @@ module.exports = (sequelize, DataTypes) => {
   }
 
   Invoice.init({
-    invoice_date: { type: DataTypes.DATE, allowNull: false },
-    due_date: { type: DataTypes.DATE, allowNull: false },
-    purchase_order_id: { type: DataTypes.INTEGER, allowNull: false },
+    invoice_date: { 
+      type: DataTypes.DATE, 
+      allowNull: false 
+    },
+    due_date: { 
+      type: DataTypes.DATE, 
+      allowNull: false,
+      validate: {
+        isAfterInvoiceDate(value) {
+          if (this.invoice_date && new Date(value) < new Date(this.invoice_date)) {
+            throw new Error('due_date must not be earlier than invoice_date');
+          }
+        }
+      }
+    },
+    purchase_order_id: { 
+      type: DataTypes.INTEGER, 
+      allowNull: false,
+      validate: {
+        isInt: {
+          msg: "purchase_order_id must be an integer"
+        }
+      }
+    },
     total_amount: { 
       type: DataTypes.DECIMAL, 
       allowNull: false,
@@ -23,15 +44,31 @@ module.exports = (sequelize, DataTypes) => {
         min: 0,
       }
     },
-    subtotal_amount: { type: DataTypes.DECIMAL, allowNull: false },
-    discount_amount: { type: DataTypes.DECIMAL, allowNull: true },
-    payment_terms: { type: DataTypes.STRING, allowNull: false },
-    file_url: { type: DataTypes.STRING, allowNull: true, defaultValue: null },
+    subtotal_amount: { 
+      type: DataTypes.DECIMAL, 
+      allowNull: false 
+    },
+    discount_amount: { 
+      type: DataTypes.DECIMAL, 
+      allowNull: true 
+    },
+    payment_terms: { 
+      type: DataTypes.STRING, 
+      allowNull: false 
+    },
+    file_url: { 
+      type: DataTypes.STRING, 
+      allowNull: true, 
+      defaultValue: null 
+    },
     status: { 
       type: DataTypes.STRING, 
       allowNull: false,
       validate: {
-        isIn: [["Pending", "Paid", "Overdue"]]
+        isIn: {
+          args: [["Pending", "Paid", "Overdue"]],
+          msg: "status must be one of 'Pending', 'Paid', or 'Overdue'"
+        }
       }
     },
     partner_id: { 
