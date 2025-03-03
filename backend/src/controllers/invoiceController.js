@@ -1,5 +1,4 @@
 const invoiceService = require('../services/invoiceServices');
-const authService = require('../services/authService');
 const multer = require('multer');
 
 const upload = multer({
@@ -48,16 +47,13 @@ exports.uploadMiddleware = (req, res, next) => {
 */
 exports.uploadInvoice = async (req, res) => {
   try {
-    const { client_id, client_secret } = req.body;
-    const { buffer, originalname, mimetype } = req.file;
-
-    // 1. Autentikasi
-    const isAuthorized = await authService.authenticate(client_id, client_secret);
-    if (!isAuthorized) {
+    // 1. Pastikan user sudah di-set oleh authMiddleware
+    if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // 2. Simulasi timeout
+    const { buffer, originalname, mimetype } = req.file;
+
     if (req.query.simulateTimeout === 'true') {
       return res.status(504).json({ message: "Server timeout during upload" });
     }
