@@ -9,25 +9,30 @@ describe('authService', () => {
     jest.clearAllMocks();
   });
 
-  test('harus mengembalikan false jika clientId atau clientSecret undefined', async () => {
+  test('harus mengembalikan null jika clientId atau clientSecret undefined', async () => {
     const result1 = await authService.authenticate(undefined, 'secret');
     const result2 = await authService.authenticate('clientId', undefined);
 
-    expect(result1).toBe(false);
-    expect(result2).toBe(false);
+    expect(result1).toBeNull();
+    expect(result2).toBeNull();
   });
 
-  test('harus mengembalikan true jika hasil query mengembalikan rows > 0', async () => {
+  test('harus mengembalikan objek partner jika hasil query mengembalikan rows > 0', async () => {
     const mockConnection = {
       execute: jest.fn().mockResolvedValue([
-        [{ client_id: 'client1', client_secret: 'secret1' }] // 1 row
+        [{ uuid: 'uuid1', client_id: 'client1', client_secret: 'secret1' }] // 1 row
       ]),
       end: jest.fn()
     };
     mysql.createConnection.mockResolvedValue(mockConnection);
 
     const result = await authService.authenticate('client1', 'secret1');
-    expect(result).toBe(true);
+    // Kode authService mengembalikan rows[0] => objek partner
+    expect(result).toEqual({
+      uuid: 'uuid1',
+      client_id: 'client1',
+      client_secret: 'secret1'
+    });
     expect(mockConnection.execute).toHaveBeenCalledWith(
       expect.any(String),
       ['client1', 'secret1']
@@ -35,15 +40,15 @@ describe('authService', () => {
     expect(mockConnection.end).toHaveBeenCalled();
   });
 
-  test('harus mengembalikan false jika hasil query mengembalikan rows = 0', async () => {
+  test('harus mengembalikan null jika hasil query mengembalikan rows = 0', async () => {
     const mockConnection = {
-      execute: jest.fn().mockResolvedValue([[]]), 
+      execute: jest.fn().mockResolvedValue([[]]), // 0 row
       end: jest.fn()
     };
     mysql.createConnection.mockResolvedValue(mockConnection);
 
     const result = await authService.authenticate('client2', 'secret2');
-    expect(result).toBe(false);
+    expect(result).toBeNull();
     expect(mockConnection.execute).toHaveBeenCalledWith(
       expect.any(String),
       ['client2', 'secret2']
