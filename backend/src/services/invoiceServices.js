@@ -112,11 +112,7 @@ class InvoiceService {
     const matches = regex.exec(startXrefSection);
 
     
-    if (!matches?.[1] || !/\d+ \d+ obj/.exec(content)) {
-      return false;
-    }    
-
-    return true;
+    return !!(matches?.[1] && /\d+ \d+ obj/.exec(content));
     
   }
 }
