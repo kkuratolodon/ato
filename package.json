@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "aws-sdk": "^2.1692.0"
-  },
-  "devDependencies": {
-    "mock-fs": "^5.5.0"
-  }
-}
