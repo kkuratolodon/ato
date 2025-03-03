@@ -2,8 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const mockFs = require("mock-fs");
 const request = require("supertest");
-const app = require("../src/app");
-const invoiceService = require("../src/services/invoiceServices");
+const app = require("../../src/app");
+const invoiceService = require("../../src/services/invoiceServices");
 
 describe("Invoice Upload Endpoint", () => {
     beforeEach(() => {
