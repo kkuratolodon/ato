@@ -193,11 +193,16 @@ describe('Invoice Controller - uploadInvoice', () => {
     
     authService.authenticate.mockResolvedValue(false);
 
-    await uploadInvoice(req, res);
+    const res = await request(app)
+      .post('/api/upload')
+      .field('client_id', 'invalid_id')
+      .field('client_secret', 'invalid_secret')
+      .attach('file', path.join(__dirname, '../test-files/test-invoice.pdf'));
 
-    expect(authService.authenticate).toHaveBeenCalledWith('invalid_id', 'invalid_secret');
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ message: "Unauthorized" });
+    expect(authService.authenticate)
+      .toHaveBeenCalledWith('invalid_id', 'invalid_secret');
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ message: 'Unauthorized' });
   });
 
   test('should return status 501 and call invoiceService if authentication succeeds', async () => {
@@ -217,7 +222,7 @@ describe('Invoice Controller - uploadInvoice', () => {
     invoiceService.validateSizeFile = jest.fn().mockResolvedValue(true);
     invoiceService.uploadInvoice = jest.fn().mockResolvedValue({
       message: 'Invoice upload service called',
-      filename: 'test.pdf'
+      filename: 'test-invoice.pdf'
     });
 
     await uploadInvoice(req, res);
@@ -227,7 +232,7 @@ describe('Invoice Controller - uploadInvoice', () => {
     expect(res.status).toHaveBeenCalledWith(501);
     expect(res.json).toHaveBeenCalledWith({
       message: 'Invoice upload service called',
-      filename: 'test.pdf'
+      filename: 'test-invoice.pdf'
     });
   });
 
