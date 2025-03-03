@@ -1,9 +1,5 @@
 const invoiceService = require('../services/invoiceServices');
-const authService = require('../services/authService');
-
 const multer = require('multer');
-
-
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -28,9 +24,7 @@ exports.uploadMiddleware = upload.single('file');
  * @param {Buffer} req.file.buffer - File content in buffer format.
  * @param {string} req.file.originalname - Original filename including extension.
  * @param {string} req.file.mimetype - MIME type of the file.
- * @param {Object} req.body - Request body containing authentication credentials.
- * @param {string} req.body.client_id - Client ID for authentication.
- * @param {string} req.body.client_secret - Client secret for authentication.
+ * @param {Object} req.user - Request containing authentication credentials.
  * @param {Object} req.query - Query parameters from the request.
  * @param {string} [req.query.simulateTimeout] - Optional flag to simulate a timeout response.
  * @param {Object} res - Express response object.
@@ -43,20 +37,15 @@ exports.uploadInvoice = async (req, res) => {
 
   try {
 
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
     
     const { buffer, originalname, mimetype } = req.file;
-    const { client_id, client_secret } = req.body;
-    try {
-      const isAuthorized = await authService.authenticate(client_id, client_secret);
-      if (!isAuthorized) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-    } catch (authError) {
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
 
     if (req.query.simulateTimeout === 'true') {
       return res.status(504).json({ message: "Server timeout during upload" });
@@ -89,6 +78,5 @@ exports.uploadInvoice = async (req, res) => {
     return res.status(501).json(result);
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
-
   }
 };

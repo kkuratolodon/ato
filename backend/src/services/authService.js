@@ -10,19 +10,24 @@ const dbConfig = {
 };
 
 exports.authenticate = async (clientId, clientSecret) => {
-  if (clientId === undefined || clientSecret === undefined) {
-    return false;
+  if (!clientId || !clientSecret) {
+    return null;
   }
-  
+
   const connection = await mysql.createConnection(dbConfig);
   try {
     const query = `
-      SELECT client_id, client_secret 
+      SELECT uuid, client_id, client_secret 
       FROM partner 
       WHERE client_id = ? AND client_secret = ?
     `;
     const [rows] = await connection.execute(query, [clientId, clientSecret]);
-    return rows.length > 0;
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    return rows[0]; 
   } finally {
     await connection.end();
   }
