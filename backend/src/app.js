@@ -9,4 +9,6 @@ app.use(express.json());
 app.use('/api/hello', helloRoute);
 app.use('/api/invoices', analyzeRoute);
 
+app.disable('x-powered-by');
+
 module.exports = app;
