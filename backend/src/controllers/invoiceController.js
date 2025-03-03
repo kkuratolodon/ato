@@ -1,21 +1,14 @@
 const invoiceService = require('../services/invoiceServices');
 const authService = require('../services/authService');
+
 const multer = require('multer');
+
+
 
 const upload = multer({
   storage: multer.memoryStorage(),
 });
 
-/**
- * Middleware for handling file uploads
- * This middleware uses Multer to process a single file upload and validates 
- * that a file was actually provided in the request
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- * @returns {void} Calls next middleware or returns 400 error response if no file
- */
 exports.uploadMiddleware = (req, res, next) => {
   upload.single('file')(req, res, () => {
       if (!req.file) {
@@ -54,8 +47,8 @@ exports.uploadMiddleware = (req, res, next) => {
  * @throws {Error} Returns specific error messages for each validation failure.
  * Logs internal server errors to the console but provides a generic response to the client.
  */
-
 exports.uploadInvoice = async (req, res) => {
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -92,16 +85,18 @@ exports.uploadInvoice = async (req, res) => {
     if (!isValidPdf) {
       return res.status(400).json({ message: "PDF file is invalid" });
     }
-    
+
     try {
       await invoiceService.validateSizeFile(buffer);
     } catch (error) {
       return res.status(413).json({ message: "File size exceeds maximum limit" });
     }
-    
+
+
     const result = await invoiceService.uploadInvoice(req.file);
     return res.status(501).json(result);
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
+
   }
 };
