@@ -84,7 +84,6 @@ exports.uploadInvoice = async (req, res) => {
 exports.getInvoiceById = async(req,res) => {
   try{
     const {id} = req.params;
-    console.log("cntrl id",id);
 
     const invoice = await invoiceService.getInvoiceById(id);
     return res.status(200).json(invoice);

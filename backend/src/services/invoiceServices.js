@@ -12,14 +12,11 @@ class InvoiceService {
       };
     }
     async getInvoiceById(id){
-      console.log("service id",id)
       const invoice = await Invoice.findByPk(id);
-      console.log("setelah service id",id)
       if(!invoice){
         throw new Error("Invoice not found");
       }
-      return invoice;
-
+     return invoice;
       
     }
     /**
