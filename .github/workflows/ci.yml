@@ -25,6 +25,12 @@ jobs:
         working-directory: backend
         run: npm install
 
+      - name: Set up environment variables
+        run: |
+          echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> $GITHUB_ENV
+          echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> $GITHUB_ENV
+          echo "AZURE_MODEL_ID=${{ secrets.AZURE_MODEL_ID }}" >> $GITHUB_ENV
+
       - name: Build Application
         working-directory: backend
         run: npm run build
@@ -55,6 +61,12 @@ jobs:
       - name: Install Dependencies
         working-directory: backend
         run: npm install
+
+      - name: Set up environment variables
+        run: |
+          echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> $GITHUB_ENV
+          echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> $GITHUB_ENV
+          echo "AZURE_MODEL_ID=${{ secrets.AZURE_MODEL_ID }}" >> $GITHUB_ENV
 
       - name: Run Linter
         working-directory: backend
