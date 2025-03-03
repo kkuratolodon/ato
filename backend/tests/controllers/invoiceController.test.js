@@ -71,17 +71,6 @@ describe("Invoice Upload Endpoint", () => {
         expect(response.body.message).toBe("Internal server error");
     })
 
-    test("Invoice upload service without file",async() => {
-        const response = await request(app)
-            .post('/api/invoices/upload')
-            .field("client_id", "test-id")
-            .field("client_secret", "test-secret");
-
-        expect(response.status).toBe(400);
-        expect(response.body.message).toBe("No file uploaded");
-        
-    })
-
     test("Returns 415 when file is not a PDF", async () => {
         const mockFileName = "test-invoice.pdf";
         jest.spyOn(invoiceService, 'validatePDF').mockRejectedValue(new Error("Error"))

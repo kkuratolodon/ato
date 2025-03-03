@@ -9,15 +9,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
 });
 
-exports.uploadMiddleware = (req, res, next) => {
-  upload.single('file')(req, res, () => {
-      if (!req.file) {
-          return res.status(400).json({ message: "No file uploaded" });
-      }
-      
-      next();
-  });
-};
+exports.uploadMiddleware = upload.single('file');
 
 /**
  * Handles the upload and validation of invoice PDF files.
@@ -50,13 +42,13 @@ exports.uploadMiddleware = (req, res, next) => {
 exports.uploadInvoice = async (req, res) => {
 
   try {
+
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
-
+    
     const { buffer, originalname, mimetype } = req.file;
     const { client_id, client_secret } = req.body;
-
     try {
       const isAuthorized = await authService.authenticate(client_id, client_secret);
       if (!isAuthorized) {
