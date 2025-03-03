@@ -1,8 +1,7 @@
 const path = require("path");
 
 class InvoiceService {
-    constructor() {}
-  
+
     async uploadInvoice(file) {
       if (!file) {
         throw new Error("File not found");
@@ -113,9 +112,7 @@ class InvoiceService {
     
     if (!matches?.[1]) {
       return false;
-    }
-
-    if (!content.match(/\d+ \d+ obj/)) {
+    } else if (!content.match(/\d+ \d+ obj/)) {
       return false;
     }
 
