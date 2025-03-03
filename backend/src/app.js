@@ -5,6 +5,6 @@ app.disable("x-powered-by");
 
 app.use(express.json());
 
-app.use('/api/invoices',invoiceRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 module.exports = app;
