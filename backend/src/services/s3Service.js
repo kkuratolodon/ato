@@ -1,4 +1,5 @@
 const AWS = require("aws-sdk");
+const { v4: uuidv4 } = require('uuid');
 const bucketName = process.env.AWS_BUCKET_NAME;
 
 const s3 = new AWS.S3({
@@ -20,11 +21,7 @@ const generateFileKey = (userId) => {
  * @returns {Promise} - Resolves to the uploaded file URL
  */
 const uploadFile = async (fileBuffer, userId) => {
-    if (!userId) {
-        throw new Error("Invalid user ID");
-    }
-
-    const fileName = generateFileKey(userId);
+    const fileName = `${uuidv4()}.pdf`;
     const params = {
         Bucket: bucketName,
         Key: fileName,
