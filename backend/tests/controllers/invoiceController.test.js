@@ -2,6 +2,8 @@ const request = require("supertest");
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
+const app = require('../../src/app');
+
 
 // Controller & Services
 const invoiceController = require("../../src/controllers/invoiceController");
@@ -364,5 +366,51 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ message: "Internal server error" });
+  });
+});
+
+describe("getInvoiceById", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("Should return an invoice when given a valid ID", async () => {
+    const mockInvoice = {
+      id: 1,
+      invoice_date: "2025-02-01",
+      due_date: "2025-03-01",
+      purchase_order_id: 1,
+      total_amount: 500.0,
+      subtotal_amount: 450.0,
+      discount_amount: 50.0,
+      payment_terms: "Net 30",
+      file_url: "https://example.com/invoice.pdf",
+      status: "Paid",
+    };
+
+    invoiceService.getInvoiceById.mockResolvedValue(mockInvoice);
+
+    const response = await request(app).get(`/api/invoices/${mockInvoice.id}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(mockInvoice);
+  });
+
+  test("Should return 404 when invoice is not found", async () => {
+    invoiceService.getInvoiceById.mockRejectedValue(new Error("Invoice not found"));
+
+    const response = await request(app).get(`/api/invoices/99999999`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Invoice not found");
+  });
+
+  test("Should return 500 when internal server error occurs", async () => {
+    invoiceService.getInvoiceById.mockRejectedValue(new Error("Internal server error"));
+
+    const response = await request(app).get(`/api/invoices/1`);
+
+    expect(response.status).toBe(500);
+    expect(response.body.message).toBe("Internal server error");
   });
 });

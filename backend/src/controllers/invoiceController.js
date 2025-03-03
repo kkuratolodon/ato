@@ -80,3 +80,18 @@ exports.uploadInvoice = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+exports.getInvoiceById = async(req,res) => {
+  try{
+    const {id} = req.params;
+    console.log("cntrl id",id);
+
+    const invoice = await invoiceService.getInvoiceById(id);
+    return res.status(200).json(invoice);
+  }catch(error){
+    if(error.message === "Invoice not found"){
+      return res.status(404).json({message: "Invoice not found"});
+    }
+    return res.status(500).json({message: "Internal server error"});
+  }
+}

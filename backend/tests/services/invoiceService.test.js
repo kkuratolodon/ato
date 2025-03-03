@@ -1,4 +1,6 @@
+
 const invoiceService = require('../../src/services/invoiceServices');
+const {Invoice} = require('../../src/models');    
 const fs = require("fs");
 const path = require("path");
 const mockFs = require("mock-fs");
@@ -256,51 +258,53 @@ describe("PDF Integrity Check", () => {
             "trailer\n<</Size 4/Root 1 0 R>>\n" +
             "startxref\n123\n" +
             "%%EOF"
-        );
-        const result = await invoiceService.checkPdfIntegrity(noObjectsPdfBuffer);
-        expect(result).toBe(false);
+          );
+          const result = await invoiceService.checkPdfIntegrity(noObjectsPdfBuffer);
+          expect(result).toBe(false);
+        });
+      });
+      
+jest.mock('../../src/models', () => ({
+    Invoice: {
+        findByPk: jest.fn()
+    }
+}));
+    
+describe("getInvoiceById", () => {
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    test("Should return an invoice when given a valid ID", async () => {
+        const mockInvoice = {
+            id: 1,
+            invoice_date: "2025-02-01",
+            due_date: "2025-03-01",
+            purchase_order_id: 1,
+            total_amount: 500.00,
+            subtotal_amount: 450.00,
+            discount_amount: 50.00,
+            payment_terms: "Net 30",
+            file_url: 'https://example.com/invoice.pdf',
+            status: "Paid",
+        };
+
+        Invoice.findByPk.mockResolvedValue(mockInvoice);
+
+        const invoice = await invoiceService.getInvoiceById(1);
+
+        expect(invoice).toEqual(mockInvoice);
+    });
+
+    test("Should throw an error when invoice is not found", async () => {
+        Invoice.findByPk.mockResolvedValue(null);
+
+        await expect(invoiceService.getInvoiceById(99999999)).rejects.toThrow("Invoice not found");
+    });
+
+    test("Should throw an error when database fails", async () => {
+        Invoice.findByPk.mockRejectedValue(new Error("Database error"));
+
+        await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
     });
 });
-
-describe('getInvoiceById',() =>{
-  afterEach(() => {
-    jest.restoreAllMocks();
-  })
-  test('Should return an invoice when given a valid ID', async() => {
-    const mockInvoice = {
-      id: 1,
-      invoice_date: "2025-02-01",
-      due_date: "2025-03-01",
-      purchase_order_id: 1,
-      total_amount: 500.00,
-      subtotal_amount: 450.00,
-      discount_amount: 50.00,
-      payment_terms: "Net 30",
-      file_url: 'https://example.com/invoice.pdf',
-      status: "approved",
-    };
-    jest.spyOn(invoice,'findByPk').mockResolvedValue(mockInvoice);
-
-    const invoice = await request(app).get(`/api/invoices/${mockInvoice.id}`);
-    
-    expect(invoice.status).toBe(200);
-    expect(invoice.body).toBe(mockInvoice);
-  })
-  test("Should return 404 when invoice is not found", async() => {
-    jest.spyOn(invoice,'findByPk').mockResolvedValue(null);
-
-    const invoice = await request(app).get(`/api/invoices/99999999`);
-
-    expect(invoice.status).toBe(404);
-    expect(invoice.body.message).toBe("Invoice not found");
-  })
-  test("should return 500 when internal server error", async() => {
-    jest.spyOn(invoice,'findByPk').mockRejectedValue(new Error("Internal server error"));
-
-    const invoice = await request(app).get(`/api/invoices/1`);
-    
-    expect(invoice.status).toBe(500);
-    expect(invoice.body.message).toBe("Internal server error")
-  })
-  
-})
