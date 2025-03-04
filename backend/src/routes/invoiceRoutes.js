@@ -10,4 +10,5 @@ router.post(
     InvoiceController.uploadInvoice
   );
   
-  module.exports = router;
+router.get('/:id',InvoiceController.getInvoiceById);
+module.exports = router;

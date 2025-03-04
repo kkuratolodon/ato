@@ -1,7 +1,7 @@
 const path = require("path");
-
+const { Invoice } = require("../models");
 class InvoiceService {
-
+    
     async uploadInvoice(file) {
       if (!file) {
         throw new Error("File not found");
@@ -11,7 +11,14 @@ class InvoiceService {
         filename: file.originalname,
       };
     }
-    
+    async getInvoiceById(id){
+      const invoice = await Invoice.findByPk(id);
+      if(!invoice){
+        throw new Error("Invoice not found");
+      }
+     return invoice;
+      
+    }
     /**
      * Validates if a file is a valid PDF
      * This function checks three criteria to determine if a file is a valid PDF:
