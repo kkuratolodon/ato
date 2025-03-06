@@ -1,8 +1,7 @@
 const path = require("path");
-
+const { Invoice } = require("../models");
 class InvoiceService {
-    constructor() {}
-  
+    
     async uploadInvoice(file) {
       if (!file) {
         throw new Error("File not found");
@@ -12,7 +11,14 @@ class InvoiceService {
         filename: file.originalname,
       };
     }
-    
+    async getInvoiceById(id){
+      const invoice = await Invoice.findByPk(id);
+      if(!invoice){
+        throw new Error("Invoice not found");
+      }
+     return invoice;
+      
+    }
     /**
      * Validates if a file is a valid PDF
      * This function checks three criteria to determine if a file is a valid PDF:
@@ -38,7 +44,7 @@ class InvoiceService {
         }
 
         const pdfSignature = "%PDF-";
-        const fileHeader = fileBuffer.slice(0, 5).toString();
+        const fileHeader = fileBuffer.subarray(0, 5).toString();
         if (fileHeader !== pdfSignature) {
             throw new Error("Invalid PDF file");
         }
@@ -75,7 +81,7 @@ class InvoiceService {
     const bufferSize = pdfBuffer.length;
     const searchSize = Math.min(bufferSize, 8192); 
     
-    const pdfTrailer = pdfBuffer.slice(bufferSize - searchSize).toString('utf-8');
+    const pdfTrailer = pdfBuffer.subarray(bufferSize - searchSize).toString('utf-8');
     return pdfTrailer.includes('/Encrypt');
   }
 
@@ -109,17 +115,10 @@ class InvoiceService {
     const eofPos = content.lastIndexOf('%%EOF');
 
     const startXrefSection = content.substring(startXrefPos, eofPos);
-    const matches = startXrefSection.match(/startxref\s*(\d+)/);
-    
-    if (!matches?.[1]) {
-      return false;
-    }
+    const regex = /startxref\s*(\d+)/;
+    const matches = regex.exec(startXrefSection);;
 
-    if (!content.match(/\d+ \d+ obj/)) {
-      return false;
-    }
-
-    return true;
+    return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
     
   }
 }
