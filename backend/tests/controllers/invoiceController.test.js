@@ -413,4 +413,52 @@ describe("getInvoiceById", () => {
     expect(response.status).toBe(500);
     expect(response.body.message).toBe("Internal server error");
   });
+
+  /* ------------------------------------------------------------------
+     3) INVOICE CONTROLLER - analyzeInvoice (UNIT TEST)
+     ------------------------------------------------------------------ */
+  describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
+    let req, res;
+
+    beforeEach(() => {
+      req = mockRequest();
+      res = mockResponse();
+      jest.clearAllMocks();
+    });
+
+    test("should return 400 for missing documentUrl", async () => {
+      req.body = {};
+      await invoiceController.analyzeInvoice(req, res);
+      expect(res.status).toBeCalledWith(400);
+      expect(res.json).toBeCalledWith({ message: "documentUrl is required" });
+    });
+
+    test("should return 500 for internal server error", async () => {
+      invoiceService.analyzeInvoice.mockImplementation(() => {
+        throw new Error("Unexpected error occurred");
+      });
+
+      req.body = { documentUrl: "https://example.com/invoice.pdf" };
+      await invoiceController.analyzeInvoice(req, res);
+
+      expect(res.status).toBeCalledWith(500);
+      expect(res.json).toBeCalledWith({ message: "Internal Server Error" });
+    });
+
+    test("should return 200 and analysis result for valid documentUrl", async () => {
+      invoiceService.analyzeInvoice.mockResolvedValue({
+        message: "PDF processed successfully",
+        data: { text: "Sample analysis result" },
+      });
+
+      req.body = { documentUrl: "https://slicedinvoices.com/pdf/wordpress-pdf-invoice-plugin-sample.pdf" };
+      await invoiceController.analyzeInvoice(req, res);
+
+      expect(res.status).toBeCalledWith(200);
+      expect(res.json).toBeCalledWith({
+        message: "PDF processed successfully",
+        data: { text: "Sample analysis result" },
+      });
+    });
+  });
 });
