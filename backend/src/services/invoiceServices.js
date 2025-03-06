@@ -1,56 +1,81 @@
 const path = require("path");
 const { Invoice } = require("../models");
+const s3Service = require("./s3Service")
+
 class InvoiceService {
     
-    async uploadInvoice(file) {
-      if (!file) {
-        throw new Error("File not found");
+  /**
+   * Uploads an invoice file to S3 and creates a new invoice record in the database.
+   *
+   * @param {Object} file - The file object containing the invoice to be uploaded.
+   * @param {string} partner_id - The ID of the partner associated with the invoice.
+   * @returns {Promise<Object>} The newly created invoice record.
+   * @throws {Error} If there is an error during the S3 upload or database operation.
+   */
+  async uploadInvoice(file, partner_id) {
+    try {
+      const fileBuffer = file.buffer;
+      const s3Url = await s3Service.uploadFile(fileBuffer);
+      if (!s3Url) {
+        throw new Error("Failed to upload file to S3");
       }
-      return {
-        message: "Invoice upload service called",
-        filename: file.originalname,
+
+      const invoiceData = {
+        partner_id: partner_id,
+        file_url: s3Url,
+        status: "pending",
       };
-    }
-    async getInvoiceById(id){
-      const invoice = await Invoice.findByPk(id);
-      if(!invoice){
-        throw new Error("Invoice not found");
-      }
-     return invoice;
+  
+      const newInvoice = await Invoice.create(invoiceData);
+      return newInvoice;
       
+    } catch (error) {
+      console.error("Error uploading invoice:", error);
+      throw error;
     }
-    /**
-     * Validates if a file is a valid PDF
-     * This function checks three criteria to determine if a file is a valid PDF:
-     * 1. The MIME type must be "application/pdf"
-     * 2. The file extension must be ".pdf"
-     * 3. The file content must begin with the PDF signature "%PDF-"
-     * 
-     * @param {Buffer} fileBuffer - The file content as a buffer
-     * @param {string} mimeType - The MIME type of the file
-     * @param {string} fileName - The original filename with extension
-     * @returns {Promise<boolean>} Returns true if validation passes, throws an error otherwise
-     * @throws {Error} Throws an error with a specific message if validation fails
-     */
-    async validatePDF(fileBuffer, mimeType, fileName) {
-        if (mimeType !== "application/pdf") {
-            throw new Error("Invalid MIME type");
-        }
+  }
 
-        const validExtensions = [".pdf"];
-        const fileExtension = path.extname(fileName).toLowerCase();
-        if (!validExtensions.includes(fileExtension)) {
-            throw new Error("Invalid file extension");
-        }
-
-        const pdfSignature = "%PDF-";
-        const fileHeader = fileBuffer.subarray(0, 5).toString();
-        if (fileHeader !== pdfSignature) {
-            throw new Error("Invalid PDF file");
-        }
-
-        return true;
+  async getInvoiceById(id){
+    const invoice = await Invoice.findByPk(id);
+    if(!invoice){
+      throw new Error("Invoice not found");
     }
+    return invoice;
+    
+  }
+
+  /**
+   * Validates if a file is a valid PDF
+   * This function checks three criteria to determine if a file is a valid PDF:
+   * 1. The MIME type must be "application/pdf"
+   * 2. The file extension must be ".pdf"
+   * 3. The file content must begin with the PDF signature "%PDF-"
+   * 
+   * @param {Buffer} fileBuffer - The file content as a buffer
+   * @param {string} mimeType - The MIME type of the file
+   * @param {string} fileName - The original filename with extension
+   * @returns {Promise<boolean>} Returns true if validation passes, throws an error otherwise
+   * @throws {Error} Throws an error with a specific message if validation fails
+   */
+  async validatePDF(fileBuffer, mimeType, fileName) {
+      if (mimeType !== "application/pdf") {
+          throw new Error("Invalid MIME type");
+      }
+
+      const validExtensions = [".pdf"];
+      const fileExtension = path.extname(fileName).toLowerCase();
+      if (!validExtensions.includes(fileExtension)) {
+          throw new Error("Invalid file extension");
+      }
+
+      const pdfSignature = "%PDF-";
+      const fileHeader = fileBuffer.subarray(0, 5).toString();
+      if (fileHeader !== pdfSignature) {
+          throw new Error("Invalid PDF file");
+      }
+
+      return true;
+  }
 
   /**
    * Validates the size of a file
