@@ -1,5 +1,13 @@
 const path = require("path");
 const { Invoice } = require("../models");
+const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
+const dotenv = require("dotenv");
+dotenv.config();
+
+const endpoint = process.env.AZURE_ENDPOINT;
+const key = process.env.AZURE_KEY;
+const modelId = process.env.AZURE_INVOICE_MODEL;
+
 class InvoiceService {
     
     async uploadInvoice(file) {
@@ -11,14 +19,15 @@ class InvoiceService {
         filename: file.originalname,
       };
     }
+
     async getInvoiceById(id){
       const invoice = await Invoice.findByPk(id);
       if(!invoice){
         throw new Error("Invoice not found");
       }
      return invoice;
-      
     }
+
     /**
      * Validates if a file is a valid PDF
      * This function checks three criteria to determine if a file is a valid PDF:
@@ -52,75 +61,102 @@ class InvoiceService {
         return true;
     }
 
-  /**
-   * Validates the size of a file
-   * @param {Buffer} fileBuffer - The file buffer to validate
-   * @returns {Promise<boolean>} - Returns true if validation passes
-   * @throws {Error} - Throws an error if validation fails
-   */
-  async validateSizeFile(fileBuffer) {
-    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    /**
+     * Validates the size of a file
+     * @param {Buffer} fileBuffer - The file buffer to validate
+     * @returns {Promise<boolean>} - Returns true if validation passes
+     * @throws {Error} - Throws an error if validation fails
+     */
+    async validateSizeFile(fileBuffer) {
+        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+        
+        if (fileBuffer.length > MAX_FILE_SIZE) {
+          throw new Error(`File exceeds maximum allowed size of 20MB`);
+        }
     
-    if (fileBuffer.length > MAX_FILE_SIZE) {
-      throw new Error(`File exceeds maximum allowed size of 20MB`);
+        return true;
     }
 
-    return true;
-  }
-
-  /**
-   * Checks if a PDF file is encrypted.
-   * 
-   * This function analyzes a PDF buffer to determine if it's encrypted
-   * by searching for the '/Encrypt' entry in the PDF trailer section.
-   * 
-   * @param {Buffer} pdfBuffer - Buffer containing the PDF file data to check
-   * @returns {boolean} - Returns true if the PDF is encrypted, false otherwise
-   */
-  async isPdfEncrypted(pdfBuffer) {
-    const bufferSize = pdfBuffer.length;
-    const searchSize = Math.min(bufferSize, 8192); 
-    
-    const pdfTrailer = pdfBuffer.subarray(bufferSize - searchSize).toString('utf-8');
-    return pdfTrailer.includes('/Encrypt');
-  }
-
-  /**
-   * Checks the integrity of a PDF file.
-   * 
-   * This function validates that a PDF file has the proper structure
-   * by checking for required PDF components including trailer, xref table,
-   * startxref position, and proper EOF marker placement.
-   * 
-   * @param {Buffer} buffer - Buffer containing the PDF file data to check
-   * @returns {Promise<boolean>} - Returns true if the PDF has proper structure, false otherwise
-   */
-  async checkPdfIntegrity(buffer) {
-    if (!buffer || buffer.length === 0) {
-      return false;
+    /**
+     * Checks if a PDF file is encrypted.
+     * 
+     * This function analyzes a PDF buffer to determine if it's encrypted
+     * by searching for the '/Encrypt' entry in the PDF trailer section.
+     * 
+     * @param {Buffer} pdfBuffer - Buffer containing the PDF file data to check
+     * @returns {boolean} - Returns true if the PDF is encrypted, false otherwise
+     */
+    async isPdfEncrypted(pdfBuffer) {
+        const bufferSize = pdfBuffer.length;
+        const searchSize = Math.min(bufferSize, 8192); 
+        
+        const pdfTrailer = pdfBuffer.subarray(bufferSize - searchSize).toString('utf-8');
+        return pdfTrailer.includes('/Encrypt');
     }
 
-    const content = buffer.toString('utf-8');
+    /**
+     * Checks the integrity of a PDF file.
+     * 
+     * This function validates that a PDF file has the proper structure
+     * by checking for required PDF components including trailer, xref table,
+     * startxref position, and proper EOF marker placement.
+     * 
+     * @param {Buffer} buffer - Buffer containing the PDF file data to check
+     * @returns {Promise<boolean>} - Returns true if the PDF has proper structure, false otherwise
+     */
+    async checkPdfIntegrity(buffer) {
+        if (!buffer || buffer.length === 0) {
+          return false;
+        }
     
-    const hasTrailer = content.includes('trailer');
-    const hasEOF = content.includes('%%EOF');
-    const hasXref = content.includes('xref');
-    const hasStartXref = content.includes('startxref');
+        const content = buffer.toString('utf-8');
+        
+        const hasTrailer = content.includes('trailer');
+        const hasEOF = content.includes('%%EOF');
+        const hasXref = content.includes('xref');
+        const hasStartXref = content.includes('startxref');
+        
+        if (!hasTrailer || !hasEOF || !hasXref || !hasStartXref) {
+          return false;
+        }
     
-    if (!hasTrailer || !hasEOF || !hasXref || !hasStartXref) {
-      return false;
+        const startXrefPos = content.lastIndexOf('startxref');
+        const eofPos = content.lastIndexOf('%%EOF');
+    
+        const startXrefSection = content.substring(startXrefPos, eofPos);
+        const regex = /startxref\s*(\d+)/;
+        const matches = regex.exec(startXrefSection);;
+    
+        return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
     }
 
-    const startXrefPos = content.lastIndexOf('startxref');
-    const eofPos = content.lastIndexOf('%%EOF');
+    async analyzeInvoice(documentUrl) {
+      if (!documentUrl) {
+        throw new Error("documentUrl is required");
+      }
 
-    const startXrefSection = content.substring(startXrefPos, eofPos);
-    const regex = /startxref\s*(\d+)/;
-    const matches = regex.exec(startXrefSection);;
+      try {
+        console.log("PDF uploaded successfully, processing PDF...");
 
-    return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
-    
-  }
+        const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+        const poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+        const result = await poller.pollUntilDone();
+
+        console.log("Analysis results:", JSON.stringify(result, null, 2));
+        return { message: "PDF processed successfully", data: result };
+      } catch (error) {
+        if (error.statusCode === 503) {
+          console.error("Service Unavailable:", error);
+          throw new Error("Service is temporarily unavailable. Please try again later.");
+        } else if (error.statusCode === 409) {
+          console.error("Conflict Error:", error);
+          throw new Error("Conflict error occurred. Please check the document and try again.");
+        } else {
+          console.error(error);
+          throw new Error("Failed to process the document");
+        }
+      }
+    }
 }
-   
+
 module.exports = new InvoiceService();

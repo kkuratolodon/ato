@@ -97,3 +97,22 @@ exports.getInvoiceById = async(req,res) => {
     return res.status(500).json({message: "Internal server error"});
   }
 }
+
+exports.analyzeInvoice = async (req, res) => {
+    const { documentUrl } = req.body;
+
+    if (!documentUrl) {
+        return res.status(400).json({ message: "documentUrl is required" });
+    }
+
+    try {
+        const result = await invoiceService.analyzeInvoice(documentUrl);
+        res.status(200).json(result);
+    } catch (error) {
+        if (error.message === "Failed to process the document") {
+            res.status(400).json({ message: error.message });
+        } else {
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    }
+};
