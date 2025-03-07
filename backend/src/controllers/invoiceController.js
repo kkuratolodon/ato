@@ -76,7 +76,6 @@ exports.uploadInvoice = async (req, res) => {
       return res.status(413).json({ message: "File size exceeds maximum limit" });
     }
 
-
     const result = await invoiceService.uploadInvoice(req.file, req.user.uuid);
     return res.status(501).json(result);
   } catch (error) {
