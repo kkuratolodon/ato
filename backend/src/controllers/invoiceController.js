@@ -1,4 +1,3 @@
-const { Invoice } = require('../models');
 const invoiceService = require('../services/invoiceServices');
 const multer = require('multer');
 

@@ -1,5 +1,3 @@
-const { Invoice } = require('../models');
-
 class AzureInvoiceMapper {
   /**
    * Maps Azure OCR result to Invoice model format

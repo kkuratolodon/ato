@@ -1,6 +1,5 @@
 const { AzureInvoiceMapper } = require('../../src/services/azure-invoice-mapper');
 const { mockAzureOcrResult } = require('../mocks/azure-ocr-result');
-const { Invoice } = require('../../src/models');
 
 // Mock model untuk test
 jest.mock('../../src/models', () => ({
