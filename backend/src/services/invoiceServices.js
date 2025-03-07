@@ -1,6 +1,7 @@
 const path = require("path");
 const { Invoice } = require("../models");
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
+const { AzureInvoiceMapper } = require("./azure-invoice-mapper");
 const dotenv = require("dotenv");
 dotenv.config();
 
@@ -9,6 +10,9 @@ const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
 
 class InvoiceService {
+    constructor() {
+        this.azureMapper = new AzureInvoiceMapper();
+    }
     
     async uploadInvoice(file) {
       if (!file) {
@@ -130,21 +134,37 @@ class InvoiceService {
         return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
     }
 
+    /**
+     * Analyzes an invoice from a document URL using Azure Form Recognizer
+     * and maps the results to our Invoice model
+     */
     async analyzeInvoice(documentUrl) {
       if (!documentUrl) {
         throw new Error("documentUrl is required");
       }
 
       try {
-        console.log("PDF uploaded successfully, processing PDF...");
+        console.log("Processing PDF...");
 
         const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
         const poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-        const result = await poller.pollUntilDone();
+        const azureResult = await poller.pollUntilDone();
 
-        console.log("Analysis results:", JSON.stringify(result, null, 2));
-        return { message: "PDF processed successfully", data: result };
+        console.log("Analysis completed, mapping to Invoice model...");
+        
+        // Map Azure OCR result to our Invoice model format
+        const invoiceData = this.azureMapper.mapToInvoiceModel(azureResult);
+
+        return { 
+          message: "PDF processed and mapped successfully", 
+          rawData: azureResult,
+          invoiceData: invoiceData
+        };
       } catch (error) {
+        if (error.message === 'Invalid date format') {
+          throw new Error("Invoice contains invalid date format");
+        }
+        
         if (error.statusCode === 503) {
           console.error("Service Unavailable:", error);
           throw new Error("Service is temporarily unavailable. Please try again later.");

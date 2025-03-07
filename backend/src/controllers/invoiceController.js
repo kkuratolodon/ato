@@ -98,20 +98,56 @@ exports.getInvoiceById = async(req,res) => {
   }
 }
 
+/**
+ * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database
+ */
 exports.analyzeInvoice = async (req, res) => {
-    const { documentUrl } = req.body;
+    const { documentUrl, saveToDatabase } = req.body;
 
     if (!documentUrl) {
         return res.status(400).json({ message: "documentUrl is required" });
     }
 
     try {
+        // Analyze the document
         const result = await invoiceService.analyzeInvoice(documentUrl);
-        res.status(200).json(result);
+        
+        // If saveToDatabase flag is true, save the invoice to database
+        if (saveToDatabase === true) {
+            try {
+                const invoice = await Invoice.create(result.invoiceData);
+                
+                return res.status(200).json({
+                    message: "Invoice analyzed and saved to database",
+                    rawData: result.rawData,
+                    invoiceData: result.invoiceData,
+                    savedInvoice: invoice
+                });
+            } catch (dbError) {
+                console.error("Failed to save invoice to database:", dbError);
+                return res.status(400).json({
+                    message: "Invoice analyzed but failed to save to database",
+                    error: dbError.message,
+                    rawData: result.rawData,
+                    invoiceData: result.invoiceData
+                });
+            }
+        }
+        
+        // Return analyzed data without saving to database
+        res.status(200).json({
+            message: result.message,
+            rawData: result.rawData,
+            invoiceData: result.invoiceData
+        });
     } catch (error) {
-        if (error.message === "Failed to process the document") {
+        if (error.message.includes("Invalid date format") || 
+            error.message === "Invoice contains invalid date format") {
+            res.status(400).json({ message: error.message });
+        } else if (error.message === "Failed to process the document") {
             res.status(400).json({ message: error.message });
         } else {
+            console.error("Error analyzing invoice:", error);
             res.status(500).json({ message: "Internal Server Error" });
         }
     }
