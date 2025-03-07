@@ -380,7 +380,7 @@ describe("getInvoiceById", () => {
       discount_amount: 50.0,
       payment_terms: "Net 30",
       file_url: "https://example.com/invoice.pdf",
-      status: "Paid",
+      status: "Analyzed",
     };
 
     invoiceService.getInvoiceById.mockResolvedValue(mockInvoice);

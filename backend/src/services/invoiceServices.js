@@ -1,5 +1,6 @@
 const path = require("path");
 const { Invoice } = require("../models");
+const s3Service = require("./s3Service")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./azure-invoice-mapper");
 const dotenv = require("dotenv");
@@ -9,11 +10,28 @@ const endpoint = process.env.AZURE_ENDPOINT;
 const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
 
+
 class InvoiceService {
   constructor() {
     this.azureMapper = new AzureInvoiceMapper();
   }
-  
+  /**
+   * Uploads and processes an invoice file
+   * 
+   * This method handles the complete invoice processing workflow:
+   * 1. Validates the file data and partner ID
+   * 2. Uploads the file to S3 storage
+   * 3. Analyzes the invoice using Azure's document intelligence
+   * 4. Maps the analysis results to our invoice data model
+   * 5. Saves the invoice data to the database
+   *
+   * @param {Object} fileData - Object containing invoice file data
+   * @param {Buffer} fileData.buffer - The raw file content
+   * @param {string} fileData.originalname - The original filename
+   * @param {string} fileData.partnerId - The partner/customer ID associated with this invoice
+   * @returns {Promise<Object>} Object containing success message, invoice ID and basic invoice details
+   * @throws {Error} If file validation fails, S3 upload fails, analysis fails, or database operations fail
+   */
   async uploadInvoice(fileData) {
     try {
       // Check if file data exists
@@ -27,7 +45,23 @@ class InvoiceService {
       if (!partnerId) {
         throw new Error("Partner ID is required");
       }
-  
+
+      const s3Url = await s3Service.uploadFile(buffer);
+      if (!s3Url) {
+        throw new Error("Failed to upload file to S3");
+      }
+
+      
+      // Initialize invoice data with processing status and partner ID
+      const invoiceData = {
+        status: "Processing",
+        partner_id: partnerId,
+        file_url: s3Url
+      };
+
+      const invoice = await Invoice.create(invoiceData);
+
+
       // 1. Gunakan method analyzeInvoice yang sudah ada untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
       
@@ -36,14 +70,16 @@ class InvoiceService {
       }
       
       // 2. Map hasil Azure ke model invoice kita
-      const invoiceData = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+      const invoiceData2 = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
       
       // 3. Tambahkan informasi tambahan
-      invoiceData.original_filename = originalname;
-      invoiceData.file_size = buffer.length;
-      invoiceData.status = "Analyzed"
+      invoiceData2.original_filename = originalname;
+      invoiceData2.file_size = buffer.length;
+      invoiceData2.status = "Analyzed"
       // 4. Simpan invoice ke database
-      const invoice = await Invoice.create(invoiceData);
+      await Invoice.update(invoiceData2, {
+        where: { id: invoice.id }
+      });
       // 5. Kembalikan hasil mapping
       return {
         message: "Invoice successfully processed and saved",
@@ -72,29 +108,29 @@ class InvoiceService {
     return invoice;
   }
 
-    /**
-     * Validates if a file is a valid PDF
-     * This function checks three criteria to determine if a file is a valid PDF:
-     * 1. The MIME type must be "application/pdf"
-     * 2. The file extension must be ".pdf"
-     * 3. The file content must begin with the PDF signature "%PDF-"
-     * 
-     * @param {Buffer} fileBuffer - The file content as a buffer
-     * @param {string} mimeType - The MIME type of the file
-     * @param {string} fileName - The original filename with extension
-     * @returns {Promise<boolean>} Returns true if validation passes, throws an error otherwise
-     * @throws {Error} Throws an error with a specific message if validation fails
-     */
-    async validatePDF(fileBuffer, mimeType, fileName) {
-        if (mimeType !== "application/pdf") {
-            throw new Error("Invalid MIME type");
-        }
+  /**
+   * Validates if a file is a valid PDF
+   * This function checks three criteria to determine if a file is a valid PDF:
+   * 1. The MIME type must be "application/pdf"
+   * 2. The file extension must be ".pdf"
+   * 3. The file content must begin with the PDF signature "%PDF-"
+   * 
+   * @param {Buffer} fileBuffer - The file content as a buffer
+   * @param {string} mimeType - The MIME type of the file
+   * @param {string} fileName - The original filename with extension
+   * @returns {Promise<boolean>} Returns true if validation passes, throws an error otherwise
+   * @throws {Error} Throws an error with a specific message if validation fails
+   */
+  async validatePDF(fileBuffer, mimeType, fileName) {
+      if (mimeType !== "application/pdf") {
+          throw new Error("Invalid MIME type");
+      }
 
-        const validExtensions = [".pdf"];
-        const fileExtension = path.extname(fileName).toLowerCase();
-        if (!validExtensions.includes(fileExtension)) {
-            throw new Error("Invalid file extension");
-        }
+      const validExtensions = [".pdf"];
+      const fileExtension = path.extname(fileName).toLowerCase();
+      if (!validExtensions.includes(fileExtension)) {
+          throw new Error("Invalid file extension");
+      }
 
         const pdfSignature = "%PDF-";
         const fileHeader = fileBuffer.subarray(0, 5).toString();
@@ -102,8 +138,8 @@ class InvoiceService {
             throw new Error("Invalid PDF file");
         }
 
-        return true;
-    }
+      return true;
+  }
 
     /**
      * Validates the size of a file

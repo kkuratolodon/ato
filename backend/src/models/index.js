@@ -25,6 +25,11 @@ if (config.use_env_variable && process.env[config.use_env_variable]) {
 }
 const Invoice = InvoiceModel(sequelize, DataTypes);
 
+// sequelize.sync()
+//   .then(() => {
+//     console.log('Database & tables created!');
+//   });
+
 fs.readdirSync(__dirname)
   .filter((file) => {
     return (
