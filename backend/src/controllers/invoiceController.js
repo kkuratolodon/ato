@@ -77,7 +77,7 @@ exports.uploadInvoice = async (req, res) => {
     }
 
 
-    const result = await invoiceService.uploadInvoice(req.file);
+    const result = await invoiceService.uploadInvoice(req.file, req.user.uuid);
     return res.status(501).json(result);
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
