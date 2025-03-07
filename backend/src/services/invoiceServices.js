@@ -68,11 +68,11 @@ class InvoiceService {
           throw new Error("Invalid file extension");
       }
 
-      const pdfSignature = "%PDF-";
-      const fileHeader = fileBuffer.subarray(0, 5).toString();
-      if (fileHeader !== pdfSignature) {
-          throw new Error("Invalid PDF file");
-      }
+        const pdfSignature = "%PDF-";
+        const fileHeader = fileBuffer.subarray(0, 5).toString();
+        if (fileHeader !== pdfSignature) {
+            throw new Error("Invalid PDF file");
+        }
 
       return true;
   }

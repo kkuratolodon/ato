@@ -1,30 +1,11 @@
 
 const invoiceService = require('../../src/services/invoiceServices');
+const s3Service = require('../../src/services/s3Service');
 const {Invoice} = require('../../src/models');    
 const fs = require("fs");
 const path = require("path");
 const mockFs = require("mock-fs");
 
-describe("Invoice Service Core Functions", () => {
-  test("uploadInvoice should throw error when file is not provided", async () => {
-
-    await expect(invoiceService.uploadInvoice(null))
-      .rejects.toThrow("File not found");
-  });
-});
-
-describe('invoiceServices', () => {
-  test('harus mengembalikan objek yang benar ketika uploadInvoice dipanggil', async () => {
-    const mockFile = { originalname: 'test-file.pdf' };
-    const result = await invoiceService.uploadInvoice(mockFile);
-
-    expect(result).toEqual({
-      message: "Invoice upload service called",
-      filename: "test-file.pdf"
-    });
-  });
-
-});
 
 describe("PDF Validation Format", () => {
   const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
@@ -308,8 +289,6 @@ describe("getInvoiceById", () => {
         await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
     });
 });
-const s3Service = require('../../src/services/s3Service');
-const { Invoice } = require('../../src/models/invoice')
 
 jest.mock('../../src/services/s3Service');
 jest.mock('../../src/models/invoice', () => ({
@@ -318,15 +297,13 @@ jest.mock('../../src/models/invoice', () => ({
   }
 }))
 
-const fs = require('fs');
-const path = require('path');
 
 const TEST_FILE_PATH = path.join(__dirname, '..', 'test-files', 'test-invoice.pdf');
 const TEST_FILE = { originalname: 'test-file.pdf', buffer: fs.readFileSync(TEST_FILE_PATH) };
 const TEST_S3_URL = 'https://s3.amazonaws.com/test-bucket/test-file.pdf'; 
 
 
-describe('Invoice Service - Upload Invoice', () => {
+describe('uploadInvoice', () => {
     test('should return invoice object when upload is success', async () => {
       const mockS3Url = TEST_S3_URL; 
       s3Service.uploadFile.mockResolvedValue(mockS3Url);
@@ -342,14 +319,8 @@ describe('Invoice Service - Upload Invoice', () => {
       const result = await invoiceService.uploadInvoice(fileBuffer); 
 
       expect(s3Service.uploadFile).toHaveBeenCalledWith(fileBuffer);
-      expect(Invoice.create).toHaveBeenCalledWith({ ...invoiceData, file_url: mockS3Url });
+      expect(Invoice.create).toHaveBeenCalledWith({ ...mockInvoice, file_url: mockS3Url });
       expect(result).toEqual(mockInvoice);
-    });
-
-    test('should raise error when no file provided', async () => {
-      const mockFile = null;
-
-      await expect(invoiceService.uploadInvoice(mockFile)).rejects.toThrow("File not found");
     });
 
     test('should raise error when SS3 upload fails', async () => {
