@@ -41,10 +41,9 @@ class InvoiceService {
       // 3. Tambahkan informasi tambahan
       invoiceData.original_filename = originalname;
       invoiceData.file_size = buffer.length;
-  
+      invoiceData.status = "Analyzed"
       // 4. Simpan invoice ke database
       const invoice = await Invoice.create(invoiceData);
-      
       // 5. Kembalikan hasil mapping
       return {
         message: "Invoice successfully processed and saved",
