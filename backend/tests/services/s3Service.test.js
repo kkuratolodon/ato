@@ -1,5 +1,5 @@
 const AWS = require("aws-sdk");
-const s3Service = require("../src/services/s3Service"); // Adjust the path based on your structure
+const s3Service = require("../../src/services/s3Service"); // Adjust the path based on your structure
 
 const DUMMY_LOCATION = "https://s3-bucket-url.com/file.pdf";
 

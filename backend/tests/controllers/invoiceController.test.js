@@ -7,14 +7,16 @@ const app = require('../../src/app');
 // Controller & Services
 const invoiceController = require("../../src/controllers/invoiceController");
 const { uploadInvoice } = require("../../src/controllers/invoiceController");
-const invoiceService = require("../../src/services/invoiceServices");
+const pdfValidationService = require("../../src/services/pdfValidationService");
+const invoiceService = require("../../src/services/invoiceService");
 const authService = require("../../src/services/authService");
 
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
 
 // Mock services
-jest.mock("../../src/services/invoiceServices");
+jest.mock("../../src/services/pdfValidationService");
+jest.mock("../../src/services/invoiceService");
 jest.mock("../../src/services/authService");
 
 /* ------------------------------------------------------------------
@@ -28,9 +30,10 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     res = mockResponse();
     jest.clearAllMocks();
 
-    // Default: authService.authenticate -> true
     authService.authenticate.mockResolvedValue(true);
+    
   });
+
 
   test("should return status 401 if req.user is not defined", async () => {
     // Simulasikan tidak ada req.user (belum di-auth)
@@ -44,7 +47,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
   });
 
   test("should return status 400 if no file is uploaded", async () => {
-    // req.user ada, tapi file tidak ada
     req.user = { uuid: "dummy-uuid" };
     req.file = undefined;
 
@@ -54,15 +56,23 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.json).toHaveBeenCalledWith({ message: "No file uploaded" });
   });
 
-  test("should return status 504 if simulateTimeout === 'true'", async () => {
+  test("should return status 504 if processing time exceeds 3 seconds", async () => {
+    // Gunakan simulateTimeout parameter yang sudah ada di controller
     req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf" };
-    req.query = { simulateTimeout: "true" };
-
+    req.file = { 
+      originalname: "test.pdf",
+      buffer: Buffer.from("dummy content"),
+      mimetype: "application/pdf"
+    };
+    
+    req.query = { simulateTimeout: 'true' };
+    
     await uploadInvoice(req, res);
-
+    
     expect(res.status).toHaveBeenCalledWith(504);
-    expect(res.json).toHaveBeenCalledWith({ message: "Server timeout during upload" });
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "Server timeout - upload exceeded 3 seconds" 
+    });
   });
 
   test("should return status 415 if validatePDF fails", async () => {
@@ -73,7 +83,10 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    invoiceService.validatePDF.mockRejectedValue(new Error("Not PDF"));
+    // Mock rejection for validatePDF
+    pdfValidationService.validatePDF.mockImplementation(() => {
+      return Promise.reject(new Error("Not PDF"));
+    });
 
     await uploadInvoice(req, res);
 
@@ -89,13 +102,12 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    invoiceService.validatePDF.mockResolvedValue(true);
-    invoiceService.isPdfEncrypted.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(true);
 
     await uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "pdf is encrypted" });
+    expect(res.json).toHaveBeenCalledWith({ message: "PDF is encrypted" });
   });
 
   test("should return status 400 if PDF file is invalid", async () => {
@@ -106,9 +118,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    invoiceService.validatePDF.mockResolvedValue(true);
-    invoiceService.isPdfEncrypted.mockResolvedValue(false);
-    invoiceService.checkPdfIntegrity.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(false);
 
     await uploadInvoice(req, res);
 
@@ -124,10 +134,9 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    invoiceService.validatePDF.mockResolvedValue(true);
-    invoiceService.isPdfEncrypted.mockResolvedValue(false);
-    invoiceService.checkPdfIntegrity.mockResolvedValue(true);
-    invoiceService.validateSizeFile.mockRejectedValue(new Error("File too big"));
+    pdfValidationService.validateSizeFile.mockImplementation(() => {
+      return Promise.reject(new Error("File too big"));
+    });
 
     await uploadInvoice(req, res);
 
@@ -143,22 +152,17 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    invoiceService.validatePDF.mockResolvedValue(true);
-    invoiceService.isPdfEncrypted.mockResolvedValue(false);
-    invoiceService.checkPdfIntegrity.mockResolvedValue(true);
-    invoiceService.validateSizeFile.mockResolvedValue(true);
-    invoiceService.uploadInvoice.mockResolvedValue({
+    const mockResult = {
       message: "Invoice upload service called",
       filename: "test.pdf",
-    });
+    };
+    
+    invoiceService.uploadInvoice.mockResolvedValue(mockResult);
 
     await uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "Invoice upload service called",
-      filename: "test.pdf",
-    });
+    expect(res.json).toHaveBeenCalledWith(mockResult);
   });
 
   test("should return status 500 if unexpected error occurs", async () => {
@@ -169,9 +173,8 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    // Pastikan validatePDF tidak error, agar tidak berakhir di validasi lain
-    invoiceService.validatePDF.mockResolvedValue(true);
-    invoiceService.isPdfEncrypted.mockImplementation(() => {
+    // Simulasi error saat pemrosesan
+    pdfValidationService.isPdfEncrypted.mockImplementation(() => {
       throw new Error("Some unexpected error");
     });
 
@@ -212,13 +215,26 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     localApp.post(
       "/api/upload",
       invoiceController.uploadMiddleware, // parse file
-      fakeAuthMiddleware,                   // cek auth
+      fakeAuthMiddleware,                 // cek auth
       invoiceController.uploadInvoice
     );
   });
 
-  afterEach(() => {
+  beforeEach(() => {
+    // Reset all mocks
     jest.clearAllMocks();
+    
+    // Set default successful mock implementations
+    pdfValidationService.validatePDF.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
+    pdfValidationService.validateSizeFile.mockResolvedValue(true);
+  });
+
+  afterAll((done) => {
+    // Ensure any pending timers are cleared
+    jest.useRealTimers();
+    done();
   });
 
   test("harus mengembalikan status 401 jika user belum terautentikasi (auth gagal)", async () => {
@@ -259,12 +275,16 @@ describe("Invoice Controller (Integration) with Supertest", () => {
       .attach("file", path.join(__dirname, "test-files/test-invoice.pdf"));
 
     expect(res.status).toBe(504);
-    expect(res.body).toEqual({ message: "Server timeout during upload" });
+    expect(res.body).toEqual({ message: "Server timeout - upload exceeded 3 seconds" });
   });
 
   test("harus mengembalikan status 415 jika validatePDF gagal", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
-    invoiceService.validatePDF.mockRejectedValue(new Error("Invalid PDF"));
+    
+    // Mock rejection for validatePDF
+    pdfValidationService.validatePDF.mockImplementation(() => {
+      return Promise.reject(new Error("Invalid PDF"));
+    });
 
     const res = await request(localApp)
       .post("/api/upload")
@@ -278,8 +298,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 
   test("harus mengembalikan status 400 jika PDF terenkripsi", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
-    invoiceService.validatePDF.mockResolvedValue();
-    invoiceService.isPdfEncrypted.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(true);
 
     const res = await request(localApp)
       .post("/api/upload")
@@ -288,14 +307,12 @@ describe("Invoice Controller (Integration) with Supertest", () => {
       .attach("file", path.join(__dirname, "test-files/test-invoice.pdf"));
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ message: "pdf is encrypted" });
+    expect(res.body).toEqual({ message: "PDF is encrypted" });
   });
 
   test("harus mengembalikan status 400 jika PDF rusak", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
-    invoiceService.validatePDF.mockResolvedValue();
-    invoiceService.isPdfEncrypted.mockResolvedValue(false);
-    invoiceService.checkPdfIntegrity.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(false);
 
     const res = await request(localApp)
       .post("/api/upload")
@@ -309,10 +326,10 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 
   test("harus mengembalikan status 413 jika ukuran file melebihi limit", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
-    invoiceService.validatePDF.mockResolvedValue();
-    invoiceService.isPdfEncrypted.mockResolvedValue(false);
-    invoiceService.checkPdfIntegrity.mockResolvedValue(true);
-    invoiceService.validateSizeFile.mockRejectedValue(new Error("File too big"));
+    
+    pdfValidationService.validateSizeFile.mockImplementation(() => {
+      return Promise.reject(new Error("File too big"));
+    });
 
     const res = await request(localApp)
       .post("/api/upload")
@@ -326,14 +343,13 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 
   test("harus mengembalikan status 200 jika semua valid", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
-    invoiceService.validatePDF.mockResolvedValue();
-    invoiceService.isPdfEncrypted.mockResolvedValue(false);
-    invoiceService.checkPdfIntegrity.mockResolvedValue(true);
-    invoiceService.validateSizeFile.mockResolvedValue();
-    invoiceService.uploadInvoice.mockResolvedValue({
+    
+    const mockResult = {
       message: "Invoice upload service called",
-      filename: "test-invoice.pdf",
-    });
+      filename: "test-invoice.pdf"
+    };
+    
+    invoiceService.uploadInvoice.mockResolvedValue(mockResult);
 
     const res = await request(localApp)
       .post("/api/upload")
@@ -342,10 +358,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
       .attach("file", path.join(__dirname, "test-files/test-invoice.pdf"));
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      message: "Invoice upload service called",
-      filename: "test-invoice.pdf",
-    });
+    expect(res.body).toEqual(mockResult);
   });
 
   test("harus mengembalikan status 500 jika terjadi error tak terduga", async () => {
@@ -365,8 +378,8 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 });
 
 describe("getInvoiceById", () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   test("Should return an invoice when given a valid ID", async () => {
@@ -410,11 +423,11 @@ describe("getInvoiceById", () => {
   });
 });
 
-  /* ------------------------------------------------------------------
-     3) INVOICE CONTROLLER - analyzeInvoice (UNIT TEST)
-     ------------------------------------------------------------------ */
-  describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
-    let req, res;
+/* ------------------------------------------------------------------
+   3) INVOICE CONTROLLER - analyzeInvoice (UNIT TEST)
+   ------------------------------------------------------------------ */
+describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
+  let req, res;
 
   beforeEach(() => {
     req = mockRequest();
@@ -441,5 +454,4 @@ describe("getInvoiceById", () => {
     expect(res.status).toBeCalledWith(500);
     expect(res.json).toBeCalledWith({ message: "Internal Server Error" });
   });
-
 });
