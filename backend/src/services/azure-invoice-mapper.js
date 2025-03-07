@@ -31,7 +31,7 @@ class AzureInvoiceMapper {
     const partnerId = this.generatePartnerId(vendorName);
     
     // Extract payment terms
-    const paymentTerms = this.getFieldContent(fields.PaymentTerm) || 'Net 30';
+    const paymentTerms = this.getFieldContent(fields.PaymentTerm) || 'Null';
     
     // Extract line items
     const lineItems = this.extractLineItems(fields.Items);
