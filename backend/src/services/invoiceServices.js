@@ -14,14 +14,47 @@ class InvoiceService {
     this.azureMapper = new AzureInvoiceMapper();
   }
   
-  async uploadInvoice(file) {
-    if (!file) {
-      throw new Error("File not found");
+  async uploadInvoice({ buffer, originalname, partnerId }) {
+    try {
+      if (!partnerId) {
+        throw new Error("Partner ID is required");
+      }
+  
+      // 1. Gunakan method analyzeInvoice yang sudah ada untuk memproses dokumen
+      const analysisResult = await this.analyzeInvoice(buffer);
+      
+      if (!analysisResult || !analysisResult.data) {
+        throw new Error("Failed to analyze invoice: No data returned");
+      }
+      
+      // 2. Map hasil Azure ke model invoice kita
+      const invoiceData = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+      
+      // 3. Tambahkan informasi tambahan
+      invoiceData.original_filename = originalname;
+      invoiceData.file_size = buffer.length;
+  
+      // 4. Simpan invoice ke database
+      const invoice = await Invoice.create(invoiceData);
+      
+      // 5. Kembalikan hasil mapping
+      return {
+        message: "Invoice successfully processed and saved",
+        invoiceId: invoice.id,
+        details: {
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          invoice_date: invoice.invoice_date,
+          due_date: invoice.due_date,
+          total_amount: invoice.total_amount,
+          status: invoice.status,
+          created_at: invoice.created_at
+        }
+      };
+    } catch (error) {
+      console.error("Error processing invoice:", error);
+      throw new Error("Failed to process invoice: " + error.message);
     }
-    return {
-      message: "Invoice upload service called",
-      filename: file.originalname,
-    };
   }
 
   async getInvoiceById(id) {
