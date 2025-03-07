@@ -1,12 +1,10 @@
 const express = require('express');
-const analyzeRoute = require('./routes/analyzeInvoiceRoute');
-
+const invoiceRoutes = require('./routes/invoiceRoutes')
 const app = express();
+app.disable("x-powered-by");
 
 app.use(express.json());
 
-app.use('/api/invoices', analyzeRoute);
-
+app.use('/api/invoices', invoiceRoutes);
 app.disable('x-powered-by');
-
 module.exports = app;
