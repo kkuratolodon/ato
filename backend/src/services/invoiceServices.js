@@ -14,8 +14,16 @@ class InvoiceService {
     this.azureMapper = new AzureInvoiceMapper();
   }
   
-  async uploadInvoice({ buffer, originalname, partnerId }) {
+  async uploadInvoice(fileData) {
     try {
+      // Check if file data exists
+      if (!fileData) {
+        throw new Error("File not found");
+      }
+      
+      // Destructure after checking to avoid error when null
+      const { buffer, originalname, partnerId } = fileData;
+      
       if (!partnerId) {
         throw new Error("Partner ID is required");
       }

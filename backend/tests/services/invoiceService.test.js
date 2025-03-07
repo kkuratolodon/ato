@@ -16,19 +16,6 @@ describe("Invoice Service Core Functions", () => {
   });
 });
 
-describe('invoiceServices', () => {
-  test('harus mengembalikan objek yang benar ketika uploadInvoice dipanggil', async () => {
-    const mockFile = { originalname: 'test-file.pdf' };
-    const result = await invoiceService.uploadInvoice(mockFile);
-
-    expect(result).toEqual({
-      message: "Invoice upload service called",
-      filename: "test-file.pdf"
-    });
-  });
-
-});
-
 describe("PDF Validation Format", () => {
   const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
   const invalidPdfBuffer = Buffer.from("This is not a PDF");
