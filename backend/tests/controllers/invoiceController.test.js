@@ -200,6 +200,96 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
   });
+
+  test("should handle timeout errors properly", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+
+    jest.useFakeTimers();
+    invoiceService.uploadInvoice.mockImplementation(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({ message: "This should not be called" });
+        }, 4000);
+      });
+    });
+
+    const uploadPromise = invoiceController.uploadInvoice(req, res);
+    jest.advanceTimersByTime(3100);
+    await uploadPromise;
+
+    expect(res.status).toHaveBeenCalledWith(504);
+    expect(res.json).toHaveBeenCalledWith({ message: "Server timeout - upload exceeded 3 seconds" });
+
+    jest.useRealTimers();
+  });
+
+  test("should clear timeout when function completes before timeout", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+
+    const mockResult = {
+      message: "Invoice upload service called",
+      filename: "test.pdf",
+    };
+
+    invoiceService.uploadInvoice.mockResolvedValue(mockResult);
+    const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
+
+    await invoiceController.uploadInvoice(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    clearTimeoutSpy.mockRestore();
+  });
+
+  test("should handle unexpected errors in executeWithTimeout", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+
+    invoiceService.uploadInvoice.mockImplementation(() => {
+      throw new Error("Something unexpected happened");
+    });
+
+    await invoiceController.uploadInvoice(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+  });
+
+  test('should not send a response if headersSent is already true', async () => {
+    const req = {
+      user: null,
+      file: null, 
+    };
+
+    // Mock res object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      headersSent: true, 
+    };
+
+    await uploadInvoice(req, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
+  });
+
 });
 
 /* ------------------------------------------------------------------

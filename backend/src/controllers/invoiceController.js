@@ -4,9 +4,6 @@ const multer = require('multer');
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 20 * 1024 * 1024, 
-  },
 });
 
 exports.uploadMiddleware = upload.single('file');
@@ -90,27 +87,17 @@ exports.uploadInvoice = async (req, res) => {
         return false;
       }
       
-      try {
-        const isEncrypted = await pdfValidationService.isPdfEncrypted(buffer);
-        if (isEncrypted) {
-          safeResponse(400, "PDF is encrypted");
-          return false;
-        }
-      } catch (error) {
-        console.error("Error checking PDF encryption:", error);
-        safeResponse(500, "Internal server error");
+      
+      const isEncrypted = await pdfValidationService.isPdfEncrypted(buffer);
+      if (isEncrypted) {
+        safeResponse(400, "PDF is encrypted");
         return false;
       }
       
-      try {
-        const isValidPdf = await pdfValidationService.checkPdfIntegrity(buffer);
-        if (!isValidPdf) {
-          safeResponse(400, "PDF file is invalid");
-          return false;
-        }
-      } catch (error) {
-        console.error("Error checking PDF integrity:", error);
-        safeResponse(500, "Internal server error");
+    
+      const isValidPdf = await pdfValidationService.checkPdfIntegrity(buffer);
+      if (!isValidPdf) {
+        safeResponse(400, "PDF file is invalid");
         return false;
       }
 
