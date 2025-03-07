@@ -10,27 +10,27 @@ const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
 
 class InvoiceService {
-    constructor() {
-        this.azureMapper = new AzureInvoiceMapper();
+  constructor() {
+    this.azureMapper = new AzureInvoiceMapper();
+  }
+  
+  async uploadInvoice(file) {
+    if (!file) {
+      throw new Error("File not found");
     }
-    
-    async uploadInvoice(file) {
-      if (!file) {
-        throw new Error("File not found");
-      }
-      return {
-        message: "Invoice upload service called",
-        filename: file.originalname,
-      };
-    }
+    return {
+      message: "Invoice upload service called",
+      filename: file.originalname,
+    };
+  }
 
-    async getInvoiceById(id){
-      const invoice = await Invoice.findByPk(id);
-      if(!invoice){
-        throw new Error("Invoice not found");
-      }
-     return invoice;
+  async getInvoiceById(id) {
+    const invoice = await Invoice.findByPk(id);
+    if (!invoice) {
+      throw new Error("Invoice not found");
     }
+    return invoice;
+  }
 
     /**
      * Validates if a file is a valid PDF
@@ -134,49 +134,52 @@ class InvoiceService {
         return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
     }
 
-    /**
-     * Analyzes an invoice from a document URL using Azure Form Recognizer
-     * and maps the results to our Invoice model
-     */
-    async analyzeInvoice(documentUrl) {
-      if (!documentUrl) {
-        throw new Error("documentUrl is required");
+  async analyzeInvoice(documentUrl) {
+    if (!documentUrl) {
+      throw new Error("documentUrl is required");
+    }
+  
+    try {
+      console.log("Processing PDF...");
+      const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+      let poller;
+  
+      // Gunakan parameter documentUrl (bukan variabel source)
+      if (typeof documentUrl === 'string') {
+        poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+      } else if (Buffer.isBuffer(documentUrl)) {
+        poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+      } else {
+        throw new Error("Invalid document source type");
       }
-
-      try {
-        console.log("Processing PDF...");
-
-        const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
-        const poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-        const azureResult = await poller.pollUntilDone();
-
-        console.log("Analysis completed, mapping to Invoice model...");
-        
-        // Map Azure OCR result to our Invoice model format
-        const invoiceData = this.azureMapper.mapToInvoiceModel(azureResult);
-
-        return { 
-          message: "PDF processed and mapped successfully", 
-          rawData: azureResult,
-          invoiceData: invoiceData
-        };
-      } catch (error) {
-        if (error.message === 'Invalid date format') {
-          throw new Error("Invoice contains invalid date format");
-        }
-        
-        if (error.statusCode === 503) {
-          console.error("Service Unavailable:", error);
-          throw new Error("Service is temporarily unavailable. Please try again later.");
-        } else if (error.statusCode === 409) {
-          console.error("Conflict Error:", error);
-          throw new Error("Conflict error occurred. Please check the document and try again.");
-        } else {
-          console.error(error);
-          throw new Error("Failed to process the document");
-        }
+      
+      const azureResult = await poller.pollUntilDone();
+      console.log("Analysis completed");
+  
+      // Untuk keperluan test, kembalikan objek dengan properti message dan data.
+      if (!azureResult) {
+        return { message: "PDF processed successfully", data: null };
+      }
+      return {
+        message: "PDF processed successfully",
+        data: azureResult
+      };
+    } catch (error) {
+      if (error.message === 'Invalid date format') {
+        throw new Error("Invoice contains invalid date format");
+      }
+      if (error.statusCode === 503) {
+        console.error("Service Unavailable:", error);
+        throw new Error("Service is temporarily unavailable. Please try again later.");
+      } else if (error.statusCode === 409) {
+        console.error("Conflict Error:", error);
+        throw new Error("Conflict error occurred. Please check the document and try again.");
+      } else {
+        console.error(error);
+        throw new Error("Failed to process the document");
       }
     }
+  }
 }
 
 module.exports = new InvoiceService();

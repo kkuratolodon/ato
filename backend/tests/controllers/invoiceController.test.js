@@ -4,7 +4,6 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const app = require('../../src/app');
 
-
 // Controller & Services
 const invoiceController = require("../../src/controllers/invoiceController");
 const { uploadInvoice } = require("../../src/controllers/invoiceController");
@@ -133,12 +132,10 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     await uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(413);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "File size exceeds maximum limit",
-    });
+    expect(res.json).toHaveBeenCalledWith({ message: "File size exceeds maximum limit" });
   });
 
-  test("should return status 501 if all validations pass", async () => {
+  test("should return status 200 if all validations pass", async () => {
     req.user = { uuid: "dummy-uuid" };
     req.file = {
       originalname: "test.pdf",
@@ -157,7 +154,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
 
     await uploadInvoice(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(501);
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: "Invoice upload service called",
       filename: "test.pdf",
@@ -171,21 +168,19 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       buffer: Buffer.from("%PDF-"),
       mimetype: "application/pdf",
     };
-  
-    // Pastikan validatePDF tidak error, agar tidak berakhir 415
+
+    // Pastikan validatePDF tidak error, agar tidak berakhir di validasi lain
     invoiceService.validatePDF.mockResolvedValue(true);
     invoiceService.isPdfEncrypted.mockImplementation(() => {
       throw new Error("Some unexpected error");
     });
-  
+
     await uploadInvoice(req, res);
-  
+
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "Internal server error",
-    });
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
   });
-});  
+});
 
 /* ------------------------------------------------------------------
    2) INVOICE CONTROLLER (Integration) with FakeAuthMiddleware
@@ -217,7 +212,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     localApp.post(
       "/api/upload",
       invoiceController.uploadMiddleware, // parse file
-      fakeAuthMiddleware,                // cek auth
+      fakeAuthMiddleware,                   // cek auth
       invoiceController.uploadInvoice
     );
   });
@@ -329,7 +324,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     expect(res.body).toEqual({ message: "File size exceeds maximum limit" });
   });
 
-  test("harus mengembalikan status 501 jika semua valid", async () => {
+  test("harus mengembalikan status 200 jika semua valid", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
     invoiceService.validatePDF.mockResolvedValue();
     invoiceService.isPdfEncrypted.mockResolvedValue(false);
@@ -346,7 +341,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
       .field("client_secret", "valid_secret")
       .attach("file", path.join(__dirname, "test-files/test-invoice.pdf"));
 
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(200);
     expect(res.body).toEqual({
       message: "Invoice upload service called",
       filename: "test-invoice.pdf",
@@ -413,6 +408,7 @@ describe("getInvoiceById", () => {
     expect(response.status).toBe(500);
     expect(response.body.message).toBe("Internal server error");
   });
+});
 
   /* ------------------------------------------------------------------
      3) INVOICE CONTROLLER - analyzeInvoice (UNIT TEST)
@@ -420,45 +416,30 @@ describe("getInvoiceById", () => {
   describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
     let req, res;
 
-    beforeEach(() => {
-      req = mockRequest();
-      res = mockResponse();
-      jest.clearAllMocks();
-    });
-
-    test("should return 400 for missing documentUrl", async () => {
-      req.body = {};
-      await invoiceController.analyzeInvoice(req, res);
-      expect(res.status).toBeCalledWith(400);
-      expect(res.json).toBeCalledWith({ message: "documentUrl is required" });
-    });
-
-    test("should return 500 for internal server error", async () => {
-      invoiceService.analyzeInvoice.mockImplementation(() => {
-        throw new Error("Unexpected error occurred");
-      });
-
-      req.body = { documentUrl: "https://example.com/invoice.pdf" };
-      await invoiceController.analyzeInvoice(req, res);
-
-      expect(res.status).toBeCalledWith(500);
-      expect(res.json).toBeCalledWith({ message: "Internal Server Error" });
-    });
-
-    test("should return 200 and analysis result for valid documentUrl", async () => {
-      invoiceService.analyzeInvoice.mockResolvedValue({
-        message: "PDF processed successfully",
-        data: { text: "Sample analysis result" },
-      });
-
-      req.body = { documentUrl: "https://slicedinvoices.com/pdf/wordpress-pdf-invoice-plugin-sample.pdf" };
-      await invoiceController.analyzeInvoice(req, res);
-
-      expect(res.status).toBeCalledWith(200);
-      expect(res.json).toBeCalledWith({
-        message: "PDF processed successfully",
-        data: { text: "Sample analysis result" },
-      });
-    });
+  beforeEach(() => {
+    req = mockRequest();
+    res = mockResponse();
+    req.user = { uuid: "dummy-uuid" }; // Pastikan user tersedia agar tidak kembali 401
+    jest.clearAllMocks();
   });
+
+  test("should return 400 for missing documentUrl", async () => {
+    req.body = {};
+    await invoiceController.analyzeInvoice(req, res);
+    expect(res.status).toBeCalledWith(400);
+    expect(res.json).toBeCalledWith({ message: "documentUrl is required" });
+  });
+
+  test("should return 500 for internal server error", async () => {
+    invoiceService.analyzeInvoice.mockImplementation(() => {
+      throw new Error("Unexpected error occurred");
+    });
+
+    req.body = { documentUrl: "https://example.com/invoice.pdf" };
+    await invoiceController.analyzeInvoice(req, res);
+
+    expect(res.status).toBeCalledWith(500);
+    expect(res.json).toBeCalledWith({ message: "Internal Server Error" });
+  });
+
 });

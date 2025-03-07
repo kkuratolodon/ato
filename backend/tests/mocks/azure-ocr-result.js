@@ -15,7 +15,7 @@ exports.mockAzureOcrResult = () => ({
       TotalTax: { content: '$10.00', confidence: 0.99 },
       InvoiceTotal: { content: '$110.00', confidence: 0.99 },
       AmountDue: { content: '$610.00', confidence: 0.98 },
-      PaymentTerm: { content: 'Net 30', confidence: 0.95 },
+      PaymentTerm: { content: 'Null', confidence: 0.95 },
       Items: {
         valueArray: [
           {

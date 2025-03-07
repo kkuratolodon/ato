@@ -12,6 +12,7 @@ jest.mock('../../src/models', () => ({
 
 describe('AzureInvoiceMapper', () => {
   let mapper;
+  const partnerId = "contoso-partner"; // Contoh partnerId untuk test
 
   beforeEach(() => {
     mapper = new AzureInvoiceMapper();
@@ -22,8 +23,8 @@ describe('AzureInvoiceMapper', () => {
     // Given
     const ocrResult = mockAzureOcrResult();
     
-    // When
-    const invoiceData = mapper.mapToInvoiceModel(ocrResult);
+    // When (simpan partnerId sebagai argumen kedua)
+    const invoiceData = mapper.mapToInvoiceModel(ocrResult, partnerId);
     
     // Then
     expect(invoiceData).toBeDefined();
@@ -33,9 +34,9 @@ describe('AzureInvoiceMapper', () => {
     expect(invoiceData.total_amount).toBe(110);
     expect(invoiceData.subtotal_amount).toBe(100);
     expect(invoiceData.discount_amount).toBe(5);
-    expect(invoiceData.payment_terms).toBe('Net 30');
+    expect(invoiceData.payment_terms).toBe('Null');
     expect(invoiceData.status).toBe('Pending');
-    expect(invoiceData.partner_id).toContain('contoso');
+    expect(invoiceData.partner_id).toBe(partnerId);
   });
 
   it('should handle missing fields with default values', () => {
@@ -51,17 +52,17 @@ describe('AzureInvoiceMapper', () => {
       }]
     };
     
-    // When
-    const invoiceData = mapper.mapToInvoiceModel(partialOcrResult);
+    // When (gunakan partnerId sesuai kebutuhan)
+    const invoiceData = mapper.mapToInvoiceModel(partialOcrResult, "abc-corp-partner");
     
     // Then
     expect(invoiceData.invoice_date).toEqual(new Date('2023-05-15'));
     expect(invoiceData.total_amount).toBe(500);
-    expect(invoiceData.subtotal_amount).toBe(500); // Default to total if missing
-    expect(invoiceData.purchase_order_id).toBe(0); // Default value
-    expect(invoiceData.payment_terms).toBe('Net 30'); // Default value
+    expect(invoiceData.subtotal_amount).toBe(500); // Default ke total jika missing
+    expect(invoiceData.purchase_order_id).toBe(0);  // Nilai default
+    expect(invoiceData.payment_terms).toBe('Null'); // Nilai default
     expect(invoiceData.status).toBe('Pending');
-    expect(invoiceData.partner_id).toContain('abc-corp');
+    expect(invoiceData.partner_id).toBe("abc-corp-partner");
   });
 
   it('should throw error for invalid date', () => {
@@ -75,8 +76,8 @@ describe('AzureInvoiceMapper', () => {
       }]
     };
     
-    // When & Then
-    expect(() => mapper.mapToInvoiceModel(invalidDateResult))
+    // When & Then (sisipkan partnerId agar error yang muncul adalah terkait date)
+    expect(() => mapper.mapToInvoiceModel(invalidDateResult, "dummy-id"))
       .toThrow('Invalid date format');
   });
 
@@ -85,7 +86,7 @@ describe('AzureInvoiceMapper', () => {
     const ocrResult = mockAzureOcrResult();
     
     // When
-    const invoiceData = mapper.mapToInvoiceModel(ocrResult);
+    const invoiceData = mapper.mapToInvoiceModel(ocrResult, partnerId);
     
     // Then
     expect(invoiceData.line_items).toBeDefined();

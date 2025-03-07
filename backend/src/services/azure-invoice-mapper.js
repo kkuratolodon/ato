@@ -4,11 +4,16 @@ class AzureInvoiceMapper {
   /**
    * Maps Azure OCR result to Invoice model format
    * @param {Object} ocrResult - Raw Azure OCR result
+   * @param {string} partnerId - UUID of the user uploading the invoice
    * @returns {Object} Invoice data ready for database
    */
-  mapToInvoiceModel(ocrResult) {
+  mapToInvoiceModel(ocrResult, partnerId) {
     if (!ocrResult || !ocrResult.documents || !ocrResult.documents[0]) {
       throw new Error('Invalid OCR result format');
+    }
+    
+    if (!partnerId) {
+      throw new Error('Partner ID is required');
     }
     
     const document = ocrResult.documents[0];
@@ -26,9 +31,8 @@ class AzureInvoiceMapper {
     const subtotalAmount = this.parseCurrency(fields.SubTotal) || totalAmount;
     const discountAmount = this.parseCurrency(fields.TotalDiscount) || 0;
     
-    // Extract vendor/partner info
+    // Extract vendor info (still useful for display)
     const vendorName = this.getFieldContent(fields.VendorName);
-    const partnerId = this.generatePartnerId(vendorName);
     
     // Extract payment terms
     const paymentTerms = this.getFieldContent(fields.PaymentTerm) || 'Null';
@@ -121,7 +125,7 @@ class AzureInvoiceMapper {
   /**
    * Calculate due date based on invoice date and payment terms
    * @param {Date} invoiceDate - Invoice date
-   * @param {string} paymentTerms - Payment terms string (e.g., "Net 30")
+   * @param {string} paymentTerms - Payment terms string 
    * @returns {Date} Calculated due date
    */
   calculateDueDate(invoiceDate, paymentTerms) {
