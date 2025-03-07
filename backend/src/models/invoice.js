@@ -15,11 +15,11 @@ module.exports = (sequelize, DataTypes) => {
   Invoice.init({
     invoice_date: { 
       type: DataTypes.DATE, 
-      allowNull: false 
+      allowNull: true 
     },
     due_date: { 
       type: DataTypes.DATE, 
-      allowNull: false,
+      allowNull: true,
       validate: {
         isAfterInvoiceDate(value) {
           if (this.invoice_date && new Date(value) < new Date(this.invoice_date)) {
@@ -30,7 +30,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     purchase_order_id: { 
       type: DataTypes.INTEGER, 
-      allowNull: false,
+      allowNull: true,
       validate: {
         isInt: {
           msg: "purchase_order_id must be an integer"
@@ -39,14 +39,14 @@ module.exports = (sequelize, DataTypes) => {
     },
     total_amount: { 
       type: DataTypes.DECIMAL, 
-      allowNull: false,
+      allowNull: true,
       validate: {
         min: 0,
       }
     },
     subtotal_amount: { 
       type: DataTypes.DECIMAL, 
-      allowNull: false 
+      allowNull: true 
     },
     discount_amount: { 
       type: DataTypes.DECIMAL, 
@@ -54,7 +54,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     payment_terms: { 
       type: DataTypes.STRING, 
-      allowNull: false 
+      allowNull: true 
     },
     file_url: { 
       type: DataTypes.STRING, 
