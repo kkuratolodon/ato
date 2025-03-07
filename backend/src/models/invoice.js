@@ -66,8 +66,8 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       validate: {
         isIn: {
-          args: [["Pending", "Paid", "Overdue"]],
-          msg: "status must be one of 'Pending', 'Paid', or 'Overdue'"
+          args: [["Processing", "Analyzed", "Failed"]],
+          msg: "status must be one of 'Processing', 'Analyzed', or 'Failed'"
         }
       }
     },
