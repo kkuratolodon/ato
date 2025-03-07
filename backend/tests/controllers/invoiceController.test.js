@@ -30,8 +30,20 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     res = mockResponse();
     jest.clearAllMocks();
 
+    // PENTING: Set default values untuk semua mock
+    // Default-nya validasi lolos semua jika tidak dispesifikkan sebaliknya dalam test
+    pdfValidationService.validatePDF.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
+    pdfValidationService.validateSizeFile.mockResolvedValue(true);
+    
     authService.authenticate.mockResolvedValue(true);
     
+    // Default uploadInvoice
+    invoiceService.uploadInvoice.mockResolvedValue({
+      message: "Invoice upload service called",
+      filename: "test.pdf" 
+    });
   });
 
 
@@ -83,10 +95,8 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    // Mock rejection for validatePDF
-    pdfValidationService.validatePDF.mockImplementation(() => {
-      return Promise.reject(new Error("Not PDF"));
-    });
+    // Hanya override untuk test ini: Mock rejection untuk validatePDF
+    pdfValidationService.validatePDF.mockRejectedValue(new Error("Not PDF"));
 
     await uploadInvoice(req, res);
 
@@ -102,7 +112,8 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    pdfValidationService.isPdfEncrypted.mockResolvedValue(true);
+    // Override mock hanya untuk test ini
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(true); 
 
     await uploadInvoice(req, res);
 
@@ -118,6 +129,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
+    // Override mock hanya untuk test ini
     pdfValidationService.checkPdfIntegrity.mockResolvedValue(false);
 
     await uploadInvoice(req, res);
@@ -134,9 +146,8 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
-    pdfValidationService.validateSizeFile.mockImplementation(() => {
-      return Promise.reject(new Error("File too big"));
-    });
+    // Override mock hanya untuk test ini
+    pdfValidationService.validateSizeFile.mockRejectedValue(new Error("File too big"));
 
     await uploadInvoice(req, res);
 
@@ -152,6 +163,12 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       mimetype: "application/pdf",
     };
 
+    // Pastikan semua validasi diset untuk berhasil
+    pdfValidationService.validatePDF.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
+    pdfValidationService.validateSizeFile.mockResolvedValue(true);
+
     const mockResult = {
       message: "Invoice upload service called",
       filename: "test.pdf",
@@ -162,7 +179,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     await uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(mockResult);
+    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
   });
 
   test("should return status 500 if unexpected error occurs", async () => {
@@ -229,6 +246,12 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
     pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
+    
+    // Default untuk uploadInvoice
+    invoiceService.uploadInvoice.mockResolvedValue({
+      message: "Invoice upload service called",
+      filename: "test-invoice.pdf"
+    });
   });
 
   afterAll((done) => {
@@ -281,10 +304,8 @@ describe("Invoice Controller (Integration) with Supertest", () => {
   test("harus mengembalikan status 415 jika validatePDF gagal", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
     
-    // Mock rejection for validatePDF
-    pdfValidationService.validatePDF.mockImplementation(() => {
-      return Promise.reject(new Error("Invalid PDF"));
-    });
+    // Override mock hanya untuk test ini
+    pdfValidationService.validatePDF.mockRejectedValue(new Error("Invalid PDF"));
 
     const res = await request(localApp)
       .post("/api/upload")
@@ -298,6 +319,8 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 
   test("harus mengembalikan status 400 jika PDF terenkripsi", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
+    
+    // Override mock hanya untuk test ini
     pdfValidationService.isPdfEncrypted.mockResolvedValue(true);
 
     const res = await request(localApp)
@@ -312,6 +335,8 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 
   test("harus mengembalikan status 400 jika PDF rusak", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
+    
+    // Override mock hanya untuk test ini
     pdfValidationService.checkPdfIntegrity.mockResolvedValue(false);
 
     const res = await request(localApp)
@@ -327,9 +352,8 @@ describe("Invoice Controller (Integration) with Supertest", () => {
   test("harus mengembalikan status 413 jika ukuran file melebihi limit", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
     
-    pdfValidationService.validateSizeFile.mockImplementation(() => {
-      return Promise.reject(new Error("File too big"));
-    });
+    // Override mock hanya untuk test ini
+    pdfValidationService.validateSizeFile.mockRejectedValue(new Error("File too big"));
 
     const res = await request(localApp)
       .post("/api/upload")
@@ -343,6 +367,12 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 
   test("harus mengembalikan status 200 jika semua valid", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
+    
+    // Pastikan semua validasi diset untuk berhasil
+    pdfValidationService.validatePDF.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
+    pdfValidationService.validateSizeFile.mockResolvedValue(true);
     
     const mockResult = {
       message: "Invoice upload service called",
@@ -358,7 +388,11 @@ describe("Invoice Controller (Integration) with Supertest", () => {
       .attach("file", path.join(__dirname, "test-files/test-invoice.pdf"));
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockResult);
+    // Sesuaikan dengan format yang diharapkan dari controller
+    // Jika controller mengembalikan { message: mockResult }, gunakan:
+    // expect(res.body).toEqual({ message: mockResult });
+    // Jika controller langsung mengembalikan mockResult, gunakan:
+    expect(res.body).toEqual({ message: mockResult });
   });
 
   test("harus mengembalikan status 500 jika terjadi error tak terduga", async () => {

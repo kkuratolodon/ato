@@ -1,55 +1,57 @@
 const pdfValidationService = require("../../src/services/pdfValidationService");
 const fs = require("fs");
 const path = require("path");
-const mockFs = require("mock-fs");
+// Hapus mock-fs import
+// const mockFs = require("mock-fs");
 
 describe("PDF Validation Format", () => {
   const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
   const invalidPdfBuffer = Buffer.from("This is not a PDF");
 
-  beforeAll(() => {
-    mockFs({
-      "samples/valid.pdf": validPdfBuffer,
-      "samples/invalid.pdf": invalidPdfBuffer,
+  beforeEach(() => {
+    // Gunakan jest.spyOn untuk mock fs.readFileSync
+    jest.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
+      if (filePath.includes('valid.pdf')) {
+        return validPdfBuffer;
+      }
+      if (filePath.includes('invalid.pdf')) {
+        return invalidPdfBuffer;
+      }
+      throw new Error(`Unexpected file path: ${filePath}`);
     });
+
+    // Mock path.resolve untuk mengembalikan path yang sama
+    jest.spyOn(path, 'resolve').mockImplementation((filePath) => filePath);
   });
 
-  afterAll(() => {
-    mockFs.restore();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   test("Should accept valid PDF file", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.validatePDF(fileBuffer, "application/pdf", "valid.pdf");
+    const result = await pdfValidationService.validatePDF(
+      validPdfBuffer, 
+      "application/pdf", 
+      "valid.pdf"
+    );
     expect(result).toBe(true);
   });
 
   test("Should reject non-PDF MIME type", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
     await expect(
-      pdfValidationService.validatePDF(fileBuffer, "image/png", "valid.png")
+      pdfValidationService.validatePDF(validPdfBuffer, "image/png", "valid.png")
     ).rejects.toThrow("Invalid MIME type");
   });
 
   test("Should reject non-PDF extension", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
     await expect(
-      pdfValidationService.validatePDF(fileBuffer, "application/pdf", "document.txt")
+      pdfValidationService.validatePDF(validPdfBuffer, "application/pdf", "document.txt")
     ).rejects.toThrow("Invalid file extension");
   });
 
   test("Should reject invalid PDF content", async () => {
-    const filePath = path.resolve("samples/invalid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
     await expect(
-      pdfValidationService.validatePDF(fileBuffer, "application/pdf", "invalid.pdf")
+      pdfValidationService.validatePDF(invalidPdfBuffer, "application/pdf", "invalid.pdf")
     ).rejects.toThrow("Invalid PDF file");
   });
 });
@@ -59,40 +61,40 @@ describe("PDF File Size Validation", () => {
   const largePdfBuffer = Buffer.alloc(21 * 1024 * 1024, "%PDF-1.4 Valid PDF File");
   const edgePdfBuffer = Buffer.alloc(20 * 1024 * 1024, "%PDF-1.4 Valid PDF File");
 
-  beforeAll(() => {
-    mockFs({
-      "samples/valid.pdf": validPdfBuffer,
-      "samples/large.pdf": largePdfBuffer,
-      "samples/edge.pdf": edgePdfBuffer,
+  beforeEach(() => {
+    jest.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
+      if (filePath.includes('valid.pdf')) {
+        return validPdfBuffer;
+      }
+      if (filePath.includes('large.pdf')) {
+        return largePdfBuffer;
+      }
+      if (filePath.includes('edge.pdf')) {
+        return edgePdfBuffer;
+      }
+      throw new Error(`Unexpected file path: ${filePath}`);
     });
+
+    jest.spyOn(path, 'resolve').mockImplementation((filePath) => filePath);
   });
 
-  afterAll(() => {
-    mockFs.restore();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   test("Should accept a valid PDF file under 20MB", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.validateSizeFile(fileBuffer);
+    const result = await pdfValidationService.validateSizeFile(validPdfBuffer);
     expect(result).toBe(true);
   });
 
   test("Should reject a PDF file larger than 20MB", async () => {
-    const filePath = path.resolve("samples/large.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
     await expect(
-      pdfValidationService.validateSizeFile(fileBuffer)
+      pdfValidationService.validateSizeFile(largePdfBuffer)
     ).rejects.toThrow("File exceeds maximum allowed size of 20MB");
   });
 
   test("Should accept a PDF file exactly 20MB (Edge Case)", async () => {
-    const filePath = path.resolve("samples/edge.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.validateSizeFile(fileBuffer);
+    const result = await pdfValidationService.validateSizeFile(edgePdfBuffer);
     expect(result).toBe(true);
   });
 });
@@ -119,30 +121,31 @@ describe("PDF Encryption Check with Real Implementation", () => {
     "startxref\n291\n%%EOF"
   );
 
-  beforeAll(() => {
-    mockFs({
-      "samples/unencrypted.pdf": unencryptedPdfBuffer,
-      "samples/encrypted.pdf": encryptedPdfBuffer,
+  beforeEach(() => {
+    jest.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
+      if (filePath.includes('unencrypted.pdf')) {
+        return unencryptedPdfBuffer;
+      }
+      if (filePath.includes('encrypted.pdf')) {
+        return encryptedPdfBuffer;
+      }
+      throw new Error(`Unexpected file path: ${filePath}`);
     });
+
+    jest.spyOn(path, 'resolve').mockImplementation((filePath) => filePath);
   });
 
-  afterAll(() => {
-    mockFs.restore();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   test("Should detect unencrypted PDF correctly", async () => {
-    const filePath = path.resolve("samples/unencrypted.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.isPdfEncrypted(fileBuffer);
+    const result = await pdfValidationService.isPdfEncrypted(unencryptedPdfBuffer);
     expect(result).toBe(false);
   });
 
   test("Should detect encrypted PDF correctly", async () => {
-    const filePath = path.resolve("samples/encrypted.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.isPdfEncrypted(fileBuffer);
+    const result = await pdfValidationService.isPdfEncrypted(encryptedPdfBuffer);
     expect(result).toBe(true);
   });
 });
@@ -174,68 +177,75 @@ describe("PDF Integrity Check", () => {
     "2 0 obj\n<</Type/Pages/Kids[3"
   );
 
-  beforeAll(() => {
-    mockFs({
-      "samples/valid.pdf": validPdfBuffer,
-      "samples/corrupted.pdf": corruptedPdfBuffer,
-      "samples/truncated.pdf": truncatedPdfBuffer,
+  const malformedPdfBuffer = Buffer.from(
+    "%PDF-1.3\n" +
+    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
+    "trailer\n<</Size 4/Root 1 0 R>>\n" +
+    "startxref\nABC\n" +
+    "%%EOF"
+  );
+
+  const noObjectsPdfBuffer = Buffer.from(
+    "%PDF-1.3\n" +
+    "trailer\n<</Size 4/Root 1 0 R>>\n" +
+    "startxref\n123\n" +
+    "%%EOF"
+  );
+
+  beforeEach(() => {
+    jest.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
+      if (filePath.includes('valid.pdf')) {
+        return validPdfBuffer;
+      }
+      if (filePath.includes('corrupted.pdf')) {
+        return corruptedPdfBuffer;
+      }
+      if (filePath.includes('truncated.pdf')) {
+        return truncatedPdfBuffer;
+      }
+      if (filePath.includes('malformed.pdf')) {
+        return malformedPdfBuffer;
+      }
+      if (filePath.includes('noObjects.pdf')) {
+        return noObjectsPdfBuffer;
+      }
+      throw new Error(`Unexpected file path: ${filePath}`);
     });
+
+    jest.spyOn(path, 'resolve').mockImplementation((filePath) => filePath);
   });
 
-  afterAll(() => {
-    mockFs.restore();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   test("Should confirm integrity of a valid PDF file", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.checkPdfIntegrity(fileBuffer);
+    const result = await pdfValidationService.checkPdfIntegrity(validPdfBuffer);
     expect(result).toBe(true);
   });
 
   test("Should return false for a corrupted PDF with missing xref table", async () => {
-    const filePath = path.resolve("samples/corrupted.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.checkPdfIntegrity(fileBuffer);
+    const result = await pdfValidationService.checkPdfIntegrity(corruptedPdfBuffer);
     expect(result).toBe(false);
   });
 
   test("Should return false for a truncated PDF file", async () => {
-    const filePath = path.resolve("samples/truncated.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await pdfValidationService.checkPdfIntegrity(fileBuffer);
+    const result = await pdfValidationService.checkPdfIntegrity(truncatedPdfBuffer);
     expect(result).toBe(false);
   });
 
   test("Should handle empty buffer correctly", async () => {
     const emptyBuffer = Buffer.alloc(0);
-
     const result = await pdfValidationService.checkPdfIntegrity(emptyBuffer);
     expect(result).toBe(false);
   });
 
   test("should handle PDF with malformed startxref in checkPdfIntegrity", async () => {
-    const malformedPdfBuffer = Buffer.from(
-      "%PDF-1.3\n" +
-      "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-      "trailer\n<</Size 4/Root 1 0 R>>\n" +
-      "startxref\nABC\n" +
-      "%%EOF"
-    );
     const result = await pdfValidationService.checkPdfIntegrity(malformedPdfBuffer);
     expect(result).toBe(false);
   });
 
   test("should handle PDF without objects in checkPdfIntegrity", async () => {
-    const noObjectsPdfBuffer = Buffer.from(
-      "%PDF-1.3\n" +
-      "trailer\n<</Size 4/Root 1 0 R>>\n" +
-      "startxref\n123\n" +
-      "%%EOF"
-    );
     const result = await pdfValidationService.checkPdfIntegrity(noObjectsPdfBuffer);
     expect(result).toBe(false);
   });
