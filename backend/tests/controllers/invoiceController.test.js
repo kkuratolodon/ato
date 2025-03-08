@@ -289,7 +289,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
   });
-
+  
 });
 
 /* ------------------------------------------------------------------
@@ -578,4 +578,119 @@ describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
     expect(res.status).toBeCalledWith(500);
     expect(res.json).toBeCalledWith({ message: "Internal Server Error" });
   });
+
+  test("should return 401 when partnerId is not available", async () => {
+    req.user = null; // No user data
+    req.body = { documentUrl: "https://example.com/invoice.pdf" };
+    
+    await invoiceController.analyzeInvoice(req, res);
+    
+    expect(res.status).toBeCalledWith(401);
+    expect(res.json).toBeCalledWith({ 
+      message: "Unauthorized. User information not available." 
+    });
+  });
+
+  test("should return 500 when result doesn't contain savedInvoice", async () => {
+    req.body = { documentUrl: "https://example.com/invoice.pdf" };
+    
+    // Mock response without savedInvoice property
+    invoiceService.analyzeInvoice.mockResolvedValue({
+      rawData: {}, 
+      invoiceData: {}
+      // No savedInvoice property
+    });
+    
+    await invoiceController.analyzeInvoice(req, res);
+    
+    expect(res.status).toBeCalledWith(500);
+    expect(res.json).toBeCalledWith({ 
+      message: "Failed to analyze invoice: no saved invoice returned" 
+    });
+  });
+
+  test("should return 400 for 'Failed to process the document' error", async () => {
+    req.body = { documentUrl: "https://example.com/invoice.pdf" };
+    
+    // Mock specific error
+    invoiceService.analyzeInvoice.mockRejectedValue(
+      new Error("Failed to process the document")
+    );
+    
+    await invoiceController.analyzeInvoice(req, res);
+    
+    expect(res.status).toBeCalledWith(400);
+    expect(res.json).toBeCalledWith({ 
+      message: "Failed to process the document" 
+    });
+  });
+  test("should return 400 for 'Invalid date format' error", async () => {
+    req.body = { documentUrl: "https://example.com/invoice.pdf" };
+    
+    // Mock specific error
+    invoiceService.analyzeInvoice.mockRejectedValue(
+      new Error("Invalid date format in document")
+    );
+    
+    await invoiceController.analyzeInvoice(req, res);
+    
+    expect(res.status).toBeCalledWith(400);
+    expect(res.json).toBeCalledWith({ 
+      message: "Invalid date format in document" 
+    });
+  });
+  
+  test("should return 200 when invoice is successfully analyzed", async () => {
+    req.body = { documentUrl: "https://example.com/invoice.pdf" };
+    
+    // Mock successful response with all required properties
+    const mockResult = {
+      rawData: { some: "raw data" },
+      invoiceData: { invoice_number: "INV-001" },
+      savedInvoice: { id: 1, invoice_number: "INV-001" }
+    };
+    
+    invoiceService.analyzeInvoice.mockResolvedValue(mockResult);
+    
+    await invoiceController.analyzeInvoice(req, res);
+    
+    expect(res.status).toBeCalledWith(200);
+    expect(res.json).toBeCalledWith({
+      message: "Invoice analyzed and saved to database",
+      rawData: mockResult.rawData,
+      invoiceData: mockResult.invoiceData,
+      savedInvoice: mockResult.savedInvoice
+    });
+  });
+  test('should use custom timeout value when provided', async () => {
+    // Setup request with custom timeout
+    req = mockRequest({
+      query: { customTimeout: '5000' }, // 5 seconds instead of default 3
+      user: { uuid: 'test-uuid' },
+      file: {
+        buffer: Buffer.from('%PDF-1.0\nValid PDF content'),
+        originalname: 'test.pdf',
+        mimetype: 'application/pdf'
+      }
+    });
+    
+    // Mock services for successful path
+    pdfValidationService.validatePDF.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
+    pdfValidationService.validateSizeFile.mockResolvedValue(true);
+    invoiceService.uploadInvoice.mockResolvedValue({
+      message: "Success",
+      invoiceId: "123",
+      details: {}
+    });
+    
+    // Execute with custom timeout
+    await invoiceController.uploadInvoice(req, res);
+    
+    // Verify success response
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ message: { message: "Success", invoiceId: "123", details: {} } });
+  });
+  
 });

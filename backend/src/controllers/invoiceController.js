@@ -117,7 +117,7 @@ exports.uploadInvoice = async (req, res) => {
         safeResponse(500, "Internal server error");
         return false;
       }
-    }, 3000); 
+    }); 
 
   } catch (error) {
     if (error.message === 'Timeout') {
