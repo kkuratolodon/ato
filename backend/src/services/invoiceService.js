@@ -114,7 +114,7 @@ class InvoiceService {
       return invoice;
     }
     catch(error){
-      if(error.message) throw error;
+      if(error.message === "Invoice not found") throw error;
       throw new Error("Database error");
     }
   }

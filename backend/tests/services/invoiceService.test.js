@@ -494,7 +494,7 @@ describe("getInvoiceById", () => {
   });
 
   test("Should throw an error when database fails", async () => {
-    Invoice.findByPk.mockRejectedValue(new Error("Database error"));
+    Invoice.findByPk.mockRejectedValue(new Error("Some Unexpected Database error"));
     await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
   });
 
