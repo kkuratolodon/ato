@@ -25,11 +25,19 @@ describe('uploadInvoice', () => {
   const TEST_FILE = { buffer: fs.readFileSync(TEST_FILE_PATH) };
   const TEST_S3_URL = 'https://s3.amazonaws.com/test-bucket/test-file.pdf';
 
-  let mockParams, mockPartnerId, mockClient; 
-
+  let mockParams, mockPartnerId, mockClient;
+  let originalAnalyzeInvoice;
+  
   beforeEach(() => {
-    mockPartnerId = '123'
-    mockParams = { buffer:TEST_FILE.buffer, partnerId:mockPartnerId }
+    // Simpan original method sebelum di-mock
+    originalAnalyzeInvoice = invoiceService.analyzeInvoice;
+    
+    mockPartnerId = '123';
+    mockParams = { 
+      buffer: TEST_FILE.buffer, 
+      partnerId: mockPartnerId,
+      originalname: 'test-invoice.pdf'
+    };
     jest.clearAllMocks();
 
     mockClient = {
@@ -37,25 +45,66 @@ describe('uploadInvoice', () => {
         pollUntilDone: jest.fn().mockResolvedValue(null),
       }),
     };
+    
+    // Tambahkan mock untuk azureMapper
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoice_number: 'INV-001',
+        invoice_date: '2023-01-01',
+        due_date: '2023-02-01',
+        total_amount: 1000,
+        status: 'Analyzed'
+      })
+    };
 
+    // Mock untuk analyzeInvoice
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: {
+        invoices: [
+          {
+            invoiceId: 'INV-001',
+            invoiceDate: '2023-01-01',
+            dueDate: '2023-02-01',
+            totalAmount: 1000
+          }
+        ]
+      },
+      message: "PDF processed successfully"
+    });
     DocumentAnalysisClient.mockImplementation(() => mockClient);
-  })
+  });
+  
+  // PENTING: Kembalikan method original SETELAH SETIAP TEST
+  afterEach(() => {
+    invoiceService.analyzeInvoice = originalAnalyzeInvoice;
+    jest.restoreAllMocks();
+  });
 
   test('should return invoice object when upload is successful', async () => {
     s3Service.uploadFile.mockResolvedValue(TEST_S3_URL);
     const mockInvoiceData = {
+      id: 1,
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
       status: "Processing",
+      invoice_number: 'INV-001',
+      invoice_date: '2023-01-01',
+      due_date: '2023-02-01',
+      total_amount: 1000,
+      created_at: new Date()
     };
 
     Invoice.create.mockResolvedValue(mockInvoiceData);
-    Invoice.update.mockResolvedValue(mockInvoiceData);
+    Invoice.update.mockResolvedValue([1]);
 
     const result = await invoiceService.uploadInvoice(mockParams);
     expect(s3Service.uploadFile).toHaveBeenCalledWith(TEST_FILE.buffer);
-    expect(Invoice.create).toHaveBeenCalledWith({ ...mockInvoiceData });
-    expect(result).toHaveProperty('details');
+    expect(Invoice.create).toHaveBeenCalledWith({
+      partner_id: mockPartnerId,
+      file_url: TEST_S3_URL,
+      status: "Processing"
+    });
+    expect(result).toHaveProperty('message', 'Invoice successfully processed and saved');
   });
 
   test('should raise error when S3 upload fails', async () => {
@@ -121,6 +170,110 @@ describe("PDF Validation Format", () => {
     ).rejects.toThrow("Invalid PDF file");
   });
 });
+
+describe('uploadInvoice - Corner Cases', () => {
+  let originalAnalyzeInvoice;
+
+  beforeEach(() => {
+    originalAnalyzeInvoice = invoiceService.analyzeInvoice;
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    invoiceService.analyzeInvoice = originalAnalyzeInvoice;
+    jest.restoreAllMocks();
+  });
+  
+  test('should throw error when fileData is null', async () => {
+    await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
+  });
+  
+  test('should throw error when partnerId is missing', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf'
+      // partnerId intentionally missing
+    };
+    
+    await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Partner ID is required');
+  });
+
+  test('should throw error when s3 upload returns null url', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    s3Service.uploadFile.mockResolvedValue(null);
+    
+    await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to upload file to S3');
+  });
+  
+  test('should handle case when azureMapper returns incomplete data', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+    
+    const mockInvoice = { id: 1, status: 'Processing' };
+    Invoice.create.mockResolvedValue(mockInvoice);
+    
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+    
+    // Mock azureMapper to return incomplete data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockImplementation(() => {
+        throw new Error("Invalid OCR result format");
+      })
+    };
+    
+    await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to process invoice: Invalid OCR result format');
+    expect(Invoice.update).toHaveBeenCalledWith({ status: 'Failed' }, { where: { id: 1 }});
+  });
+  
+  test('should throw error when analyzeInvoice returns no data', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    s3Service.uploadFile.mockResolvedValue('https://s3.amazonaws.com/test-bucket/test-file.pdf');
+    
+    const mockInvoiceData = {
+      id: 1,
+      partner_id: '123',
+      file_url: 'https://s3.amazonaws.com/test-bucket/test-file.pdf',
+      status: "Processing"
+    };
+    
+    Invoice.create.mockResolvedValue(mockInvoiceData);
+    
+    // Mock analyzeInvoice to return a response without data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({ 
+      message: "PDF processed successfully"
+      // No data property
+    });
+    
+    await expect(invoiceService.uploadInvoice(mockParams))
+      .rejects.toThrow('Failed to process invoice: Failed to analyze invoice: No data returned');
+    
+    expect(Invoice.update).toHaveBeenCalledWith(
+      { status: "Failed" },
+      { where: { id: 1 }}
+    );
+  });
+  
+});
+
 
 describe("PDF File Size Validation", () => {
   const validPdfBuffer = Buffer.alloc(10 * 1024 * 1024, "%PDF-1.4 Valid PDF File");
@@ -455,6 +608,46 @@ describe("Invoice Analysis Service", () => {
         message: "PDF processed successfully",
         data: {},
       });
+    });
+    test('should process buffer input correctly', async () => {
+      const bufferInput = Buffer.from('test pdf content');
+      
+      const mockClient = {
+        beginAnalyzeDocument: jest.fn().mockResolvedValue({
+          pollUntilDone: jest.fn().mockResolvedValue({ key: 'value' }),
+        }),
+      };
+  
+      DocumentAnalysisClient.mockImplementation(() => mockClient);
+      
+      const result = await invoiceService.analyzeInvoice(bufferInput);
+      
+      expect(mockClient.beginAnalyzeDocument).toHaveBeenCalledWith(
+        process.env.AZURE_INVOICE_MODEL || expect.any(String), 
+        bufferInput
+      );
+      
+      expect(result).toEqual({
+        message: 'PDF processed successfully',
+        data: { key: 'value' }
+      });
+    });
+    test('should throw error for invalid document source type', async () => {
+      const invalidInput = { notValid: true };
+      
+      await expect(invoiceService.analyzeInvoice(invalidInput)).rejects.toThrow('Invalid document source type');
+    });
+
+    test('should throw error for invalid date format', async () => {
+      const mockError = new Error('Invalid date format');
+      
+      const mockClient = {
+        beginAnalyzeDocument: jest.fn().mockRejectedValue(mockError),
+      };
+  
+      DocumentAnalysisClient.mockImplementation(() => mockClient);
+      
+      await expect(invoiceService.analyzeInvoice('test-url')).rejects.toThrow('Invoice contains invalid date format');
     });
   });
 });
