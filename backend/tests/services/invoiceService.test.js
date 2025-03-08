@@ -1,4 +1,4 @@
-const invoiceService = require('../../src/services/invoiceServices');
+const invoiceService = require('../../src/services/invoiceService');
 const s3Service = require('../../src/services/s3Service');
 const { Invoice } = require('../../src/models')
 const fs = require("fs");

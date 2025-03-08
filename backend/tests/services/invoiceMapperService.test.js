@@ -1,4 +1,4 @@
-const { AzureInvoiceMapper } = require('../../src/services/azure-invoice-mapper');
+const { AzureInvoiceMapper } = require('../../src/services/invoiceMapperService');
 const { mockAzureOcrResult } = require('../mocks/azure-ocr-result');
 
 // Mock model untuk test
