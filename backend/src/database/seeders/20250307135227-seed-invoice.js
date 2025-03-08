@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
+  up: async (queryInterface) => {
     // First, get the partner UUIDs from the partner table
     const partners = await queryInterface.sequelize.query(
       'SELECT uuid FROM partner LIMIT 3;',
@@ -47,7 +47,7 @@ module.exports = {
     return queryInterface.bulkInsert('Invoice', invoices, {});
   },
 
-  down: async (queryInterface, Sequelize) => {
+  down: async (queryInterface) => {
     return queryInterface.bulkDelete('Invoice', null, {});
   }
 };
