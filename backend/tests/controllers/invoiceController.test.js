@@ -2,7 +2,6 @@ const request = require("supertest");
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
-const app = require('../../src/app');
 
 // Controller & Services
 const invoiceController = require("../../src/controllers/invoiceController");
