@@ -510,7 +510,7 @@ describe("getInvoiceById", () => {
   });
   describe("Positive Cases",() => {
       test("Should return an invoice when given a valid ID", async () => {
-        req.user = {uuid: "dummy-uuid"};
+        req.user = {uuid: "uuid"};
         req.params = {id: 1};
     
         const mockInvoice = {
@@ -524,7 +524,7 @@ describe("getInvoiceById", () => {
           payment_terms: "Net 30",
           file_url: "https://example.com/invoice.pdf",
           status: "Analyzed",
-          partner_id: "dummy-uuid",
+          partner_id: "uuid",
         };
         
         invoiceService.getInvoiceById.mockResolvedValue(mockInvoice);

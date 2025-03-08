@@ -106,11 +106,17 @@ class InvoiceService {
   }
 
   async getInvoiceById(id) {
-    const invoice = await Invoice.findByPk(id);
-    if (!invoice) {
-      throw new Error("Invoice not found");
+    try{
+      const invoice = await Invoice.findByPk(id);
+      if(!invoice){
+        throw new Error("Invoice not found");
+      }
+      return invoice;
     }
-    return invoice;
+    catch(error){
+      if(error.message) throw error;
+      throw new Error("Database error");
+    }
   }
 
   /**
