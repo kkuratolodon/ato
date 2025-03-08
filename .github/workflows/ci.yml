@@ -30,7 +30,11 @@ jobs:
         run: |
           echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> $GITHUB_ENV
           echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> $GITHUB_ENV
-          echo "AZURE_MODEL_ID=${{ secrets.AZURE_MODEL_ID }}" >> $GITHUB_ENV
+          echo "AZURE_INVOICE_MODEL=${{ secrets.AZURE_INVOICE_MODEL }}" >> $GITHUB_ENV
+          echo "AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }}" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
 
       - name: Build Application
         working-directory: backend
@@ -67,16 +71,16 @@ jobs:
         run: |
           echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> $GITHUB_ENV
           echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> $GITHUB_ENV
-          echo "AZURE_MODEL_ID=${{ secrets.AZURE_MODEL_ID }}" >> $GITHUB_ENV
+          echo "AZURE_INVOICE_MODEL=${{ secrets.AZURE_INVOICE_MODEL }}" >> $GITHUB_ENV
           echo "AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }}" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
           echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
-          
+
       - name: Run Linter
         working-directory: backend
         run: npm run lint
-
+        
       - name: Run Tests
         working-directory: backend
         run: npm test
@@ -89,6 +93,13 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_ENDPOINT: ${{ secrets.AZURE_ENDPOINT }}
+          AZURE_KEY: ${{ secrets.AZURE_KEY }}
+          AZURE_INVOICE_MODEL: ${{ secrets.AZURE_INVOICE_MODEL }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
   deploy:
     name: Deploy to Staging
