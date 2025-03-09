@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
+  up: async (queryInterface) => {
     // Get customer UUIDs
     const customers = await queryInterface.sequelize.query(
       'SELECT uuid FROM Customer;',

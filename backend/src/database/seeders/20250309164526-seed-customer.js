@@ -2,7 +2,7 @@
 const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
+  up: async (queryInterface) => {
     const customers = [
       {
         uuid: uuidv4(),
