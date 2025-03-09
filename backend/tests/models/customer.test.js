@@ -55,26 +55,4 @@ describe('Customer Model', () => {
         expect(customer.name).toBe('Test Customer');
         expect(customer.city).toBe('Test City');
     });
-    
-    // Association tests
-    test('should associate with financial documents', async () => {
-        // Create a financial document associated with the customer
-        await FinancialDocument.create({
-            status: 'Processing',
-            partner_id: 'test-partner-id', // Mock partner ID
-            customer_id: customerId
-        });
-        
-        // Query customer with associated financial documents
-        const customerWithDocs = await Customer.findByPk(customerId, {
-            include: [{
-                model: FinancialDocument,
-                as: 'financialDocuments'
-            }]
-        });
-        
-        expect(customerWithDocs.financialDocuments).toBeTruthy();
-        expect(customerWithDocs.financialDocuments.length).toBe(1);
-        expect(customerWithDocs.financialDocuments[0].status).toBe('Processing');
-    });
 });

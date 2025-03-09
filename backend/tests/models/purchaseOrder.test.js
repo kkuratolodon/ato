@@ -2,6 +2,7 @@ const { DataTypes, Sequelize } = require('sequelize');
 const PurchaseOrderFactory = require('../../src/models/purchaseOrder');
 const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require("../../src/models/customer");
+const VendorModel = require("../../src/models/vendor");
 
 describe('PurchaseOrder Model', () => {
     let sequelize;
@@ -9,6 +10,7 @@ describe('PurchaseOrder Model', () => {
     let Partner;
     let partnerId;
     let Customer;
+    let Vendor;
 
     beforeEach(async () => {
         // Create a real Sequelize instance with an in-memory database
@@ -16,11 +18,13 @@ describe('PurchaseOrder Model', () => {
         PurchaseOrder = PurchaseOrderFactory(sequelize, DataTypes);
         Partner = PartnerModel(sequelize, DataTypes);
         Customer = CustomerModel(sequelize, DataTypes);
+        Vendor = VendorModel(sequelize, DataTypes);
         
         // Setup associations
         PurchaseOrder.associate({ Partner, Customer });
         Partner.associate && Partner.associate({ PurchaseOrder });
         Customer.associate && Customer.associate({ PurchaseOrder })
+        Vendor.associate && Vendor.associate({ PurchaseOrder });
         
         // Sync models to database
         await sequelize.sync({ force: true });

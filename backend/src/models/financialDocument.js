@@ -18,6 +18,13 @@ module.exports = (sequelize, DataTypes) => {
                     as: 'customer'
                 });
             }
+            if (models && models.Vendor) {
+                FinancialDocument.belongsTo(models.Vendor, {
+                    foreignKey: 'vendor_id',
+                    targetKey: 'uuid',
+                    as: 'vendor'
+                });
+            }
         }
     }
 
@@ -70,6 +77,15 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
             references: {
                 model: 'Customer',
+                key: 'uuid'
+            },
+            defaultValue: null 
+        },
+        vendor_id: {
+            type: DataTypes.UUID,
+            allowNull: true,
+            references: {
+                model: 'Vendor',
                 key: 'uuid'
             },
             defaultValue: null 

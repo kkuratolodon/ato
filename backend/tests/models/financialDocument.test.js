@@ -2,6 +2,7 @@ const { DataTypes, Sequelize } = require('sequelize');
 const FinancialDocumentFactory = require('../../src/models/financialDocument');
 const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require('../../src/models/customer');
+const VendorModel = require('../../src/models/vendor');
 
 describe('FinancialDocument Model', () => {
     let sequelize;
@@ -9,17 +10,20 @@ describe('FinancialDocument Model', () => {
     let Partner;
     let partnerId;
     let Customer;
+    let Vendor;
 
     beforeEach(async () => {
         sequelize = new Sequelize('sqlite::memory:', { logging: false });
         FinancialDocument = FinancialDocumentFactory(sequelize, DataTypes);
         Partner = PartnerModel(sequelize, DataTypes);
         Customer = CustomerModel(sequelize, DataTypes);
+        Vendor = VendorModel(sequelize, DataTypes);
 
-        FinancialDocument.associate({ Partner, Customer });
+        FinancialDocument.associate({ Partner, Customer, Vendor });
         Partner.associate && Partner.associate({ FinancialDocument });
         Customer.associate && Customer.associate({ FinancialDocument });
-        
+        Vendor.associate && Vendor.associate({ FinancialDocument });
+
         await sequelize.sync({ force: true });
         
         const partner = await Partner.create({
@@ -93,7 +97,42 @@ describe('FinancialDocument Model', () => {
         
         expect(document.customer_id).toBeNull();
     });
+    test('should associate with a vendor', async () => {
+        // Create a test vendor
+        const vendor = await Vendor.create({
+            name: 'Test Vendor',
+            email: 'vendor@example.com'
+        });
+        
+        // Create a financial document linked to the vendor
+        const document = await FinancialDocument.create({
+            status: 'Processing',
+            partner_id: partnerId,
+            vendor_id: vendor.uuid
+        });
+        
+        // Retrieve the document with its vendor
+        const documentWithVendor = await FinancialDocument.findByPk(document.id, {
+            include: [{
+                model: Vendor,
+                as: 'vendor'
+            }]
+        });
+        
+        expect(documentWithVendor.vendor).toBeTruthy();
+        expect(documentWithVendor.vendor.name).toBe('Test Vendor');
+        expect(documentWithVendor.vendor.uuid).toBe(vendor.uuid);
+    });
     
+    // Also add a test to check that vendor_id is null by default
+    test('vendor_id should be nullable', async () => {
+        const document = await FinancialDocument.create({
+            status: 'Processing',
+            partner_id: partnerId
+        });
+        
+        expect(document.vendor_id).toBeNull();
+    });
     describe('Positive Cases', () => {
         test('should create financial document with only required fields', async () => {
             const document = await FinancialDocument.create({

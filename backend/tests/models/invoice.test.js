@@ -2,9 +2,10 @@ const { Sequelize, DataTypes } = require("sequelize");
 const InvoiceModel = require("../../src/models/invoice");
 const PartnerModel = require("../../src/models/partner");
 const CustomerModel = require("../../src/models/customer");
+const VendorModel = require("../../src/models/vendor");
 
 describe("Invoice Model", () => {
-  let sequelize, Invoice, Partner, Customer;
+  let sequelize, Invoice, Partner, Vendor;
 
   beforeAll(async () => {
     // Initialize Sequelize with an in-memory SQLite database
@@ -14,11 +15,13 @@ describe("Invoice Model", () => {
     Partner = PartnerModel(sequelize, DataTypes);
     Invoice = InvoiceModel(sequelize, DataTypes);
     Customer = CustomerModel(sequelize, DataTypes);
+    Vendor = VendorModel(sequelize, DataTypes);
 
     // Set up the associations between models
     Invoice.associate({ Partner, Customer });
     Partner.associate && Partner.associate({ Invoice });
     Customer.associate && Customer.associate({ Invoice });
+    Vendor.associate && Vendor.associate({ Invoice });
     await sequelize.sync({ force: true });
   });
   
