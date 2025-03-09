@@ -1,7 +1,10 @@
 'use strict';
 const { Model } = require('sequelize');
+const FinancialDocumentFactory = require('./financialDocument');
 
 module.exports = (sequelize, DataTypes) => {
+  const FinancialDocument = FinancialDocumentFactory(sequelize, DataTypes);
+  
   class Invoice extends Model {
     static associate(models) {
       Invoice.belongsTo(models.Partner, { 
@@ -12,13 +15,18 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
 
+  const financialDocAttributes = { ...FinancialDocument.getAttributes() };
+  delete financialDocAttributes.id;
+  delete financialDocAttributes.createdAt;
+  delete financialDocAttributes.updatedAt;
+
   Invoice.init({
     invoice_date: { 
       type: DataTypes.DATE, 
       allowNull: true 
     },
-    due_date: { 
-      type: DataTypes.DATE, 
+    due_date: {
+      type: DataTypes.DATE,
       allowNull: true,
       validate: {
         isAfterInvoiceDate(value) {
@@ -37,44 +45,10 @@ module.exports = (sequelize, DataTypes) => {
         }
       }
     },
-    total_amount: { 
-      type: DataTypes.DECIMAL, 
-      allowNull: true,
-      validate: {
-        min: 0,
-      }
-    },
-    subtotal_amount: { 
-      type: DataTypes.DECIMAL, 
-      allowNull: true 
-    },
-    discount_amount: { 
-      type: DataTypes.DECIMAL, 
-      allowNull: true 
-    },
-    payment_terms: { 
-      type: DataTypes.STRING, 
-      allowNull: true 
-    },
-    file_url: { 
-      type: DataTypes.STRING, 
-      allowNull: true, 
-      defaultValue: null 
-    },
-    status: { 
-      type: DataTypes.STRING, 
-      allowNull: false,
-      validate: {
-        isIn: {
-          args: [["Processing", "Analyzed", "Failed"]],
-          msg: "status must be one of 'Processing', 'Analyzed', or 'Failed'"
-        }
-      }
-    },
-    partner_id: { 
-      type: DataTypes.STRING(45), 
-      allowNull: false,
-    }
+    ...Object.fromEntries(
+      Object.entries(financialDocAttributes)
+        .filter(([key]) => !['due_date'].includes(key))
+    )
   }, {
     sequelize,
     modelName: 'Invoice',
