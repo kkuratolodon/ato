@@ -1,16 +1,16 @@
 const path = require("path");
 
 const { Invoice } = require("../models");
-const s3Service = require("./s3Service")
+const s3Service = require("./s3Service");
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
+const Sentry = require("../instrument");
 dotenv.config();
 
 const endpoint = process.env.AZURE_ENDPOINT;
 const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
-
 
 class InvoiceService {
   constructor() {
@@ -225,7 +225,16 @@ class InvoiceService {
       if (!documentUrl) {
         throw new Error("documentUrl is required");
       }
-    
+
+      // Add Sentry tracking when the function is called
+      Sentry.captureMessage(`analyzeInvoice() called`);
+
+      Sentry.addBreadcrumb({
+        category: "analyzeInvoice",
+        message: `Processing invoice: ${documentUrl}`,
+        level: "info",
+      });
+
       try {
         console.log("Processing PDF...");
         const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
@@ -242,7 +251,10 @@ class InvoiceService {
         
         const azureResult = await poller.pollUntilDone();
         console.log("Analysis completed");
-    
+
+        // Add successful logging to Sentry
+        Sentry.captureMessage("analyzeInvoice() completed successfully");
+
         // Untuk keperluan test, kembalikan objek dengan properti message dan data.
         if (!azureResult) {
           return { message: "PDF processed successfully", data: null };
@@ -252,6 +264,9 @@ class InvoiceService {
           data: azureResult
         };
       } catch (error) {
+        // Report error to Sentry
+        Sentry.captureException(error);
+
         if (error.message === 'Invalid date format') {
           throw new Error("Invoice contains invalid date format");
         }
