@@ -225,65 +225,86 @@ class InvoiceService {
       if (!documentUrl) {
         throw new Error("documentUrl is required");
       }
+  
+      return Sentry.startSpan(
+        {
+          name: "analyzeInvoice",
+          attributes: {
+            documentUrl: typeof documentUrl === "string" ? documentUrl : "Buffer data",
+          },
+        },
+        async (span) => {
+          try {
+            Sentry.captureMessage(`analyzeInvoice() called with documentUrl: ${typeof documentUrl === 'string' ? documentUrl : 'Buffer data'}`);
+  
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: `Starting document analysis for: ${typeof documentUrl === "string" ? documentUrl : "Binary Buffer"}`,
+              level: "info",
+            });
+  
+            console.log("Processing PDF...");
+            const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+            let poller;
+  
+            if (typeof documentUrl === 'string') {
+              poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+            } else if (Buffer.isBuffer(documentUrl)) {
+              poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+            } else {
+              throw new Error("Invalid document source type");
+            }
+  
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: "Azure analysis started...",
+              level: "info",
+            });
+  
+            const azureResult = await poller.pollUntilDone();
+            console.log("Analysis completed");
+  
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: "Azure analysis completed successfully",
+              level: "info",
+            });
+  
+            Sentry.captureMessage("analyzeInvoice() completed successfully");
+  
+            return {
+              message: "PDF processed successfully",
+              data: azureResult,
+            };
+          } catch (error) {
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: `Error encountered: ${error.message}`,
+              level: "error",
+            });
 
-      // Add Sentry tracking when the function is called
-      Sentry.captureMessage(`analyzeInvoice() called`);
-
-      Sentry.addBreadcrumb({
-        category: "analyzeInvoice",
-        message: `Processing invoice: ${documentUrl}`,
-        level: "info",
-      });
-
-      try {
-        console.log("Processing PDF...");
-        const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
-        let poller;
-    
-        // Gunakan parameter documentUrl (bukan variabel source)
-        if (typeof documentUrl === 'string') {
-          poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-        } else if (Buffer.isBuffer(documentUrl)) {
-          poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-        } else {
-          throw new Error("Invalid document source type");
+            Sentry.captureException(error);
+            if (error.message === 'Invalid date format') {
+              throw new Error("Invoice contains invalid date format");
+            }
+            if (error.message === 'Invalid document source type') {
+              throw error;
+            }
+            if (error.statusCode === 503) {
+              console.error("Service Unavailable:", error);
+              throw new Error("Service is temporarily unavailable. Please try again later.");
+            } else if (error.statusCode === 409) {
+              console.error("Conflict Error:", error);
+              throw new Error("Conflict error occurred. Please check the document and try again.");
+            } else {
+              console.error(error);
+              throw new Error("Failed to process the document");
+            }
+          } finally {
+            span.end(); // Ensure transaction is always finished
+          }
         }
-        
-        const azureResult = await poller.pollUntilDone();
-        console.log("Analysis completed");
-
-        // Add successful logging to Sentry
-        Sentry.captureMessage("analyzeInvoice() completed successfully");
-
-        // Untuk keperluan test, kembalikan objek dengan properti message dan data.
-        if (!azureResult) {
-          return { message: "PDF processed successfully", data: null };
-        }
-        return {
-          message: "PDF processed successfully",
-          data: azureResult
-        };
-      } catch (error) {
-        // Report error to Sentry
-        Sentry.captureException(error);
-
-        if (error.message === 'Invalid date format') {
-          throw new Error("Invoice contains invalid date format");
-        }
-        if (error.message === 'Invalid document source type') {
-          throw error;
-        }
-        if (error.statusCode === 503) {
-          console.error("Service Unavailable:", error);
-          throw new Error("Service is temporarily unavailable. Please try again later.");
-        } else if (error.statusCode === 409) {
-          console.error("Conflict Error:", error);
-          throw new Error("Conflict error occurred. Please check the document and try again.");
-        } else {
-          console.error(error);
-          throw new Error("Failed to process the document");
-        }
-      }
+      );
     }
 }
 
