@@ -50,7 +50,7 @@ exports.uploadInvoice = async (req, res) => {
     return false;
   };
 
-  const executeWithTimeout = (fn, timeoutMs = 3000) => {
+  const executeWithTimeout = (fn, timeoutMs = 20000) => {
     let timeoutId;
     
     const timeoutPromise = new Promise((_, reject) => {

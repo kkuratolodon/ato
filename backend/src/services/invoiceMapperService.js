@@ -186,10 +186,8 @@ parsePurchaseOrderId(field) {
   parseCurrency(field) {
     // If field.value is directly a number
     if (field && field.value && typeof field.value === 'number') {
-      console.log("konz")
       return field.value;
     }
-    console.log("konz2")
     
     // If field has structured currency value with amount property
     if (field && field.value && typeof field.value.amount === 'number') {
