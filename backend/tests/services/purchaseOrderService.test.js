@@ -1,11 +1,23 @@
 const path = require('path');
 const fs = require('fs');
 const s3Service = require('../../src/services/s3Service');
+const mockFs = require("mock-fs");
 const purchaseOrderService = require('../../src/services/purchaseOrderService');
 const { PurchaseOrder } = require('../../src/models');
 
+jest.mock('../../src/services/s3Service', () => ({
+    uploadFile: jest.fn()
+}));
+
+jest.mock('../../src/models', () => ({
+    PurchaseOrder: {
+        findByPk: jest.fn(),
+        create: jest.fn(), 
+        update: jest.fn()
+    }
+}));
 describe('uploadPurchaseOrder', () => {
-  const TEST_FILE_PATH = path.join(__dirname, '..', 'controllers', 'test-files', 'test-purchase-order.pdf');
+  const TEST_FILE_PATH = path.join(__dirname, '..', 'controllers', 'test-files', 'test-invoice.pdf');
   const TEST_FILE = { buffer: fs.readFileSync(TEST_FILE_PATH) };
   const TEST_S3_URL = 'https://s3.amazonaws.com/test-bucket/test-purchase-order.pdf';
 
@@ -42,7 +54,7 @@ describe('uploadPurchaseOrder', () => {
       file_url: TEST_S3_URL,
       status: "Processing"
     });
-    expect(result).toHaveProperty('message', 'Purchase order successfully uploaded');
+    expect(result).toHaveProperty('message', 'Purchase Order successfully uploaded');
   });
 
   test('should raise error when S3 upload fails', async () => {

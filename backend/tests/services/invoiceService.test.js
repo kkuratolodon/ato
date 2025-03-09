@@ -184,9 +184,12 @@ describe('uploadInvoice - Corner Cases', () => {
     jest.restoreAllMocks();
   });
   
-  test('should throw error when fileData is null', async () => {
-    await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
-  });
+  /*
+    no need this test anymore because null checking is only on layer controller
+  */
+  // test('should throw error when fileData is null', async () => {
+  //   await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
+  // });
   
   test('should throw error when partnerId is missing', async () => {
     const mockParams = { 

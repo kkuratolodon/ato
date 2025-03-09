@@ -10,6 +10,7 @@ const pdfValidationService = require("../../src/services/pdfValidationService");
 const invoiceService = require("../../src/services/invoiceService");
 const authService = require("../../src/services/authService");
 
+
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
 
@@ -44,7 +45,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       filename: "test.pdf" 
     });
   });
-
 
   test("should return status 401 if req.user is not defined", async () => {
     // Simulasikan tidak ada req.user (belum di-auth)
@@ -178,7 +178,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     await uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
+    expect(res.json).toHaveBeenCalledWith(mockResult );
   });
 
   test("should return status 500 if unexpected error occurs", async () => {
@@ -246,7 +246,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     await invoiceController.uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
+    expect(res.json).toHaveBeenCalledWith( mockResult);
     expect(clearTimeoutSpy).toHaveBeenCalled();
 
     clearTimeoutSpy.mockRestore();
@@ -288,6 +288,8 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
   });
+
+  
   
 });
 
@@ -481,7 +483,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     // Jika controller mengembalikan { message: mockResult }, gunakan:
     // expect(res.body).toEqual({ message: mockResult });
     // Jika controller langsung mengembalikan mockResult, gunakan:
-    expect(res.body).toEqual({ message: mockResult });
+    expect(res.body).toEqual(mockResult);
   });
 
   test("harus mengembalikan status 500 jika terjadi error tak terduga", async () => {
@@ -775,7 +777,7 @@ describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
     
     // Verify success response
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: { message: "Success", invoiceId: "123", details: {} } });
+    expect(res.json).toHaveBeenCalledWith({ message: "Success", invoiceId: "123", details: {} } );
   });
   
 });

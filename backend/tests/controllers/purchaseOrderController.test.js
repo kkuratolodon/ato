@@ -2,9 +2,12 @@ const { mockRequest, mockResponse } = require("jest-mock-req-res");
 const purchaseOrderController = require("../../src/controllers/purchaseOrderController");
 const purchaseOrderService = require("../../src/services/purchaseOrderService");
 const pdfValidationService = require("../../src/services/pdfValidationService");
+const authService = require("../../src/services/authService");
+const path = require("path");
 
 jest.mock("../../src/services/PurchaseOrderService");
 jest.mock("../../src/services/pdfValidationService");
+jest.mock("../../src/services/authService");
 
 describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
   let req, res;
@@ -22,7 +25,7 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
 
     authService.authenticate.mockResolvedValue(true);
 
-    purchaseOrderService.uploadDocument.mockResolvedValue({
+    purchaseOrderService.uploadPurchaseOrder.mockResolvedValue({
       message: "Purchase order service called",
       filename: "test.pdf",
     });
@@ -158,7 +161,7 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
     req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
 
     jest.useFakeTimers();
-    purchaseOrderService.uploadDocument.mockImplementation(() => {
+    purchaseOrderService.uploadPurchaseOrder.mockImplementation(() => {
       return new Promise((resolve) => {
         setTimeout(() => {
           resolve({ message: "This should not be called" });
@@ -205,7 +208,7 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
         mimetype: "application/pdf",
         };
 
-        invoiceService.uploadInvoice.mockImplementation(() => {
+        purchaseOrderService.uploadPurchaseOrder.mockImplementation(() => {
         throw new Error("Something unexpected happened");
         });
 
