@@ -12,13 +12,25 @@ jest.mock('../../src/services/s3Service', () => ({
   uploadFile: jest.fn()
 }));
 
-jest.mock('../../src/models', () => ({
-  Invoice: {
+jest.mock('../../src/models', () => {
+  // Create shared mock objects
+  const mockInvoice = {
     findByPk: jest.fn(),
-    create: jest.fn(), 
+    create: jest.fn(),
     update: jest.fn()
-  }
-}));
+  };
+
+  const mockCustomer = {
+    findOne: jest.fn(),
+    create: jest.fn()
+  };
+
+  return {
+    Invoice: mockInvoice,
+    Customer: mockCustomer
+  };
+});
+
 
 describe('uploadInvoice', () => {
   const TEST_FILE_PATH = path.join(__dirname, '..', 'controllers', 'test-files', 'test-invoice.pdf');
@@ -274,7 +286,23 @@ describe('uploadInvoice - Corner Cases', () => {
       { where: { id: 1 }}
     );
   });
-  
+  test('should handle errors when invoice is null during error handling', async () => {
+    // Create a scenario where invoice is null when an error occurs
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    Invoice.create.mockRejectedValue(new Error('Database connection error'));
+    
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+    
+    await expect(invoiceService.uploadInvoice(mockParams))
+      .rejects.toThrow('Failed to process invoice: Database connection error');
+    
+    expect(Invoice.update).not.toHaveBeenCalled();
+  });  
 });
 
 
@@ -652,5 +680,246 @@ describe("Invoice Analysis Service", () => {
       
       await expect(invoiceService.analyzeInvoice('test-url')).rejects.toThrow('Invoice contains invalid date format');
     });
+  });
+  
+});
+
+describe('uploadInvoice - Customer Data Handling', () => {
+  let originalAnalyzeInvoice;
+  const models = require('../../src/models');
+  
+  beforeEach(() => {
+    originalAnalyzeInvoice = invoiceService.analyzeInvoice;
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    invoiceService.analyzeInvoice = originalAnalyzeInvoice;
+    jest.restoreAllMocks();
+  });
+
+  test('should create new customer when customer data is provided but not found', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+    
+    const mockInvoice = { 
+      id: 1, 
+      status: 'Processing' 
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+    
+    // Mock customer not found, then creation
+    models.Customer.findOne.mockResolvedValue(null);
+    models.Customer.create.mockResolvedValue({ 
+      uuid: 'cust-123',
+      name: 'Test Customer' 
+    });
+    
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+    
+    // Mock azureMapper to return customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        customerData: {
+          name: 'Test Customer',
+          street_address: '123 Main St',
+          city: 'Test City',
+          state: 'TS',
+          postal_code: '12345',
+          tax_id: 'TAX123',
+          recipient_name: 'John Doe'
+        }
+      })
+    };
+    
+    await invoiceService.uploadInvoice(mockParams);
+    
+    expect(models.Customer.findOne).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        name: 'Test Customer'
+      })
+    }));
+    
+    expect(models.Customer.create).toHaveBeenCalledWith({
+      name: 'Test Customer',
+      street_address: '123 Main St',
+      city: 'Test City',
+      state: 'TS',
+      postal_code: '12345',
+      house: undefined,
+      tax_id: 'TAX123',
+      recipient_name: 'John Doe'
+    });
+    
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { customer_id: 'cust-123' },
+      { where: { id: 1 }}
+    );
+  });
+
+  test('should use existing customer when customer data matches existing record', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+    
+    const mockInvoice = { 
+      id: 1, 
+      status: 'Processing' 
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+    
+    // Mock existing customer found
+    const existingCustomer = { 
+      uuid: 'existing-123',
+      name: 'Existing Customer' 
+    };
+    models.Customer.findOne.mockResolvedValue(existingCustomer);
+    
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+    
+    // Mock azureMapper to return customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        customerData: {
+          name: 'Existing Customer',
+          tax_id: 'TAX123',
+          postal_code: '12345'
+        }
+      })
+    };
+    
+    await invoiceService.uploadInvoice(mockParams);
+    
+    expect(models.Customer.findOne).toHaveBeenCalled();
+    expect(models.Customer.create).not.toHaveBeenCalled();
+    
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { customer_id: 'existing-123' },
+      { where: { id: 1 }}
+    );
+  });
+
+  test('should proceed without customer data when azureMapper returns no customerData', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+    
+    const mockInvoice = { 
+      id: 1, 
+      status: 'Processing' 
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+    
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+    
+    // Mock azureMapper to return NO customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        }
+        // No customerData key
+      })
+    };
+    
+    await invoiceService.uploadInvoice(mockParams);
+    
+    expect(models.Customer.findOne).not.toHaveBeenCalled();
+    expect(models.Customer.create).not.toHaveBeenCalled();
+    
+    // Should still update the invoice with "Analyzed" status
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: "Analyzed" }, 
+      { where: { id: 1 }}
+    );
+  });
+
+  test('should handle customer data without name property', async () => {
+    const mockParams = { 
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+    
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+    
+    const mockInvoice = { 
+      id: 1, 
+      status: 'Processing' 
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+    
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+    
+    // Mock azureMapper to return incomplete customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        customerData: {
+          // No name property
+          address: '123 Main St'
+        }
+      })
+    };
+    
+    await invoiceService.uploadInvoice(mockParams);
+    
+    expect(models.Customer.findOne).not.toHaveBeenCalled();
+    expect(models.Customer.create).not.toHaveBeenCalled();
+    
+    // Should still update the invoice with "Analyzed" status
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: "Analyzed" }, 
+      { where: { id: 1 }}
+    );
   });
 });
