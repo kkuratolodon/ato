@@ -8,6 +8,7 @@ describe('FinancialDocument Model', () => {
     let FinancialDocument;
     let Partner;
     let partnerId;
+    let Customer;
 
     beforeEach(async () => {
         sequelize = new Sequelize('sqlite::memory:', { logging: false });

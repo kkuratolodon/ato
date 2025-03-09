@@ -8,6 +8,7 @@ describe('PurchaseOrder Model', () => {
     let PurchaseOrder;
     let Partner;
     let partnerId;
+    let Customer;
 
     beforeEach(async () => {
         // Create a real Sequelize instance with an in-memory database
