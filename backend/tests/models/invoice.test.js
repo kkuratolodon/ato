@@ -110,21 +110,8 @@ describe("Invoice Model", () => {
       total_amount: 1000.00,
       subtotal_amount: 900.00,
       payment_terms: "Net 30",
-      status: "InvalidStatus", // not allowed
+      status: "InvalidStatus",
       partner_id: "partner-uuid-invalid",
-    })).rejects.toThrow();
-  });
-
-  test("should fail if purchase_order_id is not a number", async () => {
-    await expect(Invoice.create({
-      invoice_date: new Date(),
-      due_date: new Date(),
-      purchase_order_id: "not-a-number", // invalid type
-      total_amount: 1000.00,
-      subtotal_amount: 900.00,
-      payment_terms: "Net 30",
-      status: "Processing",
-      partner_id: "partner-uuid-123",
     })).rejects.toThrow();
   });
 

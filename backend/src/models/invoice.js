@@ -37,13 +37,8 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     purchase_order_id: { 
-      type: DataTypes.INTEGER, 
+      type: DataTypes.STRING(100), 
       allowNull: true,
-      validate: {
-        isInt: {
-          msg: "purchase_order_id must be an integer"
-        }
-      }
     },
     ...Object.fromEntries(
       Object.entries(financialDocAttributes)
