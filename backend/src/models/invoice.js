@@ -12,13 +12,6 @@ module.exports = (sequelize, DataTypes) => {
         targetKey: 'uuid',
         as: 'partner'
       });
-      if (models && models.Customer) {
-        Invoice.belongsTo(models.Customer, {
-          foreignKey: 'customer_id',
-          targetKey: 'uuid',
-          as: 'customer'
-        });
-      }
     }
   }
 
