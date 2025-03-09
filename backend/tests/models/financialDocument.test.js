@@ -1,6 +1,7 @@
 const { DataTypes, Sequelize } = require('sequelize');
 const FinancialDocumentFactory = require('../../src/models/financialDocument');
 const PartnerModel = require('../../src/models/partner');
+const CustomerModel = require('../../src/models/customer');
 
 describe('FinancialDocument Model', () => {
     let sequelize;
@@ -12,8 +13,11 @@ describe('FinancialDocument Model', () => {
         sequelize = new Sequelize('sqlite::memory:', { logging: false });
         FinancialDocument = FinancialDocumentFactory(sequelize, DataTypes);
         Partner = PartnerModel(sequelize, DataTypes);
-        
-        FinancialDocument.associate({ Partner });
+        Customer = CustomerModel(sequelize, DataTypes);
+
+        FinancialDocument.associate({ Partner, Customer });
+        Partner.associate && Partner.associate({ FinancialDocument });
+        Customer.associate && Customer.associate({ FinancialDocument });
         
         await sequelize.sync({ force: true });
         
@@ -50,6 +54,43 @@ describe('FinancialDocument Model', () => {
     test('should handle when Partner model is not provided', () => {
         FinancialDocument.associate({ SomeOtherModel: {} });
         expect(true).toBeTruthy();
+    });
+
+    test('should associate with a customer', async () => {
+        // Create a test customer
+        const customer = await Customer.create({
+            name: 'Test Customer',
+            email: 'customer@example.com'
+        });
+        
+        // Create a financial document linked to the customer
+        const document = await FinancialDocument.create({
+            status: 'Processing',
+            partner_id: partnerId,
+            customer_id: customer.uuid
+        });
+        
+        // Retrieve the document with its customer
+        const documentWithCustomer = await FinancialDocument.findByPk(document.id, {
+            include: [{
+                model: Customer,
+                as: 'customer'
+            }]
+        });
+        
+        expect(documentWithCustomer.customer).toBeTruthy();
+        expect(documentWithCustomer.customer.name).toBe('Test Customer');
+        expect(documentWithCustomer.customer.uuid).toBe(customer.uuid);
+    });
+    
+    // Also add a test to check that customer_id is null by default
+    test('customer_id should be nullable', async () => {
+        const document = await FinancialDocument.create({
+            status: 'Processing',
+            partner_id: partnerId
+        });
+        
+        expect(document.customer_id).toBeNull();
     });
     
     describe('Positive Cases', () => {

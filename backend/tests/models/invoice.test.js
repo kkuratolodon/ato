@@ -1,6 +1,7 @@
 const { Sequelize, DataTypes } = require("sequelize");
 const InvoiceModel = require("../../src/models/invoice");
 const PartnerModel = require("../../src/models/partner");
+const CustomerModel = require("../../src/models/customer");
 
 describe("Invoice Model", () => {
   let sequelize, Invoice, Partner;
@@ -12,9 +13,12 @@ describe("Invoice Model", () => {
     // Initialize models
     Partner = PartnerModel(sequelize, DataTypes);
     Invoice = InvoiceModel(sequelize, DataTypes);
-    
+    Customer = CustomerModel(sequelize, DataTypes);
+
     // Set up the associations between models
-    Invoice.associate({ Partner });
+    Invoice.associate({ Partner, Customer });
+    Partner.associate && Partner.associate({ Invoice });
+    Customer.associate && Customer.associate({ Invoice });
     await sequelize.sync({ force: true });
   });
   

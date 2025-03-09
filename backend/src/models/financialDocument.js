@@ -11,6 +11,13 @@ module.exports = (sequelize, DataTypes) => {
                     as: 'partner'
                 });
             }
+            if (models && models.Customer) {
+                FinancialDocument.belongsTo(models.Customer, {
+                    foreignKey: 'customer_id',
+                    targetKey: 'uuid',
+                    as: 'customer'
+                });
+            }
         }
     }
 
@@ -56,6 +63,16 @@ module.exports = (sequelize, DataTypes) => {
         partner_id: { 
             type: DataTypes.STRING(45),
             allowNull: false,
+            defaultValue: null 
+        },
+        customer_id: {
+            type: DataTypes.UUID,
+            allowNull: true,
+            references: {
+                model: 'Customer',
+                key: 'uuid'
+            },
+            defaultValue: null 
         }
     }, {
         sequelize,
