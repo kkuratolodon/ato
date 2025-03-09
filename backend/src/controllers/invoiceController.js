@@ -129,6 +129,15 @@ exports.uploadInvoice = async (req, res) => {
   }
 };
 
+/**
+ * @description Retrieves an invoice by ID with authorization check.
+ *
+ * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
+ * @throws {401} Unauthorized if req.user is missing
+ * @throws {403} Forbidden if invoice does not belong to the authenticated user
+ * @throws {404} Not Found if invoice is not found
+ * @throws {500} Internal Server Error 
+ */
 exports.getInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
