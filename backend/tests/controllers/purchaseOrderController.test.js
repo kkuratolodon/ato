@@ -5,7 +5,7 @@ const pdfValidationService = require("../../src/services/pdfValidationService");
 const authService = require("../../src/services/authService");
 const path = require("path");
 
-jest.mock("../../src/services/PurchaseOrderService");
+jest.mock("../../src/services/purchaseOrderService");
 jest.mock("../../src/services/pdfValidationService");
 jest.mock("../../src/services/authService");
 
