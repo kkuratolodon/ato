@@ -115,7 +115,7 @@ class AzureInvoiceMapper {
       name: this.getFieldContent(fields.CustomerName) || this.getFieldContent(fields.BillingAddressRecipient),
       street_address: addressData.street_address,
       city: addressData.city,
-      state: addressData.state,
+      state: addressData.state ,
       postal_code: addressData.postal_code,
       house: addressData.house,
       recipient_name: this.getFieldContent(fields.CustomerAddressRecipient) || 
@@ -184,7 +184,14 @@ parsePurchaseOrderId(field) {
    * @returns {number|null} Parsed amount or null if missing
    */
   parseCurrency(field) {
-    // If field has direct currency value
+    // If field.value is directly a number
+    if (field && field.value && typeof field.value === 'number') {
+      console.log("konz")
+      return field.value;
+    }
+    console.log("konz2")
+    
+    // If field has structured currency value with amount property
     if (field && field.value && typeof field.value.amount === 'number') {
       return field.value.amount;
     }
@@ -298,11 +305,11 @@ parsePurchaseOrderId(field) {
     // Handle structured address from OCR
     if (addressField.value) {
       const value = addressField.value;
-      addressObj.street_address = value.streetAddress || value.road || value.street;
-      addressObj.city = value.city || value.locality;
-      addressObj.state = value.state || value.region || value.province;
-      addressObj.postal_code = value.postalCode || value.zipCode;
-      addressObj.house = value.houseNumber || value.house || value.building;
+      addressObj.street_address = value.streetAddress || value.road || value.street || null;
+      addressObj.city = value.city || value.locality || null;
+      addressObj.state = value.state || value.region || value.province || null;
+      addressObj.postal_code = value.postalCode || value.zipCode || null;
+      addressObj.house = value.houseNumber || value.house || value.building || null;
     }
 
     // Try to extract from content if structured fields are incomplete
@@ -342,11 +349,10 @@ parsePurchaseOrderId(field) {
       
       // Try to extract house number if still missing
       if (!addressObj.house) {
-        const streetLine = addressObj.street_address || (lines.length > 0 ? lines[0] : '');
+        const streetLine = addressObj.street_address;
         const houseMatch = streetLine.match(/^(?:No\.\s*)?(\d+[A-Za-z]?)[,\s]+/i);
-        if (houseMatch) {
-          addressObj.house = houseMatch[1];
-        }
+        
+        addressObj.house = houseMatch[1];
       }
     }
 
@@ -423,7 +429,9 @@ parsePurchaseOrderId(field) {
     if (fileUrl) {
       invoiceData.file_url = fileUrl;
     }
-    
+    else {
+      invoiceData.file_url = null;
+    }
     return {
       customerData,
       invoiceData
