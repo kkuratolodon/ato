@@ -49,11 +49,14 @@ describe('uploadInvoice', () => {
     // Tambahkan mock untuk azureMapper
     invoiceService.azureMapper = {
       mapToInvoiceModel: jest.fn().mockReturnValue({
-        invoice_number: 'INV-001',
-        invoice_date: '2023-01-01',
-        due_date: '2023-02-01',
-        total_amount: 1000,
-        status: 'Analyzed'
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000,
+          status: 'Analyzed'
+        },
+        customerData: {} // Include empty customer data
       })
     };
 

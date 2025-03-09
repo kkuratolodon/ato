@@ -5,6 +5,7 @@ const s3Service = require("./s3Service")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
+const { Customer } = require("../models");
 dotenv.config();
 
 const endpoint = process.env.AZURE_ENDPOINT;
@@ -57,7 +58,8 @@ class InvoiceService {
       const invoiceData = {
         status: "Processing",
         partner_id: partnerId,
-        file_url: s3Url
+        file_url: s3Url,
+        // file_url: "http://example.com/invoice.pdf"
       };
   
       invoice = await Invoice.create(invoiceData);
@@ -70,18 +72,56 @@ class InvoiceService {
       }
       
       // 2. Map hasil Azure ke model invoice kita
-      const invoiceData2 = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+      // 2. Map hasil Azure ke model invoice kita
+      const { invoiceData: invoiceData2, customerData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+      
+      // Jika perlu menggunakan customerData untuk pemrosesan lebih lanjut
+      console.log("Customer data extracted:", customerData);
       
       // 3. Tambahkan informasi tambahan
       invoiceData2.original_filename = originalname;
       invoiceData2.file_size = buffer.length;
-      invoiceData2.status = "Analyzed";
-      
+
       // 4. Simpan invoice ke database
       await Invoice.update(invoiceData2, {
         where: { id: invoice.id }
       });
-      
+      // Update invoice status to "Analyzed"
+      await Invoice.update({ status: "Analyzed" }, { 
+        where: { id: invoice.id }
+      });
+
+      if (customerData && customerData.name) {
+        // Search customer by multiple attributes for more unique matching
+        let customer = await Customer.findOne({
+          where: {
+            name: customerData.name,
+            // Additional fields for more precise matching
+            ...(customerData.tax_id && { tax_id: customerData.tax_id }),
+            ...(customerData.postal_code && { postal_code: customerData.postal_code }),
+            ...(customerData.street_address && { street_address: customerData.street_address })
+          }
+        });
+        
+        if (!customer) {
+          customer = await Customer.create({
+            name: customerData.name,
+            street_address: customerData.street_address,
+            city: customerData.city,
+            state: customerData.state,
+            postal_code: customerData.postal_code,
+            house: customerData.house,
+            tax_id: customerData.tax_id,
+            recipient_name: customerData.recipient_name
+          });
+        }
+        
+        await Invoice.update({ 
+          customer_id: customer.uuid 
+        }, {
+          where: { id: invoice.id }
+        });
+      }
       // 5. Kembalikan hasil mapping
       return {
         message: "Invoice successfully processed and saved",
