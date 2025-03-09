@@ -32,11 +32,11 @@ module.exports = {
         type: Sequelize.STRING(100),
         allowNull: true
       },
-      email: {
+      recipient_name: { 
         type: Sequelize.STRING,
         allowNull: true
       },
-      phone: {
+      tax_id: { 
         type: Sequelize.STRING,
         allowNull: true
       },
