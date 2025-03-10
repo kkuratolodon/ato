@@ -347,9 +347,9 @@ parsePurchaseOrderId(field) {
   }
 
   extractCityStatePostalCode(lines, content, addressObj) {
-    const cityStateZipPattern1 = /([A-Za-z][\sA-Za-z]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(-\d{4})?)/i;
-    const cityStateZipPattern2 = /([A-Za-z][\sA-Za-z]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(-\d{4})?)/i;
-    const internationalPattern = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z\d][A-Z\d\s]{2,9})/i;
+    const cityStateZipPattern1 = /([a-z][\sa-z]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(-\d{4})?)/i;
+    const cityStateZipPattern2 = /([a-z][\sa-z]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(-\d{4})?)/i;
+    const internationalPattern = /([a-z][\sa-z]{0,48}),\s*([a-z][\sa-z]{0,48})\s+([A-Z\d][\sA-Z\d]{2,9})/i;
     let match = null;
     for (const line of [...lines, content]) {
       match = line.match(cityStateZipPattern1) || 
