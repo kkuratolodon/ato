@@ -230,7 +230,7 @@ parsePurchaseOrderId(field) {
     if (paymentTerms) {
       // Try to parse term days from different formats
       const netMatch = paymentTerms.match(/net\s+(\d+)/i);
-      const daysMatch = paymentTerms.match(/(\d+)\s*days?/i);
+      const daysMatch = paymentTerms.match(/(\d+)(?:\s+days?|\s*d)/i);
       const numericMatch = paymentTerms.match(/^\s*(\d+)\s*$/);
       
       if (netMatch) {
@@ -332,12 +332,12 @@ parsePurchaseOrderId(field) {
 
       // Try various patterns for city/state/postal code
       if (!addressObj.city || !addressObj.state || !addressObj.postal_code) {
-        // Pattern: City, STATE ZIPCODE
-        const cityStateZipPattern1 = /([A-Za-z\s]+),\s*([A-Z]{2,})\s+(\d{5}(?:-\d{4})?)/i;
+        // Pattern: City, STATE ZIPCODE (with length limits)
+        const cityStateZipPattern1 = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(?:-\d{4})?)/i;
         // Pattern: City STATE ZIPCODE (no comma)
-        const cityStateZipPattern2 = /([A-Za-z\s]+)\s+([A-Z]{2,})\s+(\d{5}(?:-\d{4})?)/i;
+        const cityStateZipPattern2 = /([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(?:-\d{4})?)/i;
         // Pattern for international: City, Region PostCode
-        const internationalPattern = /([A-Za-z\s]+),\s*([A-Za-z\s]+)\s+([A-Z0-9\s]{3,10})/i;
+        const internationalPattern = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z0-9][A-Z0-9\s]{2,9})/i;
         
         // Look for the pattern in each line and the whole content
         let match = null;
