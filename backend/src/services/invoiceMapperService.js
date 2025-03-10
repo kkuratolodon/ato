@@ -6,7 +6,7 @@ class AzureInvoiceMapper {
    * @returns {Object} Invoice data ready for database
    */
   mapToInvoiceModel(ocrResult, partnerId) {
-    if (!ocrResult || !ocrResult.documents || !ocrResult.documents[0]) {
+    if (!ocrResult?.documents?.[0]) {
       throw new Error('Invalid OCR result format');
     }
     
@@ -149,7 +149,7 @@ class AzureInvoiceMapper {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-') // Replace non-alphanumerics with hyphens
       .replace(/--+/g, '-')       // Replace multiple hyphens with single
-      .replace(/^-|-$/g, '')      // Remove leading/trailing hyphens
+      .replace(/(^-)|(\.$)/g, '')      // Remove leading/trailing hyphens
       .substring(0, 44);          // Truncate to fit partner_id field
   }
   
@@ -159,7 +159,7 @@ class AzureInvoiceMapper {
    * @returns {Array} Extracted line items
    */
   extractLineItems(itemsField) {
-    if (!itemsField || !itemsField.valueArray) {
+    if (!itemsField?.valueArray) {
       return [];
     }
     

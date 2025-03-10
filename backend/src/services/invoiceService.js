@@ -65,7 +65,7 @@ class InvoiceService {
       // 1. Gunakan method analyzeInvoice untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
       
-      if (!analysisResult || !analysisResult.data) {
+      if (!analysisResult?.data) {
         throw new Error("Failed to analyze invoice: No data returned");
       }
       
@@ -97,7 +97,7 @@ class InvoiceService {
         }
       };
     } catch (error) {
-      if (invoice && invoice.id) {
+      if (invoice?.id) {
         await Invoice.update({ status: "Failed" }, { where: { id: invoice.id } });
       }
       console.error("Error processing invoice:", error);

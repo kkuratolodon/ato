@@ -181,7 +181,7 @@ exports.analyzeInvoice = async (req, res) => {
     // Analisis dokumen, mapping, dan simpan ke database
     const result = await invoiceService.analyzeInvoice(documentUrl, partnerId);
     
-    if (!result || !result.savedInvoice) {
+    if (!result?.savedInvoice) {
       return res.status(500).json({ message: "Failed to analyze invoice: no saved invoice returned" });
     }
     
