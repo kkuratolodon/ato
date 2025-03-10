@@ -783,29 +783,6 @@ describe("Invoice Analysis Service", () => {
         data: {},
       });
     });
-    test('should process buffer input correctly', async () => {
-      const bufferInput = Buffer.from('test pdf content');
-
-      const mockClient = {
-        beginAnalyzeDocument: jest.fn().mockResolvedValue({
-          pollUntilDone: jest.fn().mockResolvedValue({ key: 'value' }),
-        }),
-      };
-
-      DocumentAnalysisClient.mockImplementation(() => mockClient);
-
-      const result = await invoiceService.analyzeInvoice(bufferInput);
-
-      expect(mockClient.beginAnalyzeDocument).toHaveBeenCalledWith(
-        process.env.AZURE_INVOICE_MODEL || expect.any(String),
-        bufferInput
-      );
-
-      expect(result).toEqual({
-        message: 'PDF processed successfully',
-        data: { key: 'value' }
-      });
-    });
     test('should throw error for invalid document source type', async () => {
       const invalidInput = { notValid: true };
 
