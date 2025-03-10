@@ -230,7 +230,7 @@ parsePurchaseOrderId(field) {
     if (paymentTerms) {
       // Try to parse term days from different formats
       const netMatch = paymentTerms.match(/net\s+(\d+)/i);
-      const daysMatch = paymentTerms.match(/(\d+)(?:\s+days?|\s*d)/i);
+      const daysMatch = paymentTerms.match(/(\d+)(?:\s+days?\b|\bd\b)/i);
       const numericMatch = paymentTerms.match(/^\s*(\d+)\s*$/);
       
       if (netMatch) {
