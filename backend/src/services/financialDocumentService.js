@@ -5,7 +5,8 @@ class FinancialDocumentService{
     this.documentType = documentType;
   }
 
-  async uploadFile({ buffer, originalname, partnerId }){
+  async uploadFile({ buffer, partnerId }){
+  
     if (!partnerId) {
       throw new Error("Partner ID is required");
     }

@@ -8,7 +8,8 @@ class PurchaseOrderService extends FinancialDocumentService{
     async uploadPurchaseOrder(fileData){
         let purchaseOrder;
         try{
-            const { buffer, originalname, partnerId } = fileData;
+            // use for later
+            // const { buffer, originalname, partnerId } = fileData;
     
             const purchaseOrderData = await this.uploadFile(fileData);
             purchaseOrder = await PurchaseOrder.create(purchaseOrderData);
@@ -18,7 +19,7 @@ class PurchaseOrderService extends FinancialDocumentService{
                 purchaseOrderId: purchaseOrder.id
             }
         }catch (error) {
-            // this happens after connect to ocr but failed analyse
+            // this happens after connect to ocr but failed ot analyzed
             // if (purchaseOrder && purchaseOrder.id) {
             //     await PurchaseOrder.update({ status: "Failed" }, { where: { id: purchaseOrder.id } });
             // }

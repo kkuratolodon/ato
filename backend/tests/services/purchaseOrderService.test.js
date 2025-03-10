@@ -1,7 +1,6 @@
 const path = require('path');
 const fs = require('fs');
 const s3Service = require('../../src/services/s3Service');
-const mockFs = require("mock-fs");
 const purchaseOrderService = require('../../src/services/purchaseOrderService');
 const { PurchaseOrder } = require('../../src/models');
 

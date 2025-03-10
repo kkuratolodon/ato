@@ -4,7 +4,6 @@ const FinancialDocumentController = require("../../src/controllers/financialDocu
 const purchaseOrderService = require("../../src/services/purchaseOrderService");
 const pdfValidationService = require("../../src/services/pdfValidationService");
 const authService = require("../../src/services/authService");
-const path = require("path");
 
 jest.mock("../../src/services/purchaseOrderService");
 jest.mock("../../src/services/pdfValidationService");

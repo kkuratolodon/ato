@@ -2,7 +2,6 @@ const path = require("path");
 
 const { Invoice } = require("../models");
 const FinancialDocumentService = require("./financialDocumentService")
-const s3Service = require("./s3Service")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
