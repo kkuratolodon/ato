@@ -229,9 +229,9 @@ parsePurchaseOrderId(field) {
     // Add null check for paymentTerms
     if (paymentTerms) {
       // Try to parse term days from different formats
-      const netMatch = paymentTerms.match(/net\s+(\d+)/i);
-      const daysMatch = paymentTerms.match(/(\d+)(?:\s+days?\b|\bd\b)/i);
-      const numericMatch = paymentTerms.match(/^\s*(\d+)\s*$/);
+      const netMatch = paymentTerms.match(/net\s+(\d{1,4})/i);
+      const daysMatch = paymentTerms.match(/\b(\d{1,4})\s*(?:days?\b|d\b)/i);
+      const numericMatch = paymentTerms.match(/^\s*(\d{1,4})\s*$/);
       
       if (netMatch) {
         termDays = parseInt(netMatch[1], 10);
