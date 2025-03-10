@@ -8,7 +8,7 @@ class AzureInvoiceMapper {
    * @returns {Object} Invoice and customer data ready for database
    */
   mapToInvoiceModel(ocrResult, partnerId) {
-    if (!ocrResult || !ocrResult.documents || !ocrResult.documents[0]) {
+    if (!ocrResult?.documents?.[0]) {
       throw new Error('Invalid OCR result format');
     }
     
@@ -174,7 +174,7 @@ parsePurchaseOrderId(field) {
   if (!poStr) return null;
   
   // Try to convert to number first (for backward compatibility with tests)
-  const numValue = parseInt(poStr.replace(/[^0-9]/g, ''), 10);
+  const numValue = parseInt(poStr.replace(/\D/g, ''), 10);
   
   // If it's a valid number, return it, otherwise return 0
   if (!isNaN(numValue) && numValue !== Infinity) {
@@ -191,7 +191,7 @@ parsePurchaseOrderId(field) {
    */
   parseCurrency(field) {
     // If field.value is directly a number
-    if (typeof field?.value === 'number') {
+    if (field?.value && typeof field.value === 'number') {
       return field.value;
     }
     
@@ -225,9 +225,9 @@ parsePurchaseOrderId(field) {
     // Add null check for paymentTerms
     if (paymentTerms) {
       // Try to parse term days from different formats
-      const netMatch = paymentTerms.match(/net\s+(\d{1,4})/i);
-      const daysMatch = paymentTerms.match(/\b(\d{1,4})\s*(?:days?\b|d\b)/i);
-      const numericMatch = paymentTerms.match(/^\s*(\d{1,4})\s*$/);
+      const netMatch = /net\s+(\d{1,4})/i.exec(paymentTerms);
+      const daysMatch = /\b(\d{1,4})\s*(?:days?\b|d\b)/i.exec(paymentTerms);
+      const numericMatch = /^\s*(\d{1,4})\s*$/.exec(paymentTerms);
       
       if (netMatch) {
         termDays = parseInt(netMatch[1], 10);
@@ -347,10 +347,9 @@ parsePurchaseOrderId(field) {
   }
 
   extractCityStatePostalCode(lines, content, addressObj) {
-    const cityStateZipPattern1 = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(?:-\d{4})?)/i;
-    const cityStateZipPattern2 = /([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(?:-\d{4})?)/i;
-    const internationalPattern = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z0-9][A-Z0-9\s]{2,9})/i;
-
+    const cityStateZipPattern1 = /([A-Za-z][\sA-Za-z]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(-\d{4})?)/i;
+    const cityStateZipPattern2 = /([A-Za-z][\sA-Za-z]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(-\d{4})?)/i;
+    const internationalPattern = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z\d][A-Z\d\s]{2,9})/i;
     let match = null;
     for (const line of [...lines, content]) {
       match = line.match(cityStateZipPattern1) || 
