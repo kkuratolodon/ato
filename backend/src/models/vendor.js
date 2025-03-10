@@ -43,7 +43,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING(100),
             allowNull: true
         },
-        contact_name: {
+        recipient_name: {
             type: DataTypes.STRING,
             allowNull: true
         },

@@ -55,7 +55,7 @@ describe('Vendor Model', () => {
             state: 'Supply State',
             postal_code: '54321',
             house: '456',
-            contact_name: 'Jane Supplier',
+            recipient_name: 'Jane Supplier',
             tax_id: 'V-98765'
         });
         vendorId = vendor.uuid;
@@ -77,7 +77,7 @@ describe('Vendor Model', () => {
             expect(Vendor.rawAttributes).toHaveProperty('state');
             expect(Vendor.rawAttributes).toHaveProperty('postal_code');
             expect(Vendor.rawAttributes).toHaveProperty('house');
-            expect(Vendor.rawAttributes).toHaveProperty('contact_name');
+            expect(Vendor.rawAttributes).toHaveProperty('recipient_name');
             expect(Vendor.rawAttributes).toHaveProperty('tax_id');
         });
         
@@ -106,7 +106,7 @@ describe('Vendor Model', () => {
             expect(vendor.state).toBe('Supply State');
             expect(vendor.postal_code).toBe('54321');
             expect(vendor.house).toBe('456');
-            expect(vendor.contact_name).toBe('Jane Supplier');
+            expect(vendor.recipient_name).toBe('Jane Supplier');
             expect(vendor.tax_id).toBe('V-98765');
         });
         

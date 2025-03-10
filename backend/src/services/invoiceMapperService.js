@@ -119,13 +119,13 @@ class AzureInvoiceMapper {
       postal_code: addressData.postal_code,
       house: addressData.house,
       recipient_name: this.getFieldContent(fields.CustomerAddressRecipient) || 
-                     this.getFieldContent(fields.CustomerContactName) || 
                      this.getFieldContent(fields.CustomerName),
       tax_id: this.getFieldContent(fields.CustomerTaxId) || 
               this.getFieldContent(fields.VatNumber) ||
               this.getFieldContent(fields.TaxId)
     };
   }
+  
   
   /**
    * Parse date field from OCR result
