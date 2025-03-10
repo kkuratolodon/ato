@@ -379,7 +379,7 @@ parsePurchaseOrderId(field) {
    */
   parseNumeric(field) {
     // If field has direct numeric value
-    if (field && field.value && typeof field.value === 'number') {
+    if (field?.value && typeof field.value === 'number') {
       return field.value;
     }
     
@@ -411,7 +411,7 @@ parsePurchaseOrderId(field) {
     }
     
     // Some fields have text value inside a nested value object
-    if (field.value && field.value.text) {
+    if (field?.value?.text) {
       return field.value.text.trim();
     }
     

@@ -84,7 +84,7 @@ class InvoiceService {
   }
 
   mapAnalysisResult(analysisResult, partnerId, originalname, fileSize) {
-    if (!analysisResult || !analysisResult.data) {
+    if (!analysisResult?.data) {
       throw new Error("Failed to analyze invoice: No data returned");
     }
     const { invoiceData: invoiceData2, customerData, vendorData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
@@ -99,7 +99,7 @@ class InvoiceService {
   }
 
   async updateCustomerAndVendorData(invoiceId, customerData, vendorData) {
-    if (customerData && customerData.name) {
+    if (customerData?.name) {
       let customer = await Customer.findOne({
         where: {
           name: customerData.name,
@@ -113,7 +113,7 @@ class InvoiceService {
       }
       await Invoice.update({ customer_id: customer.uuid }, { where: { id: invoiceId } });
     }
-    if (vendorData && vendorData.name) {
+    if (vendorData?.name) {
       let vendor = await Vendor.findOne({
         where: {
           name: vendorData.name,

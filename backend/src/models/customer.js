@@ -4,7 +4,7 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
     class Customer extends Model {
         static associate(models) {
-            if (models && models.FinancialDocument) {
+            if (models?.FinancialDocument) {
                 Customer.hasMany(models.FinancialDocument, {
                     foreignKey: 'customer_id',
                     as: 'financial_documents'
