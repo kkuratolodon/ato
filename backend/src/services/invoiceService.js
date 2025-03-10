@@ -6,6 +6,7 @@ const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-r
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
 const { Customer } = require("../models");
+const { Vendor } = require("../models");
 dotenv.config();
 
 const endpoint = process.env.AZURE_ENDPOINT;
@@ -73,11 +74,11 @@ class InvoiceService {
       
       // 2. Map hasil Azure ke model invoice kita
       // 2. Map hasil Azure ke model invoice kita
-      const { invoiceData: invoiceData2, customerData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+      const { invoiceData: invoiceData2, customerData, vendorData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
       
       // Jika perlu menggunakan customerData untuk pemrosesan lebih lanjut
       console.log("Customer data extracted:", customerData);
-      
+      console.log("Vendor data extracted:", vendorData);
       // 3. Tambahkan informasi tambahan
       invoiceData2.original_filename = originalname;
       invoiceData2.file_size = buffer.length;
@@ -118,6 +119,36 @@ class InvoiceService {
         
         await Invoice.update({ 
           customer_id: customer.uuid 
+        }, {
+          where: { id: invoice.id }
+        });
+      }
+      if (vendorData && vendorData.name) {
+        // Search vendor by multiple attributes for more unique matching
+        let vendor = await Vendor.findOne({
+          where: {
+            name: vendorData.name,
+            ...(vendorData.tax_id && { tax_id: vendorData.tax_id }),
+            ...(vendorData.postal_code && { postal_code: vendorData.postal_code }),
+            ...(vendorData.street_address && { street_address: vendorData.street_address })
+          }
+        });
+
+        if (!vendor) {
+          vendor = await Vendor.create({
+            name: vendorData.name,
+            street_address: vendorData.street_address,
+            city: vendorData.city,
+            state: vendorData.state,
+            postal_code: vendorData.postal_code,
+            house: vendorData.house,
+            tax_id: vendorData.tax_id,
+            recipient_name: vendorData.recipient_name
+          });
+        }
+
+        await Invoice.update({ 
+          vendor_id: vendor.uuid 
         }, {
           where: { id: invoice.id }
         });
