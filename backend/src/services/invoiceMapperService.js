@@ -367,7 +367,7 @@ parsePurchaseOrderId(field) {
 
   extractHouseNumber(addressObj) {
     const streetLine = addressObj.street_address;
-    const houseMatch = streetLine.match(/^(?:No\.\s*)?(\d+[A-Za-z]?)[,\s]+/i);
+    const houseMatch = streetLine.match(/^(?:No\.\s*)?(\d+[A-Za-z]?)[\s]+/i);
 
     addressObj.house = houseMatch[1];
   }
