@@ -291,12 +291,29 @@ class AzureInvoiceMapper {
   }
 
   /**
-   * Extract line items from OCR result with improved handling
+   * Generate partner ID from vendor name
+   * @param {string} vendorName - Vendor name from OCR
+   * @returns {string} Generated partner ID
+   */
+  generatePartnerId(vendorName) {
+    if (!vendorName) return 'unknown-vendor';
+    
+    // Create a URL-friendly slug
+    return vendorName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-') // Replace non-alphanumerics with hyphens
+      .replace(/--+/g, '-')       // Replace multiple hyphens with single
+      .replace(/(^-)|(\.$)/g, '')      // Remove leading/trailing hyphens
+      .substring(0, 44);          // Truncate to fit partner_id field
+  }
+  
+  /**
+   * Extract line items from OCR result
    * @param {Object} itemsField - Items field from OCR
    * @returns {Array} Extracted line items
    */
   extractLineItems(itemsField) {
-    if (!itemsField) {
+    if (!itemsField?.valueArray) {
       return [];
     }
 
