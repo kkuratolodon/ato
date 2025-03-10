@@ -298,73 +298,83 @@ parsePurchaseOrderId(field) {
    * @returns {Object} Extracted address components
    */
   extractCustomerAddress(addressField) {
-    const addressObj = {
+    const addressObj = this.initializeAddressObject();
+
+    if (!addressField) {
+      return addressObj;
+    }
+
+    if (addressField.value) {
+      this.populateStructuredAddress(addressField.value, addressObj);
+    }
+
+    const content = this.getFieldContent(addressField);
+    if (content) {
+      this.populateAddressFromContent(content, addressObj);
+    }
+
+    return addressObj;
+  }
+
+  initializeAddressObject() {
+    return {
       street_address: null,
       city: null,
       state: null,
       postal_code: null,
       house: null
     };
+  }
 
-    if (!addressField) {
-      return addressObj;
+  populateStructuredAddress(value, addressObj) {
+    addressObj.street_address = value.streetAddress || value.road || value.street || null;
+    addressObj.city = value.city || value.locality || null;
+    addressObj.state = value.state || value.region || value.province || null;
+    addressObj.postal_code = value.postalCode || value.zipCode || null;
+    addressObj.house = value.houseNumber || value.house || value.building || null;
+  }
+
+  populateAddressFromContent(content, addressObj) {
+    const lines = content.split('\n');
+
+    if (!addressObj.street_address && lines.length > 0) {
+      addressObj.street_address = lines[0].trim();
     }
 
-    // Handle structured address from OCR
-    if (addressField.value) {
-      const value = addressField.value;
-      addressObj.street_address = value.streetAddress || value.road || value.street || null;
-      addressObj.city = value.city || value.locality || null;
-      addressObj.state = value.state || value.region || value.province || null;
-      addressObj.postal_code = value.postalCode || value.zipCode || null;
-      addressObj.house = value.houseNumber || value.house || value.building || null;
+    if (!addressObj.city || !addressObj.state || !addressObj.postal_code) {
+      this.extractCityStatePostalCode(lines, content, addressObj);
     }
 
-    // Try to extract from content if structured fields are incomplete
-    const content = this.getFieldContent(addressField);
-    if (content) {
-      const lines = content.split('\n');
-      
-      // If no street address yet, use first line
-      if (!addressObj.street_address && lines.length > 0) {
-        addressObj.street_address = lines[0].trim();
-      }
+    if (!addressObj.house) {
+      this.extractHouseNumber(addressObj);
+    }
+  }
 
-      // Try various patterns for city/state/postal code
-      if (!addressObj.city || !addressObj.state || !addressObj.postal_code) {
-        // Pattern: City, STATE ZIPCODE (with length limits)
-        const cityStateZipPattern1 = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(?:-\d{4})?)/i;
-        // Pattern: City STATE ZIPCODE (no comma)
-        const cityStateZipPattern2 = /([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(?:-\d{4})?)/i;
-        // Pattern for international: City, Region PostCode
-        const internationalPattern = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z0-9][A-Z0-9\s]{2,9})/i;
-        
-        // Look for the pattern in each line and the whole content
-        let match = null;
-        for (const line of [...lines, content]) {
-          match = line.match(cityStateZipPattern1) || 
-                 line.match(cityStateZipPattern2) ||
-                 line.match(internationalPattern);
-          if (match) break;
-        }
-        
-        if (match) {
-          if (!addressObj.city) addressObj.city = match[1].trim();
-          if (!addressObj.state) addressObj.state = match[2].trim();
-          if (!addressObj.postal_code) addressObj.postal_code = match[3].trim();
-        }
-      }
-      
-      // Try to extract house number if still missing
-      if (!addressObj.house) {
-        const streetLine = addressObj.street_address;
-        const houseMatch = streetLine.match(/^(?:No\.\s*)?(\d+[A-Za-z]?)[,\s]+/i);
-        
-        addressObj.house = houseMatch[1];
-      }
+  extractCityStatePostalCode(lines, content, addressObj) {
+    const cityStateZipPattern1 = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(?:-\d{4})?)/i;
+    const cityStateZipPattern2 = /([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(?:-\d{4})?)/i;
+    const internationalPattern = /([A-Za-z][A-Za-z\s]{0,48}),\s*([A-Za-z][A-Za-z\s]{0,48})\s+([A-Z0-9][A-Z0-9\s]{2,9})/i;
+
+    let match = null;
+    for (const line of [...lines, content]) {
+      match = line.match(cityStateZipPattern1) || 
+              line.match(cityStateZipPattern2) ||
+              line.match(internationalPattern);
+      if (match) break;
     }
 
-    return addressObj;
+    if (match) {
+      if (!addressObj.city) addressObj.city = match[1].trim();
+      if (!addressObj.state) addressObj.state = match[2].trim();
+      if (!addressObj.postal_code) addressObj.postal_code = match[3].trim();
+    }
+  }
+
+  extractHouseNumber(addressObj) {
+    const streetLine = addressObj.street_address;
+    const houseMatch = streetLine.match(/^(?:No\.\s*)?(\d+[A-Za-z]?)[,\s]+/i);
+
+    addressObj.house = houseMatch[1];
   }
   
   /**
