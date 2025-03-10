@@ -1,24 +1,49 @@
 'use strict';
-const { Model } = require('sequelize');
+const FinancialDocumentFactory = require('./financialDocument');
 
 module.exports = (sequelize, DataTypes) => {
-  class Invoice extends Model {
+  const FinancialDocument = FinancialDocumentFactory(sequelize, DataTypes);
+  
+  class Invoice extends FinancialDocument {
     static associate(models) {
+      if (!models) return;
+      
       Invoice.belongsTo(models.Partner, { 
         foreignKey: 'partner_id', 
         targetKey: 'uuid',
         as: 'partner'
       });
+      
+      if (models.Customer) {
+        Invoice.belongsTo(models.Customer, { 
+          foreignKey: 'customer_id', 
+          targetKey: 'uuid',
+          as: 'customer'
+        });
+      }
+      
+      if (models.Vendor) {
+        Invoice.belongsTo(models.Vendor, { 
+          foreignKey: 'vendor_id', 
+          targetKey: 'uuid',
+          as: 'vendor'
+        });
+      }
     }
   }
+
+  const financialDocAttributes = { ...FinancialDocument.getAttributes() };
+  delete financialDocAttributes.id;
+  delete financialDocAttributes.createdAt;
+  delete financialDocAttributes.updatedAt;
 
   Invoice.init({
     invoice_date: { 
       type: DataTypes.DATE, 
       allowNull: true 
     },
-    due_date: { 
-      type: DataTypes.DATE, 
+    due_date: {
+      type: DataTypes.DATE,
       allowNull: true,
       validate: {
         isAfterInvoiceDate(value) {
@@ -29,52 +54,13 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     purchase_order_id: { 
-      type: DataTypes.INTEGER, 
+      type: DataTypes.STRING(100), 
       allowNull: true,
-      validate: {
-        isInt: {
-          msg: "purchase_order_id must be an integer"
-        }
-      }
     },
-    total_amount: { 
-      type: DataTypes.DECIMAL, 
-      allowNull: true,
-      validate: {
-        min: 0,
-      }
-    },
-    subtotal_amount: { 
-      type: DataTypes.DECIMAL, 
-      allowNull: true 
-    },
-    discount_amount: { 
-      type: DataTypes.DECIMAL, 
-      allowNull: true 
-    },
-    payment_terms: { 
-      type: DataTypes.STRING, 
-      allowNull: true 
-    },
-    file_url: { 
-      type: DataTypes.STRING, 
-      allowNull: true, 
-      defaultValue: null 
-    },
-    status: { 
-      type: DataTypes.STRING, 
-      allowNull: false,
-      validate: {
-        isIn: {
-          args: [["Processing", "Analyzed", "Failed"]],
-          msg: "status must be one of 'Processing', 'Analyzed', or 'Failed'"
-        }
-      }
-    },
-    partner_id: { 
-      type: DataTypes.STRING(45), 
-      allowNull: false,
-    }
+    ...Object.fromEntries(
+      Object.entries(financialDocAttributes)
+        .filter(([key]) => !['due_date'].includes(key))
+    )
   }, {
     sequelize,
     modelName: 'Invoice',
