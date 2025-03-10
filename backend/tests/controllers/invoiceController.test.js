@@ -289,6 +289,17 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.json).not.toHaveBeenCalled();
   });
 
+  test("should not send another response if headersSent is true", async () => {
+    const req = mockRequest({ user: { uuid: "dummy-uuid" }, file: null });
+    const res = mockResponse();
+    res.headersSent = true; // Simulate headers already sent
+  
+    await invoiceController.uploadInvoice(req, res);
+  
+    expect(res.status).not.toHaveBeenCalled(); // Ensure no new response is sent
+    expect(res.json).not.toHaveBeenCalled();
+  });
+
   
   
 });
