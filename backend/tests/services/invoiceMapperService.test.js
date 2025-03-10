@@ -440,20 +440,6 @@ describe('AzureInvoiceMapper', () => {
   });
 
   describe('Address Processing', () => {
-    it('should handle vendor address correctly', () => {
-      const ocrWithVendorAddress = {
-        documents: [{
-          fields: {
-            VendorAddress: { content: '123 Vendor St, City, State 12345' },
-            InvoiceId: { content: 'INV001' }
-          }
-        }]
-      };
-      
-      const { invoiceData } = mapper.mapToInvoiceModel(ocrWithVendorAddress, partnerId);
-      expect(invoiceData.vendor_address).toBe('123 Vendor St, City, State 12345');
-    });
-    
     it('should handle different address patterns for customer address extraction', () => {
       // City, STATE ZIP pattern
       const addressWithCityStateZip = {

@@ -16,25 +16,19 @@ class AzureInvoiceMapper {
       throw new Error('Partner ID is required');
     }
     
+    
     const document = ocrResult.documents[0];
     const fields = document.fields || {};
-    
-    console.log("=== Processing OCR Result ===");
-    console.log("Available fields:", Object.keys(fields).join(", "));
     
     // Extract and validate dates
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);
-    console.log("Invoice Date:", invoiceDate);
-    console.log("Due Date:", dueDate);
-    
+
     // Extract invoice number (check multiple possible field names)
     const invoiceNumber = this.extractInvoiceNumber(fields);
-    console.log("Invoice Number:", invoiceNumber);
     
     // Extract purchase order ID
     const purchaseOrderId = this.parsePurchaseOrderId(fields.PurchaseOrder);
-    console.log("Purchase Order ID:", purchaseOrderId);
     
     // Extract monetary values
     const totalAmount = this.parseCurrency(fields.InvoiceTotal || fields.Total) || 0;
@@ -42,10 +36,6 @@ class AzureInvoiceMapper {
     const discountAmount = this.parseCurrency(fields.TotalDiscount || fields.Discount) || 0;
     const taxAmount = this.parseCurrency(fields.TotalTax || fields.Tax) || 0;
 
-    // Extract vendor info
-    const vendorName = this.getFieldContent(fields.VendorName);
-    const vendorAddress = this.extractVendorAddress(fields.VendorAddress);
-    
     // Extract payment terms
     const paymentTerms = this.getFieldContent(fields.PaymentTerm);
     
@@ -54,7 +44,9 @@ class AzureInvoiceMapper {
     
     // Extract customer data into a separate object
     const customerData = this.extractCustomerData(fields);
-    
+
+    const vendorData = this.extractVendorData(fields);
+ 
     // Build invoice data object matching our model requirements
     const invoiceData = {
       invoice_date: invoiceDate,
@@ -68,22 +60,19 @@ class AzureInvoiceMapper {
       status: 'Analyzed', 
       partner_id: partnerId,
       
-      // Vendor data
-      vendor_name: vendorName,
-      vendor_address: vendorAddress,
-      
       // Additional data
       tax_amount: taxAmount,
       line_items: lineItems
     };
     
-    console.log("=== Mapped Invoice Data ===");
-    console.log(JSON.stringify(invoiceData, null, 2));
-    console.log("=== End of Processing ===");
+    // console.log("=== Mapped Invoice Data ===");
+    // console.log(JSON.stringify(invoiceData, null, 2));
+    // console.log("=== End of Processing ===");
 
     return {
       invoiceData,
-      customerData
+      customerData,
+      vendorData
     };
   }
   
@@ -125,7 +114,28 @@ class AzureInvoiceMapper {
               this.getFieldContent(fields.TaxId)
     };
   }
-  
+  /**
+ * Extract vendor data from OCR fields into a structured object
+ * @param {Object} fields - OCR fields
+ * @returns {Object} Structured vendor data
+ */
+  extractVendorData(fields) {
+    const addressData = this.extractCustomerAddress(fields.VendorAddress);
+    
+    return {
+      name: this.getFieldContent(fields.VendorName),
+      street_address: addressData.street_address,
+      city: addressData.city,
+      state: addressData.state,
+      postal_code: addressData.postal_code,
+      house: addressData.house,
+      recipient_name: this.getFieldContent(fields.VendorAddressRecipient) || 
+                      this.getFieldContent(fields.VendorName),
+      tax_id: this.getFieldContent(fields.VendorTaxId) || 
+              this.getFieldContent(fields.VendorVatNumber) ||
+              this.getFieldContent(fields.SupplierTaxId)
+    };
+  }
   
   /**
    * Parse date field from OCR result
@@ -358,17 +368,6 @@ parsePurchaseOrderId(field) {
   }
   
   /**
-   * Extract vendor address with similar logic to customer address
-   * @param {Object} addressField - Vendor address field
-   * @returns {string|null} Formatted vendor address or null
-   */
-  extractVendorAddress(addressField) {
-    // We extract but don't break down vendor address since we likely won't create Vendor records
-    const addressContent = this.getFieldContent(addressField);
-    return addressContent;
-  }
-  
-  /**
    * Parse numeric field from OCR result
    * @param {Object} field - Numeric field from OCR
    * @returns {number|null} Parsed number or null if missing/invalid
@@ -422,7 +421,7 @@ parsePurchaseOrderId(field) {
    * @returns {Object} Processed customer and invoice data
    */
   async processInvoiceData(ocrResult, partnerId, fileUrl = null) {
-    const { customerData, invoiceData } = this.mapToInvoiceModel(ocrResult, partnerId);
+    const { customerData, invoiceData, vendorData } = this.mapToInvoiceModel(ocrResult, partnerId);
     
     if (fileUrl) {
       invoiceData.file_url = fileUrl;
@@ -432,7 +431,8 @@ parsePurchaseOrderId(field) {
     }
     return {
       customerData,
-      invoiceData
+      invoiceData,
+      vendorData
     };
   }
 }
