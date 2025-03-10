@@ -145,8 +145,8 @@ jobs:
             cd ~/fin-invoice-ocr-team6/backend &&
             git reset --hard HEAD &&
             git pull origin staging &&
-            npm install &&
-            npx sequelize-cli db:migrate --env staging &&
+            npm ci &&
+            npx sequelize-cli db:migrate --env staging -f &&
             pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend &&
             pm2 save
           "

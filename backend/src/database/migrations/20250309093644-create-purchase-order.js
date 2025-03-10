@@ -51,7 +51,7 @@ module.exports = {
         type: Sequelize.STRING(45), 
         allowNull: false,
         references: {
-          model: 'Partner',
+          model: 'partner',
           key: 'uuid'
         }
       },
