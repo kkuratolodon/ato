@@ -1,5 +1,4 @@
 'use strict';
-const { Model } = require('sequelize');
 const FinancialDocumentFactory = require('./financialDocument');
 
 module.exports = (sequelize, DataTypes) => {

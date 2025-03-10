@@ -5,7 +5,7 @@ const CustomerModel = require("../../src/models/customer");
 const VendorModel = require("../../src/models/vendor");
 
 describe("Invoice Model", () => {
-  let sequelize, Invoice, Partner, Vendor;
+  let sequelize, Invoice, Partner, Vendor, Customer;
 
   beforeAll(async () => {
     // Initialize Sequelize with an in-memory SQLite database

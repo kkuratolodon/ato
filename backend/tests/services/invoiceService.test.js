@@ -1074,12 +1074,6 @@ describe('uploadInvoice - Vendor Data Handling', () => {
   beforeEach(() => {
     originalAnalyzeInvoice = invoiceService.analyzeInvoice;
     jest.clearAllMocks();
-
-    // Mock Vendor model
-    const mockVendor = {
-      uuid: 'vendor-123', // Add this property directly to the mock object
-      name: 'Test Vendor'
-    };
   });
 
   afterEach(() => {

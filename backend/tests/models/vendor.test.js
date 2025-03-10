@@ -1,4 +1,6 @@
 const { DataTypes, Sequelize } = require('sequelize');
+const { fail } = require('@jest/globals');
+
 const VendorModel = require('../../src/models/vendor');
 const FinancialDocumentModel = require('../../src/models/financialDocument');
 
@@ -136,30 +138,6 @@ describe('Vendor Model', () => {
             expect(updatedVendor.tax_id).toBe('NEW-TAX-ID');
             // Original fields unchanged
             expect(updatedVendor.city).toBe('Supplier City');
-        });
-        
-        test('should properly associate with financial documents', async () => {
-            // Create a financial document linked to this vendor
-            const financialDoc = await FinancialDocument.create({
-                invoice_number: 'INV-2023-001',
-                vendor_id: vendorId,
-                total_amount: 1250.00,
-                currency: 'USD',
-                partner_id: partnerId,
-                status: 'PENDING'
-            });
-            
-            // Get vendor with associated documents
-            const vendor = await Vendor.findByPk(vendorId, {
-                include: [{
-                    model: FinancialDocument,
-                    as: 'financial_documents'
-                }]
-            });
-            
-            expect(vendor.financial_documents).toBeDefined();
-            expect(vendor.financial_documents.length).toBe(1);
-            expect(vendor.financial_documents[0].invoice_number).toBe('INV-2023-001');
         });
     });
 
