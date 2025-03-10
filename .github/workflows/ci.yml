@@ -146,7 +146,7 @@ jobs:
             git reset --hard HEAD &&
             git pull origin staging &&
             npm ci &&
-            npx sequelize-cli db:migrate --env staging -f &&
+            npx sequelize-cli db:migrate --env staging &&
             pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend &&
             pm2 save
           "
