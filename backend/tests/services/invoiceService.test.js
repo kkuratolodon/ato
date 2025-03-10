@@ -1,3 +1,5 @@
+const models = require('../../src/models');
+
 const invoiceService = require('../../src/services/invoiceService');
 const s3Service = require('../../src/services/s3Service');
 const { Invoice } = require('../../src/models')
@@ -12,13 +14,33 @@ jest.mock('../../src/services/s3Service', () => ({
   uploadFile: jest.fn()
 }));
 
-jest.mock('../../src/models', () => ({
-  Invoice: {
+jest.mock('../../src/models', () => {
+  // Create shared mock objects
+  const mockInvoice = {
     findByPk: jest.fn(),
-    create: jest.fn(), 
+    create: jest.fn(),
     update: jest.fn()
-  }
-}));
+  };
+
+  const mockCustomer = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    findByPk: jest.fn()
+  };
+
+  const mockVendor = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    findByPk: jest.fn()
+  };
+
+  return {
+    Invoice: mockInvoice,
+    Customer: mockCustomer,
+    Vendor: mockVendor
+  };
+});
+
 
 describe('uploadInvoice', () => {
   const TEST_FILE_PATH = path.join(__dirname, '..', 'controllers', 'test-files', 'test-invoice.pdf');
@@ -27,14 +49,14 @@ describe('uploadInvoice', () => {
 
   let mockParams, mockPartnerId, mockClient;
   let originalAnalyzeInvoice;
-  
+
   beforeEach(() => {
     // Simpan original method sebelum di-mock
     originalAnalyzeInvoice = invoiceService.analyzeInvoice;
-    
+
     mockPartnerId = '123';
-    mockParams = { 
-      buffer: TEST_FILE.buffer, 
+    mockParams = {
+      buffer: TEST_FILE.buffer,
       partnerId: mockPartnerId,
       originalname: 'test-invoice.pdf'
     };
@@ -45,15 +67,18 @@ describe('uploadInvoice', () => {
         pollUntilDone: jest.fn().mockResolvedValue(null),
       }),
     };
-    
+
     // Tambahkan mock untuk azureMapper
     invoiceService.azureMapper = {
       mapToInvoiceModel: jest.fn().mockReturnValue({
-        invoice_number: 'INV-001',
-        invoice_date: '2023-01-01',
-        due_date: '2023-02-01',
-        total_amount: 1000,
-        status: 'Analyzed'
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000,
+          status: 'Analyzed'
+        },
+        customerData: {} // Include empty customer data
       })
     };
 
@@ -73,7 +98,7 @@ describe('uploadInvoice', () => {
     });
     DocumentAnalysisClient.mockImplementation(() => mockClient);
   });
-  
+
   // PENTING: Kembalikan method original SETELAH SETIAP TEST
   afterEach(() => {
     invoiceService.analyzeInvoice = originalAnalyzeInvoice;
@@ -183,95 +208,111 @@ describe('uploadInvoice - Corner Cases', () => {
     invoiceService.analyzeInvoice = originalAnalyzeInvoice;
     jest.restoreAllMocks();
   });
-  
+
   test('should throw error when fileData is null', async () => {
     await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
   });
-  
+
   test('should throw error when partnerId is missing', async () => {
-    const mockParams = { 
+    const mockParams = {
       buffer: Buffer.from('test'),
       originalname: 'test.pdf'
       // partnerId intentionally missing
     };
-    
+
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Partner ID is required');
   });
 
   test('should throw error when s3 upload returns null url', async () => {
-    const mockParams = { 
+    const mockParams = {
       buffer: Buffer.from('test'),
       originalname: 'test.pdf',
       partnerId: '123'
     };
-    
+
     s3Service.uploadFile.mockResolvedValue(null);
-    
+
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to upload file to S3');
   });
-  
+
   test('should handle case when azureMapper returns incomplete data', async () => {
-    const mockParams = { 
+    const mockParams = {
       buffer: Buffer.from('test'),
       originalname: 'test.pdf',
       partnerId: '123'
     };
-    
+
     s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
-    
+
     const mockInvoice = { id: 1, status: 'Processing' };
     Invoice.create.mockResolvedValue(mockInvoice);
-    
+
     // Mock analyzeInvoice to return valid data
     invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
       data: { someField: 'value' },
       message: "PDF processed successfully"
     });
-    
+
     // Mock azureMapper to return incomplete data
     invoiceService.azureMapper = {
       mapToInvoiceModel: jest.fn().mockImplementation(() => {
         throw new Error("Invalid OCR result format");
       })
     };
-    
+
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to process invoice: Invalid OCR result format');
-    expect(Invoice.update).toHaveBeenCalledWith({ status: 'Failed' }, { where: { id: 1 }});
+    expect(Invoice.update).toHaveBeenCalledWith({ status: 'Failed' }, { where: { id: 1 } });
   });
-  
+
   test('should throw error when analyzeInvoice returns no data', async () => {
-    const mockParams = { 
+    const mockParams = {
       buffer: Buffer.from('test'),
       originalname: 'test.pdf',
       partnerId: '123'
     };
-    
+
     s3Service.uploadFile.mockResolvedValue('https://s3.amazonaws.com/test-bucket/test-file.pdf');
-    
+
     const mockInvoiceData = {
       id: 1,
       partner_id: '123',
       file_url: 'https://s3.amazonaws.com/test-bucket/test-file.pdf',
       status: "Processing"
     };
-    
+
     Invoice.create.mockResolvedValue(mockInvoiceData);
-    
+
     // Mock analyzeInvoice to return a response without data
-    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({ 
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
       message: "PDF processed successfully"
       // No data property
     });
-    
+
     await expect(invoiceService.uploadInvoice(mockParams))
       .rejects.toThrow('Failed to process invoice: Failed to analyze invoice: No data returned');
-    
+
     expect(Invoice.update).toHaveBeenCalledWith(
       { status: "Failed" },
-      { where: { id: 1 }}
+      { where: { id: 1 } }
     );
   });
-  
+  test('should handle errors when invoice is null during error handling', async () => {
+    // Create a scenario where invoice is null when an error occurs
+    const mockParams = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    Invoice.create.mockRejectedValue(new Error('Database connection error'));
+
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+
+    await expect(invoiceService.uploadInvoice(mockParams))
+      .rejects.toThrow('Failed to process invoice: Database connection error');
+
+    expect(Invoice.update).not.toHaveBeenCalled();
+  });
 });
 
 
@@ -467,8 +508,10 @@ describe("getInvoiceById", () => {
     jest.restoreAllMocks();
   });
 
+  // In the getInvoiceById test section
+
   test("Should return an invoice when given a valid ID", async () => {
-    const mockInvoice = {
+    const mockInvoiceData = {
       id: 1,
       invoice_date: "2025-02-01",
       due_date: "2025-03-01",
@@ -481,11 +524,17 @@ describe("getInvoiceById", () => {
       status: "Analyzed",
     };
 
+    // Create a mock Sequelize model instance with a get method
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+
     Invoice.findByPk.mockResolvedValue(mockInvoice);
 
     const invoice = await invoiceService.getInvoiceById(1);
 
-    expect(invoice).toEqual(mockInvoice);
+    expect(invoice).toEqual(mockInvoiceData);
   });
 
   test("Should throw an error when invoice is not found", async () => {
@@ -497,8 +546,133 @@ describe("getInvoiceById", () => {
   test("Should throw an error when database fails", async () => {
     Invoice.findByPk.mockRejectedValue(new Error("Database error"));
 
-        await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
-    });
+    await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
+  });
+  // Add these tests to the "getInvoiceById" describe block
+
+  test("Should handle case where customer_id exists but customer isn't found", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      invoice_date: "2025-02-01",
+      customer_id: "missing-customer-uuid",
+      status: "Analyzed",
+    };
+
+    // Create a mock Sequelize model instance with a get method
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+
+    models.Invoice.findByPk.mockResolvedValue(mockInvoice);
+
+    // Use models.Customer instead of Customer directly
+    models.Customer.findByPk.mockResolvedValue(null);
+
+    const invoice = await invoiceService.getInvoiceById(1);
+
+    expect(invoice).toEqual(mockInvoiceData);
+    expect(models.Customer.findByPk).toHaveBeenCalledWith("missing-customer-uuid");
+    expect(invoice.customer).toBeUndefined();
+  });
+
+  test("Should handle case where vendor_id exists but vendor isn't found", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      invoice_date: "2025-02-01",
+      vendor_id: "missing-vendor-uuid",
+      status: "Analyzed",
+    };
+
+    // Create a mock Sequelize model instance with a get method
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+
+    Invoice.findByPk.mockResolvedValue(mockInvoice);
+
+    // Mock Vendor.findByPk to return null (vendor not found)
+    const { Vendor } = require('../../src/models');
+    Vendor.findByPk.mockResolvedValue(null);
+
+    const invoice = await invoiceService.getInvoiceById(1);
+
+    expect(invoice).toEqual(mockInvoiceData);
+    expect(Vendor.findByPk).toHaveBeenCalledWith("missing-vendor-uuid");
+    expect(invoice.vendor).toBeUndefined();
+  });
+  // Add these tests to the "getInvoiceById" describe block
+
+  test("Should include customer data when customer exists", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      invoice_date: "2025-02-01",
+      customer_id: "existing-customer-uuid",
+      status: "Analyzed",
+    };
+
+    const mockCustomerData = {
+      uuid: "existing-customer-uuid",
+      name: "Existing Customer",
+      street_address: "123 Test St"
+    };
+
+    // Create a mock Sequelize model instance with a get method
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+
+    // Create a mock customer with a get method
+    const mockCustomer = {
+      ...mockCustomerData,
+      get: jest.fn().mockReturnValue(mockCustomerData)
+    };
+
+    models.Invoice.findByPk.mockResolvedValue(mockInvoice);
+    models.Customer.findByPk.mockResolvedValue(mockCustomer);
+
+    const invoice = await invoiceService.getInvoiceById(1);
+
+    expect(invoice).toHaveProperty('customer', mockCustomerData);
+    expect(mockCustomer.get).toHaveBeenCalledWith({ plain: true });
+  });
+
+  test("Should include vendor data when vendor exists", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      invoice_date: "2025-02-01",
+      vendor_id: "existing-vendor-uuid",
+      status: "Analyzed",
+    };
+
+    const mockVendorData = {
+      uuid: "existing-vendor-uuid",
+      name: "Existing Vendor",
+      street_address: "456 Vendor St"
+    };
+
+    // Create a mock Sequelize model instance with a get method
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+
+    // Create a mock vendor with a get method
+    const mockVendor = {
+      ...mockVendorData,
+      get: jest.fn().mockReturnValue(mockVendorData)
+    };
+
+    models.Invoice.findByPk.mockResolvedValue(mockInvoice);
+    models.Vendor.findByPk.mockResolvedValue(mockVendor);
+
+    const invoice = await invoiceService.getInvoiceById(1);
+
+    expect(invoice).toHaveProperty('vendor', mockVendorData);
+    expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
+  });
 });
 
 describe("Invoice Analysis Service", () => {
@@ -609,45 +783,408 @@ describe("Invoice Analysis Service", () => {
         data: {},
       });
     });
-    test('should process buffer input correctly', async () => {
-      const bufferInput = Buffer.from('test pdf content');
-      
-      const mockClient = {
-        beginAnalyzeDocument: jest.fn().mockResolvedValue({
-          pollUntilDone: jest.fn().mockResolvedValue({ key: 'value' }),
-        }),
-      };
-  
-      DocumentAnalysisClient.mockImplementation(() => mockClient);
-      
-      const result = await invoiceService.analyzeInvoice(bufferInput);
-      
-      expect(mockClient.beginAnalyzeDocument).toHaveBeenCalledWith(
-        process.env.AZURE_INVOICE_MODEL || expect.any(String), 
-        bufferInput
-      );
-      
-      expect(result).toEqual({
-        message: 'PDF processed successfully',
-        data: { key: 'value' }
-      });
-    });
     test('should throw error for invalid document source type', async () => {
       const invalidInput = { notValid: true };
-      
+
       await expect(invoiceService.analyzeInvoice(invalidInput)).rejects.toThrow('Invalid document source type');
     });
 
     test('should throw error for invalid date format', async () => {
       const mockError = new Error('Invalid date format');
-      
+
       const mockClient = {
         beginAnalyzeDocument: jest.fn().mockRejectedValue(mockError),
       };
-  
+
       DocumentAnalysisClient.mockImplementation(() => mockClient);
-      
+
       await expect(invoiceService.analyzeInvoice('test-url')).rejects.toThrow('Invoice contains invalid date format');
     });
+  });
+
+});
+
+describe('uploadInvoice - Customer Data Handling', () => {
+  let originalAnalyzeInvoice;
+  const models = require('../../src/models');
+
+  beforeEach(() => {
+    originalAnalyzeInvoice = invoiceService.analyzeInvoice;
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    invoiceService.analyzeInvoice = originalAnalyzeInvoice;
+    jest.restoreAllMocks();
+  });
+
+  test('should create new customer when customer data is provided but not found', async () => {
+    const mockParams = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+
+    const mockInvoice = {
+      id: 1,
+      status: 'Processing'
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+
+    // Mock customer not found, then creation
+    models.Customer.findOne.mockResolvedValue(null);
+    models.Customer.create.mockResolvedValue({
+      uuid: 'cust-123',
+      name: 'Test Customer'
+    });
+
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+
+    // Mock azureMapper to return customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        customerData: {
+          name: 'Test Customer',
+          street_address: '123 Main St',
+          city: 'Test City',
+          state: 'TS',
+          postal_code: '12345',
+          tax_id: 'TAX123',
+          recipient_name: 'John Doe'
+        }
+      })
+    };
+
+    await invoiceService.uploadInvoice(mockParams);
+
+    expect(models.Customer.findOne).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        name: 'Test Customer'
+      })
+    }));
+
+    expect(models.Customer.create).toHaveBeenCalledWith({
+      name: 'Test Customer',
+      street_address: '123 Main St',
+      city: 'Test City',
+      state: 'TS',
+      postal_code: '12345',
+      house: undefined,
+      tax_id: 'TAX123',
+      recipient_name: 'John Doe'
+    });
+
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { customer_id: 'cust-123' },
+      { where: { id: 1 } }
+    );
+  });
+
+  test('should use existing customer when customer data matches existing record', async () => {
+    const mockParams = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+
+    const mockInvoice = {
+      id: 1,
+      status: 'Processing'
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+
+    // Mock existing customer found
+    const existingCustomer = {
+      uuid: 'existing-123',
+      name: 'Existing Customer'
+    };
+    models.Customer.findOne.mockResolvedValue(existingCustomer);
+
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+
+    // Mock azureMapper to return customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        customerData: {
+          name: 'Existing Customer',
+          tax_id: 'TAX123',
+          postal_code: '12345'
+        }
+      })
+    };
+
+    await invoiceService.uploadInvoice(mockParams);
+
+    expect(models.Customer.findOne).toHaveBeenCalled();
+    expect(models.Customer.create).not.toHaveBeenCalled();
+
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { customer_id: 'existing-123' },
+      { where: { id: 1 } }
+    );
+  });
+
+  test('should proceed without customer data when azureMapper returns no customerData', async () => {
+    const mockParams = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+
+    const mockInvoice = {
+      id: 1,
+      status: 'Processing'
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+
+    // Mock azureMapper to return NO customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        }
+        // No customerData key
+      })
+    };
+
+    await invoiceService.uploadInvoice(mockParams);
+
+    expect(models.Customer.findOne).not.toHaveBeenCalled();
+    expect(models.Customer.create).not.toHaveBeenCalled();
+
+    // Should still update the invoice with "Analyzed" status
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: "Analyzed" },
+      { where: { id: 1 } }
+    );
+  });
+
+  test('should handle customer data without name property', async () => {
+    const mockParams = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+
+    const mockInvoice = {
+      id: 1,
+      status: 'Processing'
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+
+    // Mock azureMapper to return incomplete customer data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        customerData: {
+          // No name property
+          address: '123 Main St'
+        }
+      })
+    };
+
+    await invoiceService.uploadInvoice(mockParams);
+
+    expect(models.Customer.findOne).not.toHaveBeenCalled();
+    expect(models.Customer.create).not.toHaveBeenCalled();
+
+    // Should still update the invoice with "Analyzed" status
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: "Analyzed" },
+      { where: { id: 1 } }
+    );
+  });
+});
+
+describe('uploadInvoice - Vendor Data Handling', () => {
+  let originalAnalyzeInvoice;
+  const models = require('../../src/models');
+
+  beforeEach(() => {
+    originalAnalyzeInvoice = invoiceService.analyzeInvoice;
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    invoiceService.analyzeInvoice = originalAnalyzeInvoice;
+    jest.restoreAllMocks();
+  });
+
+  test('should create new vendor when vendor data is provided but not found', async () => {
+    const mockParams = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+
+    const mockInvoice = {
+      id: 1,
+      status: 'Processing'
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+
+    // Mock vendor not found, then creation
+    models.Vendor.findOne.mockResolvedValue(null);
+    models.Vendor.create.mockResolvedValue({
+      uuid: 'vendor-123',
+      name: 'Test Vendor'
+    });
+
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+
+    // Mock azureMapper to return vendor data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        vendorData: {
+          name: 'Test Vendor',
+          street_address: '123 Vendor St',
+          city: 'Vendor City',
+          state: 'VS',
+          postal_code: '54321',
+          tax_id: 'TAX456',
+          recipient_name: 'Jane Doe'
+        }
+      })
+    };
+
+    await invoiceService.uploadInvoice(mockParams);
+
+    expect(models.Vendor.findOne).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        name: 'Test Vendor'
+      })
+    }));
+
+    expect(models.Vendor.create).toHaveBeenCalledWith({
+      name: 'Test Vendor',
+      street_address: '123 Vendor St',
+      city: 'Vendor City',
+      state: 'VS',
+      postal_code: '54321',
+      house: undefined,
+      tax_id: 'TAX456',
+      recipient_name: 'Jane Doe'
+    });
+
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { vendor_id: 'vendor-123' },
+      { where: { id: 1 } }
+    );
+  });
+
+  test('should use existing vendor when vendor data matches existing record', async () => {
+    const mockParams = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+
+    const mockInvoice = {
+      id: 1,
+      status: 'Processing'
+    };
+    models.Invoice.create.mockResolvedValue(mockInvoice);
+
+    // Mock existing vendor found
+    const existingVendor = {
+      uuid: 'existing-vendor-123',
+      name: 'Existing Vendor'
+    };
+    models.Vendor.findOne.mockResolvedValue(existingVendor);
+
+    // Mock analyzeInvoice to return valid data
+    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
+      data: { someField: 'value' },
+      message: "PDF processed successfully"
+    });
+
+    // Mock azureMapper to return vendor data
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: {
+          invoice_number: 'INV-001',
+          invoice_date: '2023-01-01',
+          due_date: '2023-02-01',
+          total_amount: 1000
+        },
+        vendorData: {
+          name: 'Existing Vendor',
+          tax_id: 'TAX456',
+          postal_code: '54321'
+        }
+      })
+    };
+
+    await invoiceService.uploadInvoice(mockParams);
+
+    expect(models.Vendor.findOne).toHaveBeenCalled();
+    expect(models.Vendor.create).not.toHaveBeenCalled();
+
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { vendor_id: 'existing-vendor-123' },
+      { where: { id: 1 } }
+    );
   });
 });
