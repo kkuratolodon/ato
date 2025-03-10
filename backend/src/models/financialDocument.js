@@ -4,27 +4,23 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
     class FinancialDocument extends Model {
         static associate(models) {
-            if (models && models.Partner) {
-                FinancialDocument.belongsTo(models.Partner, { 
-                    foreignKey: 'partner_id', 
-                    targetKey: 'uuid',
-                    as: 'partner'
-                });
-            }
-            if (models && models.Customer) {
-                FinancialDocument.belongsTo(models.Customer, {
-                    foreignKey: 'customer_id',
-                    targetKey: 'uuid',
-                    as: 'customer'
-                });
-            }
-            if (models && models.Vendor) {
-                FinancialDocument.belongsTo(models.Vendor, {
-                    foreignKey: 'vendor_id',
-                    targetKey: 'uuid',
-                    as: 'vendor'
-                });
-            }
+            models?.Partner && FinancialDocument.belongsTo(models.Partner, { 
+                foreignKey: 'partner_id', 
+                targetKey: 'uuid',
+                as: 'partner'
+            });
+
+            models?.Customer && FinancialDocument.belongsTo(models.Customer, {
+                foreignKey: 'customer_id',
+                targetKey: 'uuid',
+                as: 'customer'
+            });
+
+            models?.Vendor && FinancialDocument.belongsTo(models.Vendor, {
+                foreignKey: 'vendor_id',
+                targetKey: 'uuid',
+                as: 'vendor'
+            });
         }
     }
 

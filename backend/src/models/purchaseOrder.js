@@ -6,31 +6,23 @@ module.exports = (sequelize, DataTypes) => {
     
     class PurchaseOrder extends FinancialDocument {
         static associate(models) {
-        if (models && models.Partner) {
-            PurchaseOrder.belongsTo(models.Partner, { 
+        models?.Partner && PurchaseOrder.belongsTo(models.Partner, { 
             foreignKey: 'partner_id', 
             targetKey: 'uuid',
             as: 'partner'
-            });
-        }
+        });
         
-        // Add customer association
-        if (models && models.Customer) {
-            PurchaseOrder.belongsTo(models.Customer, { 
+        models?.Customer && PurchaseOrder.belongsTo(models.Customer, { 
             foreignKey: 'customer_id', 
             targetKey: 'uuid',
             as: 'customer'
-            });
-        }
+        });
         
-        // Add vendor association
-        if (models && models.Vendor) {
-            PurchaseOrder.belongsTo(models.Vendor, { 
+        models?.Vendor && PurchaseOrder.belongsTo(models.Vendor, { 
             foreignKey: 'vendor_id', 
             targetKey: 'uuid',
             as: 'vendor'
-            });
-        }
+        });
         }
     }
 
