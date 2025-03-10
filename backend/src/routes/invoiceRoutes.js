@@ -3,6 +3,10 @@ const router = express.Router();
 const InvoiceController = require('../controllers/invoiceController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+router.get('/debug-sentry', () => {
+    throw new Error("Sentry error dummy!");
+});
+
 router.post(
     '/upload',
     authMiddleware,               
@@ -10,7 +14,7 @@ router.post(
     InvoiceController.uploadInvoice
 );
 
-router.get('/:id', InvoiceController.getInvoiceById);
+router.get('/:id',authMiddleware, InvoiceController.getInvoiceById);
 
 router.post('/analyze', InvoiceController.analyzeInvoice);
 

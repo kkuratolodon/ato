@@ -1,16 +1,16 @@
 const path = require("path");
 
 const { Invoice } = require("../models");
-const s3Service = require("./s3Service")
+const s3Service = require("./s3Service");
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
+const Sentry = require("../instrument");
 dotenv.config();
 
 const endpoint = process.env.AZURE_ENDPOINT;
 const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
-
 
 class InvoiceService {
   constructor() {
@@ -106,11 +106,17 @@ class InvoiceService {
   }
 
   async getInvoiceById(id) {
-    const invoice = await Invoice.findByPk(id);
-    if (!invoice) {
-      throw new Error("Invoice not found");
+    try{
+      const invoice = await Invoice.findByPk(id);
+      if(!invoice){
+        throw new Error("Invoice not found");
+      }
+      return invoice;
     }
-    return invoice;
+    catch(error){
+      if(error.message === "Invoice not found") throw error;
+      throw new Error("Database error");
+    }
   }
 
   /**
@@ -219,50 +225,86 @@ class InvoiceService {
       if (!documentUrl) {
         throw new Error("documentUrl is required");
       }
-    
-      try {
-        console.log("Processing PDF...");
-        const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
-        let poller;
-    
-        // Gunakan parameter documentUrl (bukan variabel source)
-        if (typeof documentUrl === 'string') {
-          poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-        } else if (Buffer.isBuffer(documentUrl)) {
-          poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-        } else {
-          throw new Error("Invalid document source type");
+  
+      return Sentry.startSpan(
+        {
+          name: "analyzeInvoice",
+          attributes: {
+            documentUrl: typeof documentUrl === "string" ? documentUrl : "Buffer data",
+          },
+        },
+        async (span) => {
+          try {
+            Sentry.captureMessage(`analyzeInvoice() called with documentUrl: ${typeof documentUrl === 'string' ? documentUrl : 'Buffer data'}`);
+  
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: `Starting document analysis for: ${typeof documentUrl === "string" ? documentUrl : "Binary Buffer"}`,
+              level: "info",
+            });
+  
+            console.log("Processing PDF...");
+            const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+            let poller;
+  
+            if (typeof documentUrl === 'string') {
+              poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+            } else if (Buffer.isBuffer(documentUrl)) {
+              poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+            } else {
+              throw new Error("Invalid document source type");
+            }
+  
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: "Azure analysis started...",
+              level: "info",
+            });
+  
+            const azureResult = await poller.pollUntilDone();
+            console.log("Analysis completed");
+  
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: "Azure analysis completed successfully",
+              level: "info",
+            });
+  
+            Sentry.captureMessage("analyzeInvoice() completed successfully");
+  
+            return {
+              message: "PDF processed successfully",
+              data: azureResult,
+            };
+          } catch (error) {
+            Sentry.addBreadcrumb({
+              category: "analyzeInvoice",
+              message: `Error encountered: ${error.message}`,
+              level: "error",
+            });
+
+            Sentry.captureException(error);
+            if (error.message === 'Invalid date format') {
+              throw new Error("Invoice contains invalid date format");
+            }
+            if (error.message === 'Invalid document source type') {
+              throw error;
+            }
+            if (error.statusCode === 503) {
+              console.error("Service Unavailable:", error);
+              throw new Error("Service is temporarily unavailable. Please try again later.");
+            } else if (error.statusCode === 409) {
+              console.error("Conflict Error:", error);
+              throw new Error("Conflict error occurred. Please check the document and try again.");
+            } else {
+              console.error(error);
+              throw new Error("Failed to process the document");
+            }
+          } finally {
+            span.end(); // Ensure transaction is always finished
+          }
         }
-        
-        const azureResult = await poller.pollUntilDone();
-        console.log("Analysis completed");
-    
-        // Untuk keperluan test, kembalikan objek dengan properti message dan data.
-        if (!azureResult) {
-          return { message: "PDF processed successfully", data: null };
-        }
-        return {
-          message: "PDF processed successfully",
-          data: azureResult
-        };
-      } catch (error) {
-        if (error.message === 'Invalid date format') {
-          throw new Error("Invoice contains invalid date format");
-        }
-        if (error.message === 'Invalid document source type') {
-          throw error;
-        }
-        if (error.statusCode === 503) {
-          console.error("Service Unavailable:", error);
-          throw new Error("Service is temporarily unavailable. Please try again later.");
-        } else if (error.statusCode === 409) {
-          console.error("Conflict Error:", error);
-          throw new Error("Conflict error occurred. Please check the document and try again.");
-        } else {
-          console.error(error);
-          throw new Error("Failed to process the document");
-        }
-      }
+      );
     }
 }
 
