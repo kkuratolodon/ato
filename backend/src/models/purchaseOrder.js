@@ -5,15 +5,33 @@ const FinancialDocumentFactory = require('./financialDocument');
 module.exports = (sequelize, DataTypes) => {
     const FinancialDocument = FinancialDocumentFactory(sequelize, DataTypes);
     
-    class PurchaseOrder extends Model {
+    class PurchaseOrder extends FinancialDocument {
         static associate(models) {
-            if (models && models.Partner) {
-                PurchaseOrder.belongsTo(models.Partner, { 
-                    foreignKey: 'partner_id', 
-                    targetKey: 'uuid',
-                    as: 'partner'
-                });
-            }
+        if (models && models.Partner) {
+            PurchaseOrder.belongsTo(models.Partner, { 
+            foreignKey: 'partner_id', 
+            targetKey: 'uuid',
+            as: 'partner'
+            });
+        }
+        
+        // Add customer association
+        if (models && models.Customer) {
+            PurchaseOrder.belongsTo(models.Customer, { 
+            foreignKey: 'customer_id', 
+            targetKey: 'uuid',
+            as: 'customer'
+            });
+        }
+        
+        // Add vendor association
+        if (models && models.Vendor) {
+            PurchaseOrder.belongsTo(models.Vendor, { 
+            foreignKey: 'vendor_id', 
+            targetKey: 'uuid',
+            as: 'vendor'
+            });
+        }
         }
     }
 

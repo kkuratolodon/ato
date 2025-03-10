@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
             if (models && models.FinancialDocument) {
                 Vendor.hasMany(models.FinancialDocument, {
                     foreignKey: 'vendor_id',
-                    as: 'financialDocumentsAsVendor'
+                    as: 'financial_documents'
                 });
             }
         }

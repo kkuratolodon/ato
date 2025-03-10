@@ -66,6 +66,43 @@ describe("Invoice Model", () => {
     expect(fetchedInvoice.partner.uuid).toBe(partner.uuid);
     expect(fetchedInvoice.partner.name).toBe("Partner A");
   });
+  // Add this test case
+  describe('Invoice Model Associations', () => {
+    it('should associate with Vendor correctly', () => {
+      // Save original belongsTo method
+      const originalBelongsTo = Invoice.belongsTo;
+      
+      // Mock the belongsTo method so it doesn't throw errors
+      Invoice.belongsTo = jest.fn();
+      
+      try {
+        // Test with all required models
+        Invoice.associate({
+          Partner: { name: 'Partner' },
+          Customer: { name: 'Customer' },
+          Vendor: { name: 'Vendor' }
+        });
+        
+        // Test with no models (should return early)
+        Invoice.associate(null);
+        
+        // Test with empty object (no models)
+        Invoice.associate({});
+        
+        // Test with missing Vendor
+        Invoice.associate({
+          Partner: { name: 'Partner' },
+          Customer: { name: 'Customer' }
+        });
+        
+        // Verify the belongsTo was called the correct number of times
+        expect(Invoice.belongsTo).toHaveBeenCalledTimes(6); 
+      } finally {
+        // Restore original method
+        Invoice.belongsTo = originalBelongsTo;
+      }
+    });
+  });
 
   // ===== POSITIVE CASES =====
 

@@ -153,13 +153,13 @@ describe('Vendor Model', () => {
             const vendor = await Vendor.findByPk(vendorId, {
                 include: [{
                     model: FinancialDocument,
-                    as: 'financialDocumentsAsVendor'
+                    as: 'financial_documents'
                 }]
             });
             
-            expect(vendor.financialDocumentsAsVendor).toBeDefined();
-            expect(vendor.financialDocumentsAsVendor.length).toBe(1);
-            expect(vendor.financialDocumentsAsVendor[0].invoice_number).toBe('INV-2023-001');
+            expect(vendor.financial_documents).toBeDefined();
+            expect(vendor.financial_documents.length).toBe(1);
+            expect(vendor.financial_documents[0].invoice_number).toBe('INV-2023-001');
         });
     });
 
@@ -286,8 +286,8 @@ describe('Vendor Model', () => {
             
             // Verify hasMany was called on Vendor by checking associations
             expect(LocalVendor.associations).toBeDefined();
-            expect(LocalVendor.associations.financialDocumentsAsVendor).toBeDefined();
-            expect(LocalVendor.associations.financialDocumentsAsVendor.associationType).toBe('HasMany');
+            expect(LocalVendor.associations.financial_documents).toBeDefined();
+            expect(LocalVendor.associations.financial_documents.associationType).toBe('HasMany');
         });
     });
 });
