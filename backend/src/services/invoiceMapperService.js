@@ -64,10 +64,6 @@ class AzureInvoiceMapper {
       tax_amount: taxAmount,
       line_items: lineItems
     };
-    
-    // console.log("=== Mapped Invoice Data ===");
-    // console.log(JSON.stringify(invoiceData, null, 2));
-    // console.log("=== End of Processing ===");
 
     return {
       invoiceData,
@@ -195,12 +191,12 @@ parsePurchaseOrderId(field) {
    */
   parseCurrency(field) {
     // If field.value is directly a number
-    if (field && field.value && typeof field.value === 'number') {
+    if (typeof field?.value === 'number') {
       return field.value;
     }
     
     // If field has structured currency value with amount property
-    if (field && field.value && typeof field.value.amount === 'number') {
+    if (field?.value?.amount && typeof field.value.amount === 'number') {
       return field.value.amount;
     }
     
