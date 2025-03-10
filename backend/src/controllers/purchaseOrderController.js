@@ -6,7 +6,7 @@ const multer = require("multer");
 const upload = multer({
   storage: multer.memoryStorage(),
 });
-
+exports.uploadMiddleware = upload.single('file');
 class PurchaseOrderController extends FinancialDocumentController {
   constructor() {
     super(PurchaseOrderService, "Purchase Order");

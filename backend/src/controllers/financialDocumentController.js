@@ -1,18 +1,9 @@
 const pdfValidationService = require('../services/pdfValidationService');
-const InvoiceService = require('../services/invoiceService');
 class FinancialDocumentController {
     constructor(service, documentType) {
       this.service = service;
       this.documentType = documentType;
     }
-  
-    uploadMiddleware(req, res, next) {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-      next();
-    }
-  
     async executeWithTimeout(fn, timeoutMs = 3000) {
       let timeoutId;
       const timeoutPromise = new Promise((_, reject) => {
@@ -25,6 +16,7 @@ class FinancialDocumentController {
           timeoutPromise
         ]);
       } catch (error) {
+        console.error(error)
         throw error;
       }
     }
@@ -46,33 +38,33 @@ class FinancialDocumentController {
   
       const { buffer, originalname, mimetype } = req.file;
       const partnerId = req.user.uuid;
-  
+      
       try {
         await this.executeWithTimeout(async () => {
           // File type validation
           try {
             await pdfValidationService.validatePDF(buffer, mimetype, originalname);
           } catch (error) {
-            return res.status(415).json({ message: "File format is not PDF" });
+            if (!res.headersSent) return res.status(415).json({ message: "File format is not PDF" });
           }
   
           // Encryption check
           const isEncrypted = await pdfValidationService.isPdfEncrypted(buffer);
           if (isEncrypted) {
-            return res.status(400).json({ message: "PDF is encrypted" });
+            if (!res.headersSent) return res.status(400).json({ message: "PDF is encrypted" });
           }
   
           // Integrity check
           const isValidPdf = await pdfValidationService.checkPdfIntegrity(buffer);
           if (!isValidPdf) {
-            return res.status(400).json({ message: "PDF file is invalid" });
+            if (!res.headersSent) return res.status(400).json({ message: "PDF file is invalid" });
           }
   
           // File size validation
           try {
             await pdfValidationService.validateSizeFile(buffer);
           } catch (error) {
-            return res.status(413).json({ message: "File size exceeds maximum limit" });
+            if (!res.headersSent) return res.status(413).json({ message: "File size exceeds maximum limit" });
           }
           try{
             let result;
@@ -80,27 +72,27 @@ class FinancialDocumentController {
                 result = await this.service.uploadInvoice({
                     originalname, buffer, mimetype, partnerId,
                 });
-                return res.status(200).json(result);
+                if (!res.headersSent) return res.status(200).json(result);
             } 
             else if (this.documentType === "Purchase Order") {
                 result = await this.service.uploadPurchaseOrder({
                     originalname, buffer, mimetype, partnerId,
                 });
-                return res.status(200).json(result);
+                if (!res.headersSent) return res.status(200).json(result);
             }
     
 
           }catch(error){
-          console.error("Unhandled error in upload process:", error);
-          return res.status(500).json({ message: "Internal server error" });
+            console.error("Unhandled error in upload process:", error);
+            if (!res.headersSent) return res.status(500).json({ message: "Internal server error" });
           }
         }, 3000);
       } catch (error) {
         if (error.message === "Timeout") {
-          return res.status(504).json({ message: "Server timeout - upload exceeded 3 seconds" });
+          if (!res.headersSent) return res.status(504).json({ message: "Server timeout - upload exceeded 3 seconds" });
         }
         console.error("Unexpected error:", error);
-        return res.status(500).json({ message: "Internal server error" });
+        if (!res.headersSent) return res.status(500).json({ message: "Internal server error" });
       }
     }
   }
