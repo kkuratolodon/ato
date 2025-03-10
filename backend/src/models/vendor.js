@@ -2,6 +2,29 @@
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
+    const addressFields = {
+        street_address: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
+        city: {
+            type: DataTypes.STRING(100),
+            allowNull: true
+        },
+        state: {
+            type: DataTypes.STRING(100),
+            allowNull: true
+        },
+        postal_code: {
+            type: DataTypes.STRING(20),
+            allowNull: true
+        },
+        house: {
+            type: DataTypes.STRING(100),
+            allowNull: true
+        }
+    };
+
     class Vendor extends Model {
         static associate(models) {
             if (models?.FinancialDocument) {
@@ -23,26 +46,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true
         },
-        street_address: {
-            type: DataTypes.TEXT,
-            allowNull: true
-        },
-        city: {
-            type: DataTypes.STRING(100),
-            allowNull: true
-        },
-        state: {
-            type: DataTypes.STRING(100),
-            allowNull: true
-        },
-        postal_code: {
-            type: DataTypes.STRING(20),
-            allowNull: true
-        },
-        house: {
-            type: DataTypes.STRING(100),
-            allowNull: true
-        },
+        ...addressFields,
         recipient_name: {
             type: DataTypes.STRING,
             allowNull: true
