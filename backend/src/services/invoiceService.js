@@ -177,13 +177,41 @@ class InvoiceService {
   }
 
   async getInvoiceById(id) {
-    const invoice = await Invoice.findByPk(id);
-    if (!invoice) {
-      throw new Error("Invoice not found");
+    try {
+      const invoice = await Invoice.findByPk(id);
+      
+      if (!invoice) {
+        throw new Error("Invoice not found");
+      }
+      
+      const invoiceData = invoice.get({ plain: true });
+      
+      if (invoiceData.customer_id) {
+        const customer = await Customer.findByPk(invoiceData.customer_id);
+        if (customer) {
+          invoiceData.customer = customer.get({ plain: true });
+        }
+      }
+      
+      if (invoiceData.vendor_id) {
+        const vendor = await Vendor.findByPk(invoiceData.vendor_id);
+        if (vendor) {
+          invoiceData.vendor = vendor.get({ plain: true });
+        }
+      }
+      
+      return invoiceData;
+      
+    } catch (error) {
+      console.error("Error retrieving invoice:", error);
+      if (error.message === "Invoice not found") {
+        throw error;
+      } else {
+        throw new Error("Failed to retrieve invoice: " + error.message);
+      }
     }
-    return invoice;
   }
-
+  
   /**
    * Validates if a file is a valid PDF
    * This function checks three criteria to determine if a file is a valid PDF:
