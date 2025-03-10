@@ -132,10 +132,32 @@ exports.uploadInvoice = async (req, res) => {
   }
 };
 
+/**
+ * @description Retrieves an invoice by ID with authorization check.
+ *
+ * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
+ * @throws {401} Unauthorized if req.user is missing
+ * @throws {403} Forbidden if invoice does not belong to the authenticated user
+ * @throws {404} Not Found if invoice is not found
+ * @throws {500} Internal Server Error 
+ */
 exports.getInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
-    const invoice = await invoiceService.getInvoiceById(id);
+    // check positive integer
+    if( !id  || isNaN(id) || parseInt(id) <= 0 ){
+      return res.status(400).json({message: "Invalid invoice ID"});
+    }
+    if(!req.user){
+      return res.status(401).json({message: "Unauthorized"});
+    }
+
+    const invoice = await invoiceService.getInvoiceById(parseInt(id));
+
+    if(invoice.partner_id !== req.user.uuid){
+      return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
+    }
+
     return res.status(200).json(invoice);
   } catch (error) {
     if (error.message === "Invoice not found") {

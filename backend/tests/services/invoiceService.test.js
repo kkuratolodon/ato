@@ -505,7 +505,7 @@ describe("PDF Integrity Check", () => {
 
 describe("getInvoiceById", () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   // In the getInvoiceById test section
@@ -532,19 +532,20 @@ describe("getInvoiceById", () => {
 
     Invoice.findByPk.mockResolvedValue(mockInvoice);
 
-    const invoice = await invoiceService.getInvoiceById(1);
+    const result = await invoiceService.getInvoiceById(1);
 
     expect(invoice).toEqual(mockInvoiceData);
   });
 
   test("Should throw an error when invoice is not found", async () => {
     Invoice.findByPk.mockResolvedValue(null);
-
-    await expect(invoiceService.getInvoiceById(99999999)).rejects.toThrow("Invoice not found");
+    await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Invoice not found");
   });
 
   test("Should throw an error when database fails", async () => {
-    Invoice.findByPk.mockRejectedValue(new Error("Database error"));
+    Invoice.findByPk.mockRejectedValue(new Error("Some Unexpected Database error"));
+    await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
+  });
 
     await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
   });
