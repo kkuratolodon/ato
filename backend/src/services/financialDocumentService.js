@@ -9,7 +9,6 @@ class FinancialDocumentService{
     if (!partnerId) {
       throw new Error("Partner ID is required");
     }
-
     const s3Url = await s3Service.uploadFile(buffer);
     if (!s3Url) {
       throw new Error("Failed to upload file to S3");

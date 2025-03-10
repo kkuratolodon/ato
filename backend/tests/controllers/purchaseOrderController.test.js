@@ -1,5 +1,6 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
 const purchaseOrderController = require("../../src/controllers/purchaseOrderController");
+const FinancialDocumentController = require("../../src/controllers/financialDocumentController");
 const purchaseOrderService = require("../../src/services/purchaseOrderService");
 const pdfValidationService = require("../../src/services/pdfValidationService");
 const authService = require("../../src/services/authService");
@@ -139,7 +140,7 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
     await purchaseOrderController.uploadPurchaseOrder(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(mockResult);
+    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
   });
 
   test("should return 500 if unexpected error occurs", async () => {
@@ -194,7 +195,7 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
     await purchaseOrderController.uploadPurchaseOrder(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(mockResult);
+    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
     expect(clearTimeoutSpy).toHaveBeenCalled();
 
     clearTimeoutSpy.mockRestore();
@@ -227,4 +228,17 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
   });
+  test("should return 400 when document type is unknown", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
+
+    const invalidController = new FinancialDocumentController(purchaseOrderService, "UnknownType");
+
+    await invalidController.uploadFile(req, res); 
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: "Invalid document type provided" });
+  });
+
+
 });

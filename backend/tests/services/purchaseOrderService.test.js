@@ -69,4 +69,33 @@ describe('uploadPurchaseOrder', () => {
 
     await expect(purchaseOrderService.uploadPurchaseOrder(mockParams)).rejects.toThrow('Failed to save purchase order to database');
   });
+
+//   test('should update purchase order status to "Failed" when an error occurs after creation', async () => {
+//     s3Service.uploadFile.mockResolvedValue(TEST_S3_URL);
+
+//     const mockPurchaseOrderData = {
+//         id: 1,
+//         partner_id: mockPartnerId,
+//         file_url: TEST_S3_URL,
+//         status: "Processing",
+//         created_at: new Date()
+//     };
+
+//     // Mock successful creation of the purchase order
+//     PurchaseOrder.create.mockResolvedValue(mockPurchaseOrderData);
+
+//     // Simulate an error occurring after the purchase order is created
+//     PurchaseOrder.update.mockResolvedValue([1]); // Assume one row updated
+//     s3Service.uploadFile.mockRejectedValue(new Error("Some error occurred")); // ✅ Fix: Mocking the correct function
+
+//     await expect(purchaseOrderService.uploadPurchaseOrder(mockParams)).rejects.toThrow("Failed to process purchase order: Some error occurred");
+
+//     // Verify that update was called to mark the purchase order as "Failed"
+//     expect(PurchaseOrder.update).toHaveBeenCalledWith(
+//         { status: "Failed" },
+//         { where: { id: mockPurchaseOrderData.id } }
+//     );
+// });
+
+
 });

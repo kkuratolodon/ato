@@ -1,4 +1,6 @@
 const pdfValidationService = require('../services/pdfValidationService');
+const { safeResponse } = require('../utils/responseHelper');
+
 class FinancialDocumentController {
     constructor(service, documentType) {
       this.service = service;
@@ -25,15 +27,15 @@ class FinancialDocumentController {
       if (res.headersSent) return; //  Prevent sending a duplicate response
 
       if (req.query && req.query.simulateTimeout === "true") {
-        return res.status(504).json({ message: "Server timeout - upload exceeded 3 seconds" });
+        return safeResponse(res, 504, "Server timeout - upload exceeded 3 seconds");
+
       }
-  
       if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return safeResponse(res, 401, "Unauthorized");
       }
   
       if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
+        return safeResponse(res, 400, "No file uploaded");
       }
   
       const { buffer, originalname, mimetype } = req.file;
@@ -45,26 +47,26 @@ class FinancialDocumentController {
           try {
             await pdfValidationService.validatePDF(buffer, mimetype, originalname);
           } catch (error) {
-            if (!res.headersSent) return res.status(415).json({ message: "File format is not PDF" });
+            return safeResponse(res, 415, "File format is not PDF");
           }
   
           // Encryption check
           const isEncrypted = await pdfValidationService.isPdfEncrypted(buffer);
           if (isEncrypted) {
-            if (!res.headersSent) return res.status(400).json({ message: "PDF is encrypted" });
+            return safeResponse(res, 400, "PDF is encrypted");
           }
   
           // Integrity check
           const isValidPdf = await pdfValidationService.checkPdfIntegrity(buffer);
           if (!isValidPdf) {
-            if (!res.headersSent) return res.status(400).json({ message: "PDF file is invalid" });
+            return safeResponse(res, 400, "PDF file is invalid");
           }
   
           // File size validation
           try {
             await pdfValidationService.validateSizeFile(buffer);
           } catch (error) {
-            if (!res.headersSent) return res.status(413).json({ message: "File size exceeds maximum limit" });
+            return safeResponse(res, 413, "File size exceeds maximum limit");
           }
           try{
             let result;
@@ -72,27 +74,31 @@ class FinancialDocumentController {
                 result = await this.service.uploadInvoice({
                     originalname, buffer, mimetype, partnerId,
                 });
-                if (!res.headersSent) return res.status(200).json(result);
+                return safeResponse(res, 200, result);
             } 
             else if (this.documentType === "Purchase Order") {
                 result = await this.service.uploadPurchaseOrder({
                     originalname, buffer, mimetype, partnerId,
                 });
-                if (!res.headersSent) return res.status(200).json(result);
+                return safeResponse(res, 200, result);
             }
-    
-
+            else{
+              throw new Error("document type unknown")
+            }
           }catch(error){
             console.error("Unhandled error in upload process:", error);
-            if (!res.headersSent) return res.status(500).json({ message: "Internal server error" });
+            if(error.message === "document type unknown"){
+              return safeResponse(res, 400, "Invalid document type provided" );
+            }
+            return safeResponse(res, 500, "Internal server error");
           }
-        }, 3000);
+        });
       } catch (error) {
         if (error.message === "Timeout") {
-          if (!res.headersSent) return res.status(504).json({ message: "Server timeout - upload exceeded 3 seconds" });
+          return safeResponse(res, 504, "Server timeout - upload exceeded 3 seconds");
         }
         console.error("Unexpected error:", error);
-        if (!res.headersSent) return res.status(500).json({ message: "Internal server error" });
+        return safeResponse(res, 500, "Internal server error");
       }
     }
   }

@@ -178,7 +178,8 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     await uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(mockResult );
+    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
+
   });
 
   test("should return status 500 if unexpected error occurs", async () => {
@@ -241,12 +242,13 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     };
 
     invoiceService.uploadInvoice.mockResolvedValue(mockResult);
+    
     const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
 
     await invoiceController.uploadInvoice(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith( mockResult);
+    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
     expect(clearTimeoutSpy).toHaveBeenCalled();
 
     clearTimeoutSpy.mockRestore();
@@ -289,16 +291,25 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.json).not.toHaveBeenCalled();
   });
 
-  test("should not send another response if headersSent is true", async () => {
-    const req = mockRequest({ user: { uuid: "dummy-uuid" }, file: null });
-    const res = mockResponse();
-    res.headersSent = true; // Simulate headers already sent
-  
-    await invoiceController.uploadInvoice(req, res);
-  
-    expect(res.status).not.toHaveBeenCalled(); // Ensure no new response is sent
+  test('should not send a response if headersSent is already true', async () => {
+    const req = {
+      user: null,
+      file: null, 
+    };
+
+    // Mock res object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      headersSent: true, 
+    };
+
+    await uploadInvoice(req, res);
+
+    expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
   });
+  
 
   
   
@@ -494,7 +505,9 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     // Jika controller mengembalikan { message: mockResult }, gunakan:
     // expect(res.body).toEqual({ message: mockResult });
     // Jika controller langsung mengembalikan mockResult, gunakan:
-    expect(res.body).toEqual(mockResult);
+    // expect(res.body).toEqual(mockResult);
+    expect(res.body).toEqual({ message: mockResult });
+
   });
 
   test("harus mengembalikan status 500 jika terjadi error tak terduga", async () => {
@@ -788,7 +801,7 @@ describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
     
     // Verify success response
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: "Success", invoiceId: "123", details: {} } );
+    expect(res.json).toHaveBeenCalledWith({ message: { message: "Success", invoiceId: "123", details: {} } });
   });
   
 });

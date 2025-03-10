@@ -11,16 +11,17 @@ class PurchaseOrderService extends FinancialDocumentService{
             const { buffer, originalname, partnerId } = fileData;
     
             const purchaseOrderData = await this.uploadFile(fileData);
-            const purchaseOrder = await PurchaseOrder.create(purchaseOrderData);
+            purchaseOrder = await PurchaseOrder.create(purchaseOrderData);
     
             return {
                 message: "Purchase Order successfully uploaded",
                 purchaseOrderId: purchaseOrder.id
             }
         }catch (error) {
-            if (purchaseOrder && purchaseOrder.id) {
-                await Invoice.update({ status: "Failed" }, { where: { id: invoice.id } });
-            }
+            // this happens after connect to ocr but failed analyse
+            // if (purchaseOrder && purchaseOrder.id) {
+            //     await PurchaseOrder.update({ status: "Failed" }, { where: { id: purchaseOrder.id } });
+            // }
             console.error("Error processing purchase order:", error);
             throw new Error("Failed to process purchase order: " + error.message);
         }
