@@ -38,142 +38,111 @@ class InvoiceService {
   async uploadInvoice(fileData) {
     let invoice;
     try {
-      // Check if file data exists
-      if (!fileData) {
-        throw new Error("File not found");
-      }
-      
-      // Destructure setelah validasi
+      this.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
-      
-      if (!partnerId) {
-        throw new Error("Partner ID is required");
-      }
-  
-      const s3Url = await s3Service.uploadFile(buffer);
-      if (!s3Url) {
-        throw new Error("Failed to upload file to S3");
-      }
-  
-      // Initialize invoice data with processing status and partner ID
-      const invoiceData = {
-        status: "Processing",
-        partner_id: partnerId,
-        file_url: s3Url,
-        // file_url: "http://example.com/invoice.pdf"
-      };
-  
-      invoice = await Invoice.create(invoiceData);
-  
-      // 1. Gunakan method analyzeInvoice untuk memproses dokumen
+      const s3Url = await this.uploadToS3(buffer);
+      invoice = await this.createInvoiceRecord(partnerId, s3Url);
       const analysisResult = await this.analyzeInvoice(buffer);
-      
-      if (!analysisResult || !analysisResult.data) {
-        throw new Error("Failed to analyze invoice: No data returned");
-      }
-      
-      // 2. Map hasil Azure ke model invoice kita
-      // 2. Map hasil Azure ke model invoice kita
-      const { invoiceData: invoiceData2, customerData, vendorData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
-      
-      // Jika perlu menggunakan customerData untuk pemrosesan lebih lanjut
-      console.log("Customer data extracted:", customerData);
-      console.log("Vendor data extracted:", vendorData);
-      // 3. Tambahkan informasi tambahan
-      invoiceData2.original_filename = originalname;
-      invoiceData2.file_size = buffer.length;
-
-      // 4. Simpan invoice ke database
-      await Invoice.update(invoiceData2, {
-        where: { id: invoice.id }
-      });
-      // Update invoice status to "Analyzed"
-      await Invoice.update({ status: "Analyzed" }, { 
-        where: { id: invoice.id }
-      });
-
-      if (customerData && customerData.name) {
-        // Search customer by multiple attributes for more unique matching
-        let customer = await Customer.findOne({
-          where: {
-            name: customerData.name,
-            // Additional fields for more precise matching
-            ...(customerData.tax_id && { tax_id: customerData.tax_id }),
-            ...(customerData.postal_code && { postal_code: customerData.postal_code }),
-            ...(customerData.street_address && { street_address: customerData.street_address })
-          }
-        });
-        
-        if (!customer) {
-          customer = await Customer.create({
-            name: customerData.name,
-            street_address: customerData.street_address,
-            city: customerData.city,
-            state: customerData.state,
-            postal_code: customerData.postal_code,
-            house: customerData.house,
-            tax_id: customerData.tax_id,
-            recipient_name: customerData.recipient_name
-          });
-        }
-        
-        await Invoice.update({ 
-          customer_id: customer.uuid 
-        }, {
-          where: { id: invoice.id }
-        });
-      }
-      if (vendorData && vendorData.name) {
-        // Search vendor by multiple attributes for more unique matching
-        let vendor = await Vendor.findOne({
-          where: {
-            name: vendorData.name,
-            ...(vendorData.tax_id && { tax_id: vendorData.tax_id }),
-            ...(vendorData.postal_code && { postal_code: vendorData.postal_code }),
-            ...(vendorData.street_address && { street_address: vendorData.street_address })
-          }
-        });
-
-        if (!vendor) {
-          vendor = await Vendor.create({
-            name: vendorData.name,
-            street_address: vendorData.street_address,
-            city: vendorData.city,
-            state: vendorData.state,
-            postal_code: vendorData.postal_code,
-            house: vendorData.house,
-            tax_id: vendorData.tax_id,
-            recipient_name: vendorData.recipient_name
-          });
-        }
-
-        await Invoice.update({ 
-          vendor_id: vendor.uuid 
-        }, {
-          where: { id: invoice.id }
-        });
-      }
-      // 5. Kembalikan hasil mapping
-      return {
-        message: "Invoice successfully processed and saved",
-        invoiceId: invoice.id,
-        details: {
-          id: invoice.id,
-          invoice_number: invoice.invoice_number,
-          invoice_date: invoice.invoice_date,
-          due_date: invoice.due_date,
-          total_amount: invoice.total_amount,
-          status: invoice.status,
-          created_at: invoice.created_at
-        }
-      };
+      const { invoiceData2, customerData, vendorData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
+      await this.updateInvoiceRecord(invoice.id, invoiceData2);
+      await this.updateCustomerAndVendorData(invoice.id, customerData, vendorData);
+      return this.buildResponse(invoice);
     } catch (error) {
-      if (invoice && invoice.id) {
+      if (invoice?.id) {
         await Invoice.update({ status: "Failed" }, { where: { id: invoice.id } });
       }
       console.error("Error processing invoice:", error);
       throw new Error("Failed to process invoice: " + error.message);
     }
+  }
+
+  validateFileData(fileData) {
+    if (!fileData) {
+      throw new Error("File not found");
+    }
+    const { partnerId } = fileData;
+    if (!partnerId) {
+      throw new Error("Partner ID is required");
+    }
+  }
+
+  async uploadToS3(buffer) {
+    const s3Url = await s3Service.uploadFile(buffer);
+    if (!s3Url) {
+      throw new Error("Failed to upload file to S3");
+    }
+    return s3Url;
+  }
+
+  async createInvoiceRecord(partnerId, s3Url) {
+    const invoiceData = {
+      status: "Processing",
+      partner_id: partnerId,
+      file_url: s3Url,
+    };
+    return await Invoice.create(invoiceData);
+  }
+
+  mapAnalysisResult(analysisResult, partnerId, originalname, fileSize) {
+    if (!analysisResult || !analysisResult.data) {
+      throw new Error("Failed to analyze invoice: No data returned");
+    }
+    const { invoiceData: invoiceData2, customerData, vendorData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+    invoiceData2.original_filename = originalname;
+    invoiceData2.file_size = fileSize;
+    return { invoiceData2, customerData, vendorData };
+  }
+
+  async updateInvoiceRecord(invoiceId, invoiceData2) {
+    await Invoice.update(invoiceData2, { where: { id: invoiceId } });
+    await Invoice.update({ status: "Analyzed" }, { where: { id: invoiceId } });
+  }
+
+  async updateCustomerAndVendorData(invoiceId, customerData, vendorData) {
+    if (customerData && customerData.name) {
+      let customer = await Customer.findOne({
+        where: {
+          name: customerData.name,
+          ...(customerData.tax_id && { tax_id: customerData.tax_id }),
+          ...(customerData.postal_code && { postal_code: customerData.postal_code }),
+          ...(customerData.street_address && { street_address: customerData.street_address })
+        }
+      });
+      if (!customer) {
+        customer = await Customer.create(customerData);
+      }
+      await Invoice.update({ customer_id: customer.uuid }, { where: { id: invoiceId } });
+    }
+    if (vendorData && vendorData.name) {
+      let vendor = await Vendor.findOne({
+        where: {
+          name: vendorData.name,
+          ...(vendorData.tax_id && { tax_id: vendorData.tax_id }),
+          ...(vendorData.postal_code && { postal_code: vendorData.postal_code }),
+          ...(vendorData.street_address && { street_address: vendorData.street_address })
+        }
+      });
+      if (!vendor) {
+        vendor = await Vendor.create(vendorData);
+      }
+      await Invoice.update({ vendor_id: vendor.uuid }, { where: { id: invoiceId } });
+    }
+  }
+
+  buildResponse(invoice) {
+    return {
+      message: "Invoice successfully processed and saved",
+      invoiceId: invoice.id,
+      details: {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        invoice_date: invoice.invoice_date,
+        due_date: invoice.due_date,
+        total_amount: invoice.total_amount,
+        status: invoice.status,
+        created_at: invoice.created_at
+      }
+    };
   }
 
   async getInvoiceById(id) {
