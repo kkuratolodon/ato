@@ -4,6 +4,9 @@ const multer = require('multer');
 
 const upload = multer({
   storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024
+  }
 });
 
 exports.uploadMiddleware = upload.single('file');
@@ -17,7 +20,7 @@ exports.uploadMiddleware = upload.single('file');
  * 3. File Type Validation: Ensures the uploaded file is a valid PDF.
  * 4. Encryption Check: Rejects encrypted PDFs.
  * 5. Integrity Check: Verifies the PDF is not corrupted.
- * 6. Size Validation: Ensures the file does not exceed the allowed size limit.
+ * 6. Size Validation: Ensures the file does 2not exceed the allowed size limit.
  * 7. Upload Process: Uploads the validated invoice file.
  *
  * The function uses a Promise.race mechanism to implement the timeout, ensuring that
@@ -40,7 +43,7 @@ exports.uploadMiddleware = upload.single('file');
  */
 exports.uploadInvoice = async (req, res) => {
   if (req.query && req.query.simulateTimeout === 'true') {
-    return res.status(504).json({ message: "Server timeout - upload exceeded 3 seconds" });
+    return res.status(504).json({ message: "Server timeout - upload processing timed out" });
   }
 
   const safeResponse = (status, message) => {
@@ -50,7 +53,7 @@ exports.uploadInvoice = async (req, res) => {
     return false;
   };
 
-  const executeWithTimeout = (fn, timeoutMs = 3000) => {
+  const executeWithTimeout = (fn, timeoutMs = 20000) => {
     let timeoutId;
     
     const timeoutPromise = new Promise((_, reject) => {
@@ -121,7 +124,7 @@ exports.uploadInvoice = async (req, res) => {
 
   } catch (error) {
     if (error.message === 'Timeout') {
-      safeResponse(504, "Server timeout - upload exceeded 3 seconds");
+      safeResponse(504, "Server timeout - upload processing timed out");
     } else {
       console.error("Unexpected error:", error);
       safeResponse(500, "Internal server error");
