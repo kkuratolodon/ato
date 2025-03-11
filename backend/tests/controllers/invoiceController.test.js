@@ -10,6 +10,7 @@ const pdfValidationService = require("../../src/services/pdfValidationService");
 const invoiceService = require("../../src/services/invoiceService");
 const authService = require("../../src/services/authService");
 
+
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
 
@@ -44,7 +45,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       filename: "test.pdf" 
     });
   });
-
 
   test("should return status 401 if req.user is not defined", async () => {
     // Simulasikan tidak ada req.user (belum di-auth)
@@ -179,6 +179,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ message: mockResult });
+
   });
 
   test("should return status 500 if unexpected error occurs", async () => {
@@ -238,6 +239,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     };
 
     invoiceService.uploadInvoice.mockResolvedValue(mockResult);
+    
     const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
 
     await invoiceController.uploadInvoice(req, res);
@@ -285,6 +287,28 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
   });
+
+  test('should not send a response if headersSent is already true', async () => {
+    const req = {
+      user: null,
+      file: null, 
+    };
+
+    // Mock res object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      headersSent: true, 
+    };
+
+    await uploadInvoice(req, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
+  });
+  
+
+  
   
 });
 
@@ -477,10 +501,12 @@ describe("Invoice Controller (Integration) with Supertest", () => {
       .attach("file", path.join(__dirname, "test-files/test-invoice.pdf"));
   
     expect(res.status).toBe(200);
+    // Sesuaikan dengan format yang diharapkan dari controller
+    // Jika controller mengembalikan { message: mockResult }, gunakan:
+    // expect(res.body).toEqual({ message: mockResult });
+    // Jika controller langsung mengembalikan mockResult, gunakan:
+    // expect(res.body).toEqual(mockResult);
     expect(res.body).toEqual({ message: mockResult });
-    
-    // REMOVE THIS VERIFICATION
-    // expect(executeWithTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 20000);
   });
   
   test("harus mengembalikan status 500 jika terjadi error tak terduga", async () => {

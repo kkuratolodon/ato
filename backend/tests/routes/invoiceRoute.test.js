@@ -2,7 +2,7 @@ const request = require('supertest');
 const express = require('express');
 
 // Route dan dependensi
-const invoiceRoutes = require('../../src/routes/invoiceRoutes');
+const invoiceRoutes = require('../../src/routes/invoiceRoute');
 const authMiddleware = require('../../src/middlewares/authMiddleware');
 const invoiceController = require('../../src/controllers/invoiceController');
 
@@ -80,4 +80,18 @@ describe('Invoice Routes', () => {
     expect(invoiceController.uploadMiddleware).not.toHaveBeenCalled();
     expect(invoiceController.uploadInvoice).not.toHaveBeenCalled();
   });
+  test('GET /api/invoices/debug-sentry should throw an error for Sentry testing', async () => {
+    // Express error handler needs to be set up to catch the error
+    app.use((err, req, res, next) => {
+        res.status(500).json({ message: 'Server error' });
+    });
+
+    // Make request to the sentry debug endpoint
+    const response = await request(app)
+        .get('/api/invoices/debug-sentry');
+    
+    // Since this endpoint explicitly throws an error, expect 500 status
+    expect(response.status).toBe(500);
+  });
 });
+

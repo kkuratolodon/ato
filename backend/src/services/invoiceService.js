@@ -1,5 +1,6 @@
 const { Invoice } = require("../models");
 const s3Service = require("./s3Service");
+const FinancialDocumentService = require("./financialDocumentService")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
@@ -12,8 +13,10 @@ const endpoint = process.env.AZURE_ENDPOINT;
 const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
 
-class InvoiceService {
+
+class InvoiceService extends FinancialDocumentService {
   constructor() {
+    super("Invoice");
     this.azureMapper = new AzureInvoiceMapper();
   }
   /**
@@ -36,10 +39,15 @@ class InvoiceService {
   async uploadInvoice(fileData) {
     let invoice;
     try {
+      // Destructure setelah validasi
       this.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
-      const s3Url = await this.uploadToS3(buffer);
-      invoice = await this.createInvoiceRecord(partnerId, s3Url);
+      
+      const invoiceData = await this.uploadFile(fileData)
+  
+      invoice = await this.createInvoiceRecord(invoiceData.partner_id, invoiceData.file_url);
+  
+      // 1. Gunakan method analyzeInvoice untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
       const { invoiceData2, customerData, vendorData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
       await this.updateInvoiceRecord(invoice.id, invoiceData2);
@@ -62,14 +70,6 @@ class InvoiceService {
     if (!partnerId) {
       throw new Error("Partner ID is required");
     }
-  }
-
-  async uploadToS3(buffer) {
-    const s3Url = await s3Service.uploadFile(buffer);
-    if (!s3Url) {
-      throw new Error("Failed to upload file to S3");
-    }
-    return s3Url;
   }
 
   async createInvoiceRecord(partnerId, s3Url) {

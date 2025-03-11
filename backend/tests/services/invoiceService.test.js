@@ -1,6 +1,7 @@
 const models = require('../../src/models');
 
 const invoiceService = require('../../src/services/invoiceService');
+const FinancialDocumentService = require('../../src/services/financialDocumentService');
 const s3Service = require('../../src/services/s3Service');
 const { Invoice } = require('../../src/models')
 const fs = require("fs");
@@ -98,14 +99,17 @@ describe('uploadInvoice', () => {
     DocumentAnalysisClient.mockImplementation(() => mockClient);
   });
 
-  // PENTING: Kembalikan method original SETELAH SETIAP TEST
   afterEach(() => {
     invoiceService.analyzeInvoice = originalAnalyzeInvoice;
     jest.restoreAllMocks();
   });
 
   test('should return invoice object when upload is successful', async () => {
-    s3Service.uploadFile.mockResolvedValue(TEST_S3_URL);
+    jest.spyOn(FinancialDocumentService.prototype, 'uploadFile').mockResolvedValue({
+      partner_id: mockPartnerId,
+      file_url: TEST_S3_URL
+    });
+    
     const mockInvoiceData = {
       id: 1,
       partner_id: mockPartnerId,
@@ -117,12 +121,15 @@ describe('uploadInvoice', () => {
       total_amount: 1000,
       created_at: new Date()
     };
-
+  
+    // Tambahkan mock untuk Invoice.create
     Invoice.create.mockResolvedValue(mockInvoiceData);
+    
+    // Tambahkan mock untuk Invoice.update jika digunakan
     Invoice.update.mockResolvedValue([1]);
-
+  
     const result = await invoiceService.uploadInvoice(mockParams);
-    expect(s3Service.uploadFile).toHaveBeenCalledWith(TEST_FILE.buffer);
+    expect(FinancialDocumentService.prototype.uploadFile).toHaveBeenCalledWith(mockParams);
     expect(Invoice.create).toHaveBeenCalledWith({
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
@@ -136,7 +143,13 @@ describe('uploadInvoice', () => {
 
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to upload file to S3');
   });
+  test('should throw error when partnerId is missing', async () => {
+    const fileData = {
+      buffer: Buffer.from('test')
+    };
 
+    await expect(invoiceService.uploadFile(fileData)).rejects.toThrow('Partner ID is required');
+  });
   test('should raise error when saving to database fails', async () => {
     s3Service.uploadFile.mockResolvedValue(TEST_S3_URL);
     Invoice.create.mockRejectedValue(new Error('Failed to save invoice to database'));
@@ -157,11 +170,7 @@ describe('uploadInvoice - Corner Cases', () => {
     invoiceService.analyzeInvoice = originalAnalyzeInvoice;
     jest.restoreAllMocks();
   });
-
-  test('should throw error when fileData is null', async () => {
-    await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
-  });
-
+  
   test('should throw error when partnerId is missing', async () => {
     const mockParams = {
       buffer: Buffer.from('test'),
@@ -454,6 +463,28 @@ describe("Invoice Analysis Service", () => {
       DocumentAnalysisClient.mockImplementation(() => mockClient);
 
       const result = await invoiceService.analyzeInvoice(documentUrl);
+      expect(result).toEqual({
+        message: "PDF processed successfully",
+        data: { success: true },
+      });
+    });
+    test("should successfully process a PDF from buffer data", async () => {
+      const pdfBuffer = Buffer.from("test PDF data");
+      
+      const mockClient = {
+        beginAnalyzeDocument: jest.fn().mockResolvedValue({
+          pollUntilDone: jest.fn().mockResolvedValue({ success: true }),
+        }),
+      };
+  
+      DocumentAnalysisClient.mockImplementation(() => mockClient);
+  
+      const result = await invoiceService.analyzeInvoice(pdfBuffer);
+      
+      expect(mockClient.beginAnalyzeDocument).toHaveBeenCalledWith(
+        process.env.AZURE_INVOICE_MODEL, 
+        pdfBuffer
+      );
       expect(result).toEqual({
         message: "PDF processed successfully",
         data: { success: true },
@@ -947,5 +978,58 @@ describe('uploadInvoice - Vendor Data Handling', () => {
       { vendor_id: 'existing-vendor-123' },
       { where: { id: 1 } }
     );
+  });
+});
+describe('validateFileData', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('should not throw error when valid file data is provided', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).not.toThrow();
+  });
+
+  test('should throw error when fileData is null', () => {
+    expect(() => invoiceService.validateFileData(null)).toThrow('File not found');
+  });
+
+  test('should throw error when fileData is undefined', () => {
+    expect(() => invoiceService.validateFileData(undefined)).toThrow('File not found');
+  });
+
+  test('should throw error when partnerId is missing', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf'
+      // partnerId is missing
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).toThrow('Partner ID is required');
+  });
+
+  test('should throw error when partnerId is null', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: null
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).toThrow('Partner ID is required');
+  });
+
+  test('should throw error when partnerId is empty string', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: ''
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).toThrow('Partner ID is required');
   });
 });
