@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true
         }
     };
-    
+        
     class Customer extends Model {
         static associate(models) {
             if (models?.FinancialDocument) {

@@ -46,7 +46,7 @@ class InvoiceService extends FinancialDocumentService {
       const invoiceData = await this.uploadFile(fileData)
   
       invoice = await this.createInvoiceRecord(invoiceData.partner_id, invoiceData.file_url);
-  
+      
       // 1. Gunakan method analyzeInvoice untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
       const { invoiceData2, customerData, vendorData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
@@ -166,7 +166,6 @@ class InvoiceService extends FinancialDocumentService {
           invoiceData.vendor = vendor.get({ plain: true });
         }
       }
-      
       // Transformasi ke format yang diinginkan
       const formattedResponse = {
         header: {

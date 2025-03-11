@@ -30,12 +30,11 @@ class AzureInvoiceMapper {
     
     // Extract purchase order ID
     const purchaseOrderId = this.parsePurchaseOrderId(fields.PurchaseOrder);
-    
     // Extract monetary values
-    const totalAmount = this.parseCurrency(fields.InvoiceTotal || fields.Total) || 0;
-    const subtotalAmount = this.parseCurrency(fields.SubTotal) || totalAmount || 0;
-    const discountAmount = this.parseCurrency(fields.TotalDiscount || fields.Discount) || 0;
-    const taxAmount = this.parseCurrency(fields.TotalTax || fields.Tax) || 0;
+    const totalAmount = this.parseCurrency(fields.InvoiceTotal || fields.Total);
+    const subtotalAmount = this.parseCurrency(fields.SubTotal) || totalAmount;
+    const discountAmount = this.parseCurrency(fields.TotalDiscount || fields.Discount);
+    const taxAmount = this.parseCurrency(fields.TotalTax || fields.Tax);
 
     // Extract payment terms
     const paymentTerms = this.getFieldContent(fields.PaymentTerm);
