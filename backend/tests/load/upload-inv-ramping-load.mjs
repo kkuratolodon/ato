@@ -28,8 +28,10 @@ export default function() {
     };
     
     const headers = {
-        'client_id': process.env.LOAD_CLIENT_ID,
-        'client_secret': process.env.LOAD_CLIENT_SECRET 
+        // eslint-disable-next-line no-undef
+        'client_id': __ENV.LOAD_CLIENT_ID,
+        // eslint-disable-next-line no-undef
+        'client_secret': __ENV.LOAD_CLIENT_SECRET 
     };
     
     const startTime = new Date().getTime();

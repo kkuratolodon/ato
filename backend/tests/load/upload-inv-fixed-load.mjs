@@ -1,8 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
-import dotenv from "dotenv";
-dotenv.config();
 
 const errorRate = new Rate('error_rate');
 const latencyP95 = new Trend('latency_p95');
@@ -27,8 +25,10 @@ export default function() {
   };
   
   const headers = {
-    'client_id': process.env.LOAD_CLIENT_ID ,
-    'client_secret': process.env.LOAD_CLIENT_SECRET
+    // eslint-disable-next-line no-undef
+    'client_id': __ENV.LOAD_CLIENT_ID ,
+    // eslint-disable-next-line no-undef
+    'client_secret': __ENV.LOAD_CLIENT_SECRET
   };
   
   const startTime = new Date().getTime();
