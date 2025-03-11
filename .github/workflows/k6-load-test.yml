@@ -1,0 +1,43 @@
+name: Load Test
+
+on:
+  push:
+    branches:
+      - staging  
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install k6
+        run: |
+          echo "Adding k6 repository and installing k6..."
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+          echo "k6 installation completed."
+
+      - name: Run Load Test - Fixed Load
+        run: |
+          echo "Starting Fixed Load Test..."
+          k6 run backend/tests/load/upload-inv-fixed-load.mjs | tee backend/tests/load/fixed-load-test.log || echo "Fixed Load Test failed!"
+          echo "Fixed Load Test completed."
+
+      - name: Run Load Test - Ramping Load
+        run: |
+          echo "Starting Ramping Load Test..."
+          k6 run backend/tests/load/upload-inv-ramping-load.mjs | tee backend/tests/load/ramping-load-test.log || echo "Ramping Load Test failed!"
+          echo "Ramping Load Test completed."
+
+      - name: Upload Test Logs (if failed)
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: k6-test-logs
+          path: |
+            backend/tests/load/fixed-load-test.log
+            backend/tests/load/ramping-load-test.log
