@@ -8,16 +8,16 @@ const app = require("./src/app");
 Sentry.setupExpressErrorHandler(app);
 
 // Optional fallthrough error handler
-app.use(function onError(err, res) {
-    // Log the error for debugging purposes
-    console.error(err.message);
+app.use(function onError(err, req, res, next) {
+    console.error(`Error: ${err.message}`);
+    console.error(`Request URL: ${req.originalUrl}`);
+    console.error(`Request Method: ${req.method}`);
+    console.error(`Request Headers:`, req.headers);
 
-    // The error id is attached to `res.sentry` to be returned
-    // and optionally displayed to the user for support.
-    res.status(500).send({
-        error: 'Internal Server Error',
-        sentryId: res.sentry
-    });
+    res.statusCode = 500;
+    res.end((res.sentry || "Internal Server Error") + "\n");
+
+    next(err); // Forward to the next error handler if any
 });
 
 
