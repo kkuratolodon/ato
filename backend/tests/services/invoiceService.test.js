@@ -283,6 +283,7 @@ describe("getInvoiceById", () => {
   test("Should return an invoice when given a valid ID", async () => {
     const mockInvoiceData = {
       id: 1,
+      invoice_id: "INV-001",
       invoice_date: "2025-02-01",
       due_date: "2025-03-01",
       purchase_order_id: 1,
@@ -308,7 +309,7 @@ describe("getInvoiceById", () => {
     expect(result).toHaveProperty('header');
     expect(result).toHaveProperty('items');
     expect(result.header.invoice_details).toEqual({
-      invoice_id: null,
+      invoice_id: "INV-001",
       purchase_order_id: 1,
       invoice_date: "2025-02-01",
       due_date: "2025-03-01",

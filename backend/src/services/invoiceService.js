@@ -171,7 +171,7 @@ class InvoiceService extends FinancialDocumentService {
       const formattedResponse = {
         header: {
           invoice_details: {
-            invoice_id: null, // Belum diimplementasi
+            invoice_id: invoiceData.invoice_id,
             purchase_order_id: invoiceData.purchase_order_id ,
             invoice_date: invoiceData.invoice_date ,
             due_date: invoiceData.due_date ,
