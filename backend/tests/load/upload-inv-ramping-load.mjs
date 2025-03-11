@@ -28,8 +28,10 @@ export default function() {
     };
     
     const headers = {
-        'client_id': 'client_8789a614',
-        'client_secret': 'secret_72bfd17d'
+        // eslint-disable-next-line no-undef
+        'client_id': __ENV.LOAD_CLIENT_ID,
+        // eslint-disable-next-line no-undef
+        'client_secret': __ENV.LOAD_CLIENT_SECRET 
     };
     
     const startTime = new Date().getTime();
