@@ -1,25 +1,16 @@
-require("./src/instrument.js");
-require('dotenv').config();
-
-const Sentry = require("@sentry/node");
+const Sentry = require("./src/instrument.js");
 const app = require("./src/app");
+
+require('dotenv').config();
 
 // The error handler must be registered before any other error middleware and after all controllers
 Sentry.setupExpressErrorHandler(app);
 
 // Optional fallthrough error handler
-app.use(function onError(err, res) {
-    // Log the error for debugging purposes
-    console.error(err.message);
-
-    // The error id is attached to `res.sentry` to be returned
-    // and optionally displayed to the user for support.
-    res.status(500).send({
-        error: 'Internal Server Error',
-        sentryId: res.sentry
-    });
+app.use(function onError(err, req, res, next) {
+    res.statusCode = 500;
+    res.end((res.sentry || "Internal Server Error") + "\n");
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
