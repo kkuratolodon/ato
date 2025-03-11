@@ -1,7 +1,7 @@
 const path = require("path");
 
 const { Invoice } = require("../models");
-const s3Service = require("./s3Service")
+const FinancialDocumentService = require("./financialDocumentService")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
@@ -12,8 +12,9 @@ const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
 
 
-class InvoiceService {
+class InvoiceService extends FinancialDocumentService {
   constructor() {
+    super("Invoice");
     this.azureMapper = new AzureInvoiceMapper();
   }
   /**
@@ -36,29 +37,10 @@ class InvoiceService {
   async uploadInvoice(fileData) {
     let invoice;
     try {
-      // Check if file data exists
-      if (!fileData) {
-        throw new Error("File not found");
-      }
-      
       // Destructure setelah validasi
       const { buffer, originalname, partnerId } = fileData;
       
-      if (!partnerId) {
-        throw new Error("Partner ID is required");
-      }
-  
-      const s3Url = await s3Service.uploadFile(buffer);
-      if (!s3Url) {
-        throw new Error("Failed to upload file to S3");
-      }
-  
-      // Initialize invoice data with processing status and partner ID
-      const invoiceData = {
-        status: "Processing",
-        partner_id: partnerId,
-        file_url: s3Url
-      };
+      const invoiceData = await this.uploadFile(fileData)
   
       invoice = await Invoice.create(invoiceData);
   
@@ -106,11 +88,17 @@ class InvoiceService {
   }
 
   async getInvoiceById(id) {
-    const invoice = await Invoice.findByPk(id);
-    if (!invoice) {
-      throw new Error("Invoice not found");
+    try{
+      const invoice = await Invoice.findByPk(id);
+      if(!invoice){
+        throw new Error("Invoice not found");
+      }
+      return invoice;
     }
-    return invoice;
+    catch(error){
+      if(error.message === "Invoice not found") throw error;
+      throw new Error("Database error");
+    }
   }
 
   /**

@@ -184,9 +184,12 @@ describe('uploadInvoice - Corner Cases', () => {
     jest.restoreAllMocks();
   });
   
-  test('should throw error when fileData is null', async () => {
-    await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
-  });
+  /*
+    no need this test anymore because null checking is only on layer controller
+  */
+  // test('should throw error when fileData is null', async () => {
+  //   await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
+  // });
   
   test('should throw error when partnerId is missing', async () => {
     const mockParams = { 
@@ -464,7 +467,7 @@ describe("PDF Integrity Check", () => {
 
 describe("getInvoiceById", () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   test("Should return an invoice when given a valid ID", async () => {
@@ -483,22 +486,21 @@ describe("getInvoiceById", () => {
 
     Invoice.findByPk.mockResolvedValue(mockInvoice);
 
-    const invoice = await invoiceService.getInvoiceById(1);
+    const result = await invoiceService.getInvoiceById(1);
 
-    expect(invoice).toEqual(mockInvoice);
+    expect(result).toEqual(mockInvoice);
   });
 
   test("Should throw an error when invoice is not found", async () => {
     Invoice.findByPk.mockResolvedValue(null);
-
-    await expect(invoiceService.getInvoiceById(99999999)).rejects.toThrow("Invoice not found");
+    await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Invoice not found");
   });
 
   test("Should throw an error when database fails", async () => {
-    Invoice.findByPk.mockRejectedValue(new Error("Database error"));
+    Invoice.findByPk.mockRejectedValue(new Error("Some Unexpected Database error"));
+    await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
+  });
 
-        await expect(invoiceService.getInvoiceById(1)).rejects.toThrow("Database error");
-    });
 });
 
 describe("Invoice Analysis Service", () => {

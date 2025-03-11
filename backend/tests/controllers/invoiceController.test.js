@@ -2,14 +2,14 @@ const request = require("supertest");
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
-const app = require('../../src/app');
 
 // Controller & Services
 const invoiceController = require("../../src/controllers/invoiceController");
-const { uploadInvoice } = require("../../src/controllers/invoiceController");
+const { uploadInvoice,getInvoiceById } = require("../../src/controllers/invoiceController");
 const pdfValidationService = require("../../src/services/pdfValidationService");
 const invoiceService = require("../../src/services/invoiceService");
 const authService = require("../../src/services/authService");
+
 
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
@@ -45,7 +45,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
       filename: "test.pdf" 
     });
   });
-
 
   test("should return status 401 if req.user is not defined", async () => {
     // Simulasikan tidak ada req.user (belum di-auth)
@@ -180,6 +179,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ message: mockResult });
+
   });
 
   test("should return status 500 if unexpected error occurs", async () => {
@@ -242,6 +242,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     };
 
     invoiceService.uploadInvoice.mockResolvedValue(mockResult);
+    
     const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
 
     await invoiceController.uploadInvoice(req, res);
@@ -289,6 +290,28 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
   });
+
+  test('should not send a response if headersSent is already true', async () => {
+    const req = {
+      user: null,
+      file: null, 
+    };
+
+    // Mock res object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      headersSent: true, 
+    };
+
+    await uploadInvoice(req, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
+  });
+  
+
+  
   
 });
 
@@ -482,7 +505,9 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     // Jika controller mengembalikan { message: mockResult }, gunakan:
     // expect(res.body).toEqual({ message: mockResult });
     // Jika controller langsung mengembalikan mockResult, gunakan:
+    // expect(res.body).toEqual(mockResult);
     expect(res.body).toEqual({ message: mockResult });
+
   });
 
   test("harus mengembalikan status 500 jika terjadi error tak terduga", async () => {
@@ -502,49 +527,135 @@ describe("Invoice Controller (Integration) with Supertest", () => {
 });
 
 describe("getInvoiceById", () => {
+  let req,res;  
   beforeEach(() => {
+    req = mockRequest();
+    res = mockResponse();
     jest.clearAllMocks();
   });
+  describe("Positive Cases",() => {
+      test("Should return an invoice when given a valid ID", async () => {
+        req.user = {uuid: "uuid"};
+        req.params = {id: 1};
+    
+        const mockInvoice = {
+          id: 1,
+          invoice_date: "2025-02-01",
+          due_date: "2025-03-01",
+          purchase_order_id: 1,
+          total_amount: 500.0,
+          subtotal_amount: 450.0,
+          discount_amount: 50.0,
+          payment_terms: "Net 30",
+          file_url: "https://example.com/invoice.pdf",
+          status: "Analyzed",
+          partner_id: "uuid",
+        };
+        
+        invoiceService.getInvoiceById.mockResolvedValue(mockInvoice);
+        
+        await getInvoiceById(req,res)
+        
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(mockInvoice);
+      });
 
-  test("Should return an invoice when given a valid ID", async () => {
-    const mockInvoice = {
-      id: 1,
-      invoice_date: "2025-02-01",
-      due_date: "2025-03-01",
-      purchase_order_id: 1,
-      total_amount: 500.0,
-      subtotal_amount: 450.0,
-      discount_amount: 50.0,
-      payment_terms: "Net 30",
-      file_url: "https://example.com/invoice.pdf",
-      status: "Analyzed",
-    };
+  })
 
-    invoiceService.getInvoiceById.mockResolvedValue(mockInvoice);
+  describe("Negative - Authorization Cases",() => {
+    test("Should return 401 if req.user is not defined", async () => {
+      req.user = undefined;
+      req.params = {id:1};
+      
+      await getInvoiceById(req,res);
+      
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({message: "Unauthorized"});
+    });
+    
+    test("should return 403 if invoice doesn't belong to that user",async() => {
+      req.user = {uuid: "dummy-uuid"};
+      req.params = {id:1};
+      const mockInvoice = {
+        id: 1,
+        invoice_date: "2025-02-01",
+        due_date: "2025-03-01",
+        purchase_order_id: 1,
+        total_amount: 500.0,
+        subtotal_amount: 450.0,
+        discount_amount: 50.0,
+        payment_terms: "Net 30",
+        file_url: "https://example.com/invoice.pdf",
+        status: "Analyzed",
+        partner_id: "other-uuid", // different partner_id
+      };
+  
+      invoiceService.getInvoiceById.mockResolvedValue(mockInvoice);
+  
+      await getInvoiceById(req,res);
+  
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({message: "Forbidden: You do not have access to this invoice"});
+  
+      
+    })
+  })
 
-    const response = await request(app).get(`/api/invoices/${mockInvoice.id}`);
+  describe("Negative - Error Handling",() => {
+    test("Should return 404 when invoice is not found", async () => {
+      req.user = {uuid: "dummy-uuid"};
+      req.params = {id: 1};
+      invoiceService.getInvoiceById.mockRejectedValue(new Error("Invoice not found"));
+      
+      await getInvoiceById(req,res);
+      
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({message: "Invoice not found"})
+    });
+    
+    test("Should return 500 when internal server error occurs", async () => {
+      req.user = {uuid: "dummy-uuid"};
+      req.params = {id: 1};
+      invoiceService.getInvoiceById.mockRejectedValue(new Error("Internal server error"));
+      
+      await getInvoiceById(req,res);
+  
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({message: "Internal server error"});
+  
+    });
+  })
 
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual(mockInvoice);
-  });
+  describe("Corner Cases",() => {
+    test("should return 400 if ID is not a number",async () => {
+      req.user = { uuid: "dummy-uuid" };
+      req.params = { id: "invalid-id" };
+      await getInvoiceById(req,res);
+  
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({message: "Invalid invoice ID"});
+    })  
+  
+    test("should return 400 if ID is null",async () => {
+      req.user = { uuid: "dummy-uuid" };
+      req.params = { id: null };
+      await getInvoiceById(req,res);
+  
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({message: "Invalid invoice ID"});
+    })  
+  
+    test("should return 400 if ID is negative",async () => {
+      req.user = { uuid: "dummy-uuid" };
+      req.params = { id: -5 };
+      await getInvoiceById(req,res);
+  
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({message: "Invalid invoice ID"});
+    })  
+  })
 
-  test("Should return 404 when invoice is not found", async () => {
-    invoiceService.getInvoiceById.mockRejectedValue(new Error("Invoice not found"));
-
-    const response = await request(app).get(`/api/invoices/99999999`);
-
-    expect(response.status).toBe(404);
-    expect(response.body.message).toBe("Invoice not found");
-  });
-
-  test("Should return 500 when internal server error occurs", async () => {
-    invoiceService.getInvoiceById.mockRejectedValue(new Error("Internal server error"));
-
-    const response = await request(app).get(`/api/invoices/1`);
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toBe("Internal server error");
-  });
+  
 });
 
 /* ------------------------------------------------------------------

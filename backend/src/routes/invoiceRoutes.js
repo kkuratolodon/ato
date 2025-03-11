@@ -10,7 +10,7 @@ router.post(
     InvoiceController.uploadInvoice
 );
 
-router.get('/:id', InvoiceController.getInvoiceById);
+router.get('/:id',authMiddleware, InvoiceController.getInvoiceById);
 
 router.post('/analyze', InvoiceController.analyzeInvoice);
 
