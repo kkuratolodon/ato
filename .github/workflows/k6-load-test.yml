@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install k6
         run: |
@@ -33,11 +33,3 @@ jobs:
           k6 run backend/tests/load/upload-inv-ramping-load.mjs | tee backend/tests/load/ramping-load-test.log || echo "Ramping Load Test failed!"
           echo "Ramping Load Test completed."
 
-      - name: Upload Test Logs (if failed)
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: k6-test-logs
-          path: |
-            backend/tests/load/fixed-load-test.log
-            backend/tests/load/ramping-load-test.log
