@@ -1,6 +1,8 @@
 const InvoiceService = require('../services/invoiceService');
 const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
+const invoice = require('../models/invoice');
+const { Invoice } = require('../models');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -72,13 +74,15 @@ exports.getInvoiceById = async (req, res) => {
       return res.status(401).json({message: "Unauthorized"});
     }
 
-    const invoice = await InvoiceService.getInvoiceById(parseInt(id));
+    const invoice = await Invoice.findByPk(id);
 
     if(invoice.partner_id !== req.user.uuid){
       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
     }
 
-    return res.status(200).json(invoice);
+    const invoiceDetail = await InvoiceService.getInvoiceById(id);
+
+    return res.status(200).json(invoiceDetail);
   } catch (error) {
     if (error.message === "Invoice not found") {
       return res.status(404).json({ message: "Invoice not found" });

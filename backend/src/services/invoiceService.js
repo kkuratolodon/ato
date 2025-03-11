@@ -167,7 +167,64 @@ class InvoiceService extends FinancialDocumentService {
         }
       }
       
-      return invoiceData;
+      // Transformasi ke format yang diinginkan
+      const formattedResponse = {
+        header: {
+          invoice_details: {
+            invoice_id: null, // Belum diimplementasi
+            purchase_order_id: invoiceData.purchase_order_id ,
+            invoice_date: invoiceData.invoice_date ,
+            due_date: invoiceData.due_date ,
+            payment_terms: invoiceData.payment_terms
+          },
+          vendor_details: invoiceData.vendor ? {
+            name: invoiceData.vendor.name,
+            address: {
+              street_address: invoiceData.vendor.street_address,
+              city: invoiceData.vendor.city,
+              state: invoiceData.vendor.state,
+              postal_code: invoiceData.vendor.postal_code,
+              house: invoiceData.vendor.house
+            },
+            recipient_name: invoiceData.vendor.recipient_name,
+            tax_id: invoiceData.vendor.tax_id
+          } : {
+            name: null,
+            address: {},
+            recipient_name: null,
+            tax_id: null
+          },
+          customer_details: invoiceData.customer ? {
+            id: invoiceData.customer.uuid,
+            name: invoiceData.customer.name,
+            recipient_name: invoiceData.customer.recipient_name,
+            address: {
+              street_address: invoiceData.customer.street_address,
+              city: invoiceData.customer.city,
+              state: invoiceData.customer.state,
+              postal_code: invoiceData.customer.postal_code,
+              house: invoiceData.customer.house
+            },
+            tax_id: invoiceData.customer.tax_id
+          } : {
+            id: null,
+            name: null,
+            recipient_name: null,
+            address: {},
+            tax_id: null
+          },
+          financial_details: {
+            currency: null, // Belum diimplementasi
+            total_amount: invoiceData.total_amount,
+            subtotal_amount: invoiceData.subtotal_amount,
+            discount_amount: invoiceData.discount_amount,
+            total_tax_amount: null // Belum diimplementasi
+          }
+        },
+        items: [] // Belum diimplementasi
+      };
+      
+      return formattedResponse;
       
     } catch (error) {
       console.error("Error retrieving invoice:", error);
