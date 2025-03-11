@@ -1,7 +1,8 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
-require('dotenv').config();
+import dotenv from "dotenv";
+dotenv.config();
 
 const errorRate = new Rate('error_rate');
 const latencyP95 = new Trend('latency_p95');
