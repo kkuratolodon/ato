@@ -21,6 +21,7 @@ class AzureInvoiceMapper {
     const fields = document.fields || {};
     
     // Extract and validate dates
+    const invoiceId = this.getFieldContent(fields.InvoiceId);
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);
 
@@ -49,6 +50,7 @@ class AzureInvoiceMapper {
  
     // Build invoice data object matching our model requirements
     const invoiceData = {
+      invoice_id: invoiceId,
       invoice_date: invoiceDate,
       invoice_number: invoiceNumber,
       due_date: dueDate || this.calculateDueDate(invoiceDate, paymentTerms),
