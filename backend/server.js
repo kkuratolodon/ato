@@ -6,7 +6,6 @@ require('dotenv').config();
 // The error handler must be registered before any other error middleware and after all controllers
 Sentry.setupExpressErrorHandler(app);
 
-// Optional fallthrough error handler
 app.use(function onError(err, req, res, next) {
     console.error(`Error: ${err.message}`);
     console.error(`Request URL: ${req.originalUrl}`);
