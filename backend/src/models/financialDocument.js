@@ -36,6 +36,16 @@ module.exports = (sequelize, DataTypes) => {
                 min: 0
             }
         },
+        currency_symbol: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: '$'
+        },
+        currency_code: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: 'AUD'
+        },
         subtotal_amount: { 
             type: DataTypes.DECIMAL, 
             allowNull: true 
