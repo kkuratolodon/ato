@@ -28,8 +28,8 @@ export default function() {
     };
     
     const headers = {
-        'client_id': 'client_3c8e68e6',
-        'client_secret': 'secret_1f582a42'
+        'client_id': 'client_8789a614',
+        'client_secret': 'secret_72bfd17d'
     };
     
     const startTime = new Date().getTime();
