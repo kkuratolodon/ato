@@ -27,8 +27,8 @@ export default function() {
   };
   
   const headers = {
-    'client_id': process.env.LOAD_CLIENT_ID || 'client_8789a614',
-    'client_secret': process.env.LOAD_CLIENT_SECRET || 'secret_72bfd17d'
+    'client_id': process.env.LOAD_CLIENT_ID ,
+    'client_secret': process.env.LOAD_CLIENT_SECRET
   };
   
   const startTime = new Date().getTime();
