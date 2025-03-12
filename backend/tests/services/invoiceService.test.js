@@ -109,7 +109,7 @@ describe('uploadInvoice', () => {
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL
     });
-    
+
     const mockInvoiceData = {
       id: 1,
       partner_id: mockPartnerId,
@@ -121,13 +121,13 @@ describe('uploadInvoice', () => {
       total_amount: 1000,
       created_at: new Date()
     };
-  
+
     // Tambahkan mock untuk Invoice.create
     Invoice.create.mockResolvedValue(mockInvoiceData);
-    
+
     // Tambahkan mock untuk Invoice.update jika digunakan
     Invoice.update.mockResolvedValue([1]);
-  
+
     const result = await invoiceService.uploadInvoice(mockParams);
     expect(FinancialDocumentService.prototype.uploadFile).toHaveBeenCalledWith(mockParams);
     expect(Invoice.create).toHaveBeenCalledWith({
@@ -170,7 +170,7 @@ describe('uploadInvoice - Corner Cases', () => {
     invoiceService.analyzeInvoice = originalAnalyzeInvoice;
     jest.restoreAllMocks();
   });
-  
+
   test('should throw error when partnerId is missing', async () => {
     const mockParams = {
       buffer: Buffer.from('test'),
@@ -200,17 +200,17 @@ describe('uploadInvoice - Corner Cases', () => {
       vendor_id: "missing-vendor-uuid",
       status: "Analyzed",
     };
-  
+
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
-  
+
     Invoice.findByPk.mockResolvedValue(mockInvoice);
     Vendor.findByPk.mockResolvedValue(null);
-  
+
     const result = await invoiceService.getInvoiceById(1);
-  
+
     // Updated expectations for the new format
     expect(result).toHaveProperty('header');
     expect(result).toHaveProperty('items');
@@ -293,18 +293,20 @@ describe("getInvoiceById", () => {
       payment_terms: "Net 30",
       file_url: 'https://example.com/invoice.pdf',
       status: "Analyzed",
+      currency_symbol: "$",
+      currency_code: "USD"
     };
-  
+
     // Create a mock Sequelize model instance with a get method
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
-  
+
     Invoice.findByPk.mockResolvedValue(mockInvoice);
-  
+
     const result = await invoiceService.getInvoiceById(1);
-  
+
     // Update expectations to match the new format
     expect(result).toHaveProperty('header');
     expect(result).toHaveProperty('items');
@@ -316,7 +318,10 @@ describe("getInvoiceById", () => {
       payment_terms: "Net 30"
     });
     expect(result.header.financial_details).toEqual({
-      currency: null,
+      currency: {
+        "currency_code": "USD",
+        "currency_symbol": "$",
+      },
       total_amount: 500.00,
       subtotal_amount: 450.00,
       discount_amount: 50.00,
@@ -343,17 +348,17 @@ describe("getInvoiceById", () => {
       customer_id: "missing-customer-uuid",
       status: "Analyzed",
     };
-  
+
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
-  
+
     models.Invoice.findByPk.mockResolvedValue(mockInvoice);
     models.Customer.findByPk.mockResolvedValue(null);
-  
+
     const result = await invoiceService.getInvoiceById(1);
-  
+
     // Updated expectations for the new format
     expect(result).toHaveProperty('header');
     expect(result).toHaveProperty('items');
@@ -375,17 +380,17 @@ describe("getInvoiceById", () => {
       customer_id: "missing-customer-uuid",
       status: "Analyzed",
     };
-  
+
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
-  
+
     models.Invoice.findByPk.mockResolvedValue(mockInvoice);
     models.Customer.findByPk.mockResolvedValue(null);
-  
+
     const result = await invoiceService.getInvoiceById(1);
-  
+
     // Updated expectations for the new format
     expect(result).toHaveProperty('header');
     expect(result).toHaveProperty('items');
@@ -407,28 +412,28 @@ describe("getInvoiceById", () => {
       customer_id: "existing-customer-uuid",
       status: "Analyzed",
     };
-  
+
     const mockCustomerData = {
       uuid: "existing-customer-uuid",
       name: "Existing Customer",
       street_address: "123 Test St"
     };
-  
+
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
-  
+
     const mockCustomer = {
       ...mockCustomerData,
       get: jest.fn().mockReturnValue(mockCustomerData)
     };
-  
+
     models.Invoice.findByPk.mockResolvedValue(mockInvoice);
     models.Customer.findByPk.mockResolvedValue(mockCustomer);
-  
+
     const result = await invoiceService.getInvoiceById(1);
-  
+
     // Updated expectations for the new format
     expect(result).toHaveProperty('header');
     expect(result.header).toHaveProperty('customer_details');
@@ -445,28 +450,28 @@ describe("getInvoiceById", () => {
       vendor_id: "existing-vendor-uuid",
       status: "Analyzed",
     };
-  
+
     const mockVendorData = {
       uuid: "existing-vendor-uuid",
       name: "Existing Vendor",
       street_address: "456 Vendor St"
     };
-  
+
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
-  
+
     const mockVendor = {
       ...mockVendorData,
       get: jest.fn().mockReturnValue(mockVendorData)
     };
-  
+
     models.Invoice.findByPk.mockResolvedValue(mockInvoice);
     models.Vendor.findByPk.mockResolvedValue(mockVendor);
-  
+
     const result = await invoiceService.getInvoiceById(1);
-  
+
     // Updated expectations for the new format
     expect(result).toHaveProperty('header');
     expect(result.header).toHaveProperty('vendor_details');
@@ -501,19 +506,19 @@ describe("Invoice Analysis Service", () => {
     });
     test("should successfully process a PDF from buffer data", async () => {
       const pdfBuffer = Buffer.from("test PDF data");
-      
+
       const mockClient = {
         beginAnalyzeDocument: jest.fn().mockResolvedValue({
           pollUntilDone: jest.fn().mockResolvedValue({ success: true }),
         }),
       };
-  
+
       DocumentAnalysisClient.mockImplementation(() => mockClient);
-  
+
       const result = await invoiceService.analyzeInvoice(pdfBuffer);
-      
+
       expect(mockClient.beginAnalyzeDocument).toHaveBeenCalledWith(
-        process.env.AZURE_INVOICE_MODEL, 
+        process.env.AZURE_INVOICE_MODEL,
         pdfBuffer
       );
       expect(result).toEqual({

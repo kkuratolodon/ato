@@ -36,6 +36,18 @@ class AzureInvoiceMapper {
     const discountAmount = this.parseCurrency(fields.TotalDiscount || fields.Discount);
     const taxAmount = this.parseCurrency(fields.TotalTax || fields.Tax);
 
+    const totalAmountAmount = totalAmount.amount;
+    const subtotalAmountAmount = subtotalAmount.amount || totalAmountAmount;
+    const discountAmountAmount = discountAmount.amount;
+    const taxAmountAmount = taxAmount.amount;
+    
+    const totalAmountCurrency = totalAmount.currency;
+    const subtotalAmountCurrency = subtotalAmount.currency || totalAmountCurrency;
+    const discountAmountCurrency = discountAmount.currency;
+    const taxAmountCurrency = taxAmount.currency;
+
+    const currency = totalAmountCurrency || subtotalAmountCurrency || discountAmountCurrency || taxAmountCurrency || { currencySymbol: null, currencyCode: null };
+
     // Extract payment terms
     const paymentTerms = this.getFieldContent(fields.PaymentTerm);
     
@@ -54,16 +66,18 @@ class AzureInvoiceMapper {
       invoice_number: invoiceNumber,
       due_date: dueDate || this.calculateDueDate(invoiceDate, paymentTerms),
       purchase_order_id: purchaseOrderId,
-      total_amount: totalAmount,
-      subtotal_amount: subtotalAmount,
-      discount_amount: discountAmount,
+      total_amount: totalAmountAmount,
+      subtotal_amount: subtotalAmountAmount,
+      discount_amount: discountAmountAmount,
       payment_terms: paymentTerms,
       status: 'Analyzed', 
       partner_id: partnerId,
       
       // Additional data
-      tax_amount: taxAmount,
-      line_items: lineItems
+      tax_amount: taxAmountAmount,
+      line_items: lineItems,
+      currency_symbol: currency.currencySymbol,
+      currency_code: currency.currencyCode
     };
 
     return {
@@ -170,20 +184,20 @@ class AzureInvoiceMapper {
  * @param {Object} field - Purchase order field from OCR
  * @returns {number|string} Parsed purchase order ID or empty string if missing
  */
-parsePurchaseOrderId(field) {
-  const poStr = this.getFieldContent(field);
-  if (!poStr) return null;
-  
-  // Try to convert to number first (for backward compatibility with tests)
-  const numValue = parseInt(poStr.replace(/\D/g, ''), 10);
-  
-  // If it's a valid number, return it, otherwise return 0
-  if (!isNaN(numValue) && numValue !== Infinity) {
-    return numValue;
+  parsePurchaseOrderId(field) {
+    const poStr = this.getFieldContent(field);
+    if (!poStr) return null;
+    
+    // Try to convert to number first (for backward compatibility with tests)
+    const numValue = parseInt(poStr.replace(/\D/g, ''), 10);
+    
+    // If it's a valid number, return it, otherwise return 0
+    if (!isNaN(numValue) && numValue !== Infinity) {
+      return numValue;
+    }
+    
+    return 0; // Default to 0 for non-numeric values
   }
-  
-  return 0; // Default to 0 for non-numeric values
-}
   
   /**
    * Parse currency field from OCR result
@@ -191,26 +205,56 @@ parsePurchaseOrderId(field) {
    * @returns {number|null} Parsed amount or null if missing
    */
   parseCurrency(field) {
-    // If field.value is directly a number
+    // Default result for empty field
+    if (!field) {
+      return { 
+        amount: null, 
+        currency: { currencySymbol: null, currencyCode: null } 
+      };
+    }
+      
+    // Initialize result object
+    const result = {
+      amount: null,
+      currency: {
+        currencySymbol: null,
+        currencyCode: null
+      }
+    };
+  
+    // Direct number value case
     if (field?.value && typeof field.value === 'number') {
-      return field.value;
+      result.amount = field.value;
+      return result;
     }
     
-    // If field has structured currency value with amount property
+    // Structured currency object case
     if (field?.value?.amount && typeof field.value.amount === 'number') {
-      return field.value.amount;
+      result.amount = field.value.amount;
+      result.currency.currencySymbol = field.value.currencySymbol || null;
+      result.currency.currencyCode = field.value.currencyCode || null;
+      return result;
     }
     
+    // String content case
     const amountStr = this.getFieldContent(field);
-    if (!amountStr) return null;
+    if (!amountStr) return result;
     
-    // Remove currency symbols, commas, etc.
+    // Parse amount value first to check if it's a valid number
     const numericStr = amountStr.replace(/[^\d.-]/g, '');
     const amount = parseFloat(numericStr);
+    result.amount = isNaN(amount) ? null : amount;
     
-    return isNaN(amount) ? null : amount;
+    // Only extract currency symbol if we have a valid number
+    if (!isNaN(amount)) {
+      const currencyMatch = amountStr.match(/^([^\d]+)/);
+      if (currencyMatch?.[1]) {
+        result.currency.currencySymbol = currencyMatch[1].trim();
+      }
+    }
+    
+    return result;
   }
-  
   /**
    * Calculate due date based on invoice date and payment terms
    * @param {Date} invoiceDate - Invoice date
@@ -262,12 +306,16 @@ parsePurchaseOrderId(field) {
       return itemsField.valueArray.map(item => {
         const fields = item.valueObject || {};
         
+        // Parse currency values
+        const unitPriceObj = this.parseCurrency(fields.UnitPrice || fields.Price);
+        const amountObj = this.parseCurrency(fields.Amount || fields.LineTotal);
+        
         return {
           description: this.getFieldContent(fields.Description) || this.getFieldContent(fields.ProductName),
           quantity: this.parseNumeric(fields.Quantity),
           unit: this.getFieldContent(fields.Unit),
-          unitPrice: this.parseCurrency(fields.UnitPrice || fields.Price),
-          amount: this.parseCurrency(fields.Amount || fields.LineTotal),
+          unitPrice: unitPriceObj.amount, // Extract just the amount value
+          amount: amountObj.amount, // Extract just the amount value
           productCode: this.getFieldContent(fields.ProductCode) || this.getFieldContent(fields.ItemCode),
           taxRate: this.getFieldContent(fields.TaxRate) || this.getFieldContent(fields.Tax),
           date: this.getFieldContent(fields.Date)

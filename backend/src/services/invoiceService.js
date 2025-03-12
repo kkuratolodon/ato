@@ -213,7 +213,10 @@ class InvoiceService extends FinancialDocumentService {
             tax_id: null
           },
           financial_details: {
-            currency: null, // Belum diimplementasi
+            currency: { 
+              currency_symbol: invoiceData.currency_symbol, 
+              currency_code: invoiceData.currency_code 
+            },
             total_amount: invoiceData.total_amount,
             subtotal_amount: invoiceData.subtotal_amount,
             discount_amount: invoiceData.discount_amount,
