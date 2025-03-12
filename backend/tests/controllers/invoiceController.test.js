@@ -14,7 +14,6 @@ const authService = require("../../src/services/authService");
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
 const { Invoice } = require("../../src/models");
-const invoice = require("../../src/models/invoice");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");

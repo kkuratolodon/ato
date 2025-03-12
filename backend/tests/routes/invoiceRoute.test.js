@@ -82,7 +82,7 @@ describe('Invoice Routes', () => {
   });
   test('GET /api/invoices/debug-sentry should throw an error for Sentry testing', async () => {
     // Express error handler needs to be set up to catch the error
-    app.use((err, req, res, next) => {
+    app.use((err, req, res) => {
         res.status(500).json({ message: 'Server error' });
     });
 
