@@ -36,7 +36,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       quantity: {
-        type: Sequelize.DECIMAL(15, 2),
+        type: Sequelize.DECIMAL,
         allowNull: true
       },
       unit: {
@@ -44,11 +44,11 @@ module.exports = {
         allowNull: true
       },
       unit_price: {
-        type: Sequelize.STRING,
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: true
       },
       amount: {
-        type: Sequelize.STRING,
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: true
       },
       createdAt: {
