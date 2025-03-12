@@ -44,11 +44,11 @@ module.exports = {
         allowNull: true
       },
       unit_price: {
-        type: Sequelize.DECIMAL(10, 2),
+        type: Sequelize.STRING,
         allowNull: true
       },
       amount: {
-        type: Sequelize.DECIMAL(10, 2),
+        type: Sequelize.STRING,
         allowNull: true
       },
       createdAt: {

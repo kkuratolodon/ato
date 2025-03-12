@@ -41,7 +41,7 @@ describe('Item Model', () => {
         // Call associate methods
         Item.associate(models);
         FinancialDocument.associate && FinancialDocument.associate(models);
-        Partner.associate && Partner.associate(models);
+        Partner.associate?.(models);
         Customer.associate && Customer.associate(models);
         Vendor.associate && Vendor.associate(models);
         
