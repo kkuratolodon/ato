@@ -104,5 +104,84 @@ describe('Item Model', () => {
             expect(Item.associations.financial_documents.associationType).toBe('BelongsToMany');
             expect(Item.associations.financial_documents.through.model).toBe(FinancialDocumentItem);
         });
+
+        test('should allow linking items to financial documents', async () => {
+            try {
+                const partner = await Partner.create({
+                    uuid: 'test-partner',
+                    name: 'Test Partner',
+                    email: 'test@example.com',
+                    password: 'password123',
+                    created_at: new Date(),
+                });
+                
+                console.log('Created partner:', partner.uuid);
+                
+                const item = await Item.create({
+                    description: 'Test item',
+                    quantity: 1,
+                    unit: 'pc',
+                    unit_price: 100,
+                    amount: 100
+                });
+                
+                console.log('Created item:', item.uuid);
+        
+                const financialDoc = await FinancialDocument.create({
+                    status: 'Analyzed',
+                    partner_id: partner.uuid,
+                });
+                
+                console.log('Created financial document:', JSON.stringify(financialDoc.toJSON()));
+        
+                await item.addFinancial_document(financialDoc, { 
+                    through: { 
+                        quantity: 2,
+                        unit_price: 50,
+                        amount: 100
+                    }
+                });
+                
+                const documents = await item.getFinancial_documents();
+                console.log('Retrieved documents:', documents.map(d => d.toJSON()));
+                
+                expect(documents).toHaveLength(1);
+                
+                const docId = financialDoc.uuid || financialDoc.id;
+                console.log('Financial doc ID to check:', docId);
+                
+                expect(documents[0].uuid || documents[0].id).toBe(docId);
+        
+                const items = await financialDoc.getItems();
+                console.log('Retrieved items:', items.map(i => i.toJSON()));
+                
+                expect(items).toHaveLength(1);
+                expect(items[0].uuid || items[0].id).toBe(item.uuid || item.id);
+        
+                const allJoinRecords = await FinancialDocumentItem.findAll();
+                console.log('All join records:', allJoinRecords.map(r => r.toJSON()));
+                
+                const joinTableAttributes = Object.keys(FinancialDocumentItem.rawAttributes);
+                console.log('Join table attributes:', joinTableAttributes);
+                
+                const joinData = await FinancialDocumentItem.findOne({
+                    where: {
+                        [joinTableAttributes.includes('financial_document_id') ? 
+                            'financial_document_id' : 'financialDocumentId']: docId,
+                        [joinTableAttributes.includes('item_id') ? 'item_id' : 'itemId']: item.uuid || item.id
+                    }
+                });
+                
+                expect(joinData).toBeDefined();
+                if (joinData) {
+                    expect(parseFloat(joinData.quantity)).toBe(2);
+                    expect(parseFloat(joinData.unit_price)).toBe(50);
+                    expect(parseFloat(joinData.amount)).toBe(100);
+                }
+            } catch (error) {
+                console.error('Test error details:', error);
+                throw error;
+            }
+        });
     });
 });
