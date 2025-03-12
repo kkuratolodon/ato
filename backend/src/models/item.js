@@ -4,14 +4,12 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
     class Item extends Model {
         static associate(models) {
-            if (models?.FinancialDocument) {
-                Item.belongsToMany(models.FinancialDocument, {
-                    through: 'FinancialDocumentItem',
-                    foreignKey: 'item_id',
-                    otherKey: 'financial_document_id',
-                    as: 'financial_documents'
-                });
-            }
+            Item.belongsToMany(models.FinancialDocument, {
+                through: 'FinancialDocumentItem',
+                foreignKey: 'item_id',
+                otherKey: 'financial_document_id',
+                as: 'financial_documents'
+            });
         }
     }
 
