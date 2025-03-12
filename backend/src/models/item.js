@@ -23,22 +23,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true
         },
-        quantity: {
-            type: DataTypes.DECIMAL,
-            allowNull: true
-        },
-        unit: {
-            type: DataTypes.STRING,
-            allowNull: true
-        },
-        unit_price: {
-            type: DataTypes.DECIMAL(10, 2),
-            allowNull: true
-        },
-        amount: {
-            type: DataTypes.DECIMAL(10, 2),
-            allowNull: true
-        }
     }, {
         sequelize,
         modelName: 'Item',

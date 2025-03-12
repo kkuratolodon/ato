@@ -5,6 +5,7 @@ const FinancialDocumentItemModel = require('../../src/models/FinancialDocumentIt
 const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require('../../src/models/customer');
 const VendorModel = require('../../src/models/vendor');
+const {fail} = require('jest');
 
 describe('Item Model', () => {
     let sequelize;
@@ -56,66 +57,39 @@ describe('Item Model', () => {
     test('it should have required item attributes', () => {
         expect(Item.rawAttributes).toHaveProperty('uuid');
         expect(Item.rawAttributes).toHaveProperty('description');
-        expect(Item.rawAttributes).toHaveProperty('quantity');
-        expect(Item.rawAttributes).toHaveProperty('unit');
-        expect(Item.rawAttributes).toHaveProperty('unit_price');
-        expect(Item.rawAttributes).toHaveProperty('amount');
     });
 
     describe('Positive Cases', () => {
         test('should create an item with all fields populated', async () => {
             const item = await Item.create({
                 description: 'Test item',
-                quantity: 5,
-                unit: 'pcs',
-                unit_price: 10.50,
-                amount: 52.50
             });
     
             const retrievedItem = await Item.findByPk(item.uuid);
             
             expect(retrievedItem).toBeDefined();
             expect(retrievedItem.description).toBe('Test item');
-            expect(parseFloat(retrievedItem.quantity)).toBe(5);
-            expect(retrievedItem.unit).toBe('pcs');
-            expect(parseFloat(retrievedItem.unit_price)).toBe(10.50);
-            expect(parseFloat(retrievedItem.amount)).toBe(52.50);
         });
     
         test('should handle null values for optional fields', async () => {
             const item = await Item.create({
                 description: null,
                 quantity: null,
-                unit: null,
-                unit_price: null,
-                amount: null
             });
     
             expect(item).toHaveProperty('uuid');
             expect(item.description).toBeNull();
-            expect(item.quantity).toBeNull();
-            expect(item.unit).toBeNull();
-            expect(item.unit_price).toBeNull();
-            expect(item.amount).toBeNull();
         });
     
         test('should correctly create and retrieve an item with decimal values', async () => {
             const item = await Item.create({
                 description: 'Test item with decimals',
-                quantity: 2.5,
-                unit: 'kg',
-                unit_price: 19.99,
-                amount: 49.975
             });
     
             const retrievedItem = await Item.findByPk(item.uuid);
     
             expect(retrievedItem).toBeDefined();
             expect(retrievedItem.description).toBe('Test item with decimals');
-            expect(parseFloat(retrievedItem.quantity)).toBe(2.5);
-            expect(retrievedItem.unit).toBe('kg');
-            expect(parseFloat(retrievedItem.unit_price)).toBe(19.99);
-            expect(parseFloat(retrievedItem.amount)).toBeCloseTo(49.975);
         });
     });
 
@@ -134,33 +108,15 @@ describe('Item Model', () => {
     });
 
     describe('Corner Cases', () => {
-        test('should handle very large decimal values', async () => {
-            const item = await Item.create({
-                description: 'Large value item',
-                quantity: 9999999.99,
-                unit_price: 9999999.99,
-                amount: 9999999.99
-            });
-            
-            const retrievedItem = await Item.findByPk(item.uuid);
-            
-            expect(retrievedItem).toBeDefined();
-            expect(parseFloat(retrievedItem.quantity)).toBe(9999999.99);
-            expect(parseFloat(retrievedItem.unit_price)).toBe(9999999.99);
-            expect(parseFloat(retrievedItem.amount)).toBe(9999999.99);
-        });
-        
         test('should handle empty string values', async () => {
             const item = await Item.create({
                 description: '',
-                unit: ''
             });
             
             const retrievedItem = await Item.findByPk(item.uuid);
             
             expect(retrievedItem).toBeDefined();
             expect(retrievedItem.description).toBe('');
-            expect(retrievedItem.unit).toBe('');
         });
         
         test('should handle very long description text', async () => {
@@ -228,7 +184,6 @@ describe('Item Model', () => {
                     expect(items[0].uuid || items[0].id).toBe(item.uuid || item.id);
                     
                     // Check the join table data
-                    const allJoinRecords = await FinancialDocumentItem.findAll();
                     const joinTableAttributes = Object.keys(FinancialDocumentItem.rawAttributes);
                     
                     const joinData = await FinancialDocumentItem.findOne({

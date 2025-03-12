@@ -2,6 +2,11 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    // Drop the existing table first
+    await queryInterface.dropTable('FinancialDocumentItem', { cascade: true }).catch(() => {
+      console.log('Table does not exist yet, creating new one');
+    });
+
     await queryInterface.createTable('FinancialDocumentItem', {
       id: {
         allowNull: false,
@@ -10,21 +15,22 @@ module.exports = {
         type: Sequelize.INTEGER
       },
       document_type: {
-        type: Sequelize.STRING(20),
+        type: Sequelize.STRING(20), 
         allowNull: false,
-        comment: 'Type of financial document (Invoice or PurchaseOrder)'
+        comment: 'Type of document (Invoice or PurchaseOrder)'
       },
       document_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.UUID,
         allowNull: false,
-        comment: 'ID of either Invoice or PurchaseOrder'
+        comment: 'UUID of either Invoice or PurchaseOrder'
+        // We can't reference FinancialDocument directly as it's an abstract model
       },
       item_id: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.UUID,
         allowNull: false,
         references: {
           model: 'Item',
-          key: 'id'
+          key: 'uuid'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
@@ -33,12 +39,16 @@ module.exports = {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: true
       },
+      unit: {
+        type: Sequelize.STRING,
+        allowNull: true
+      },
       unit_price: {
-        type: Sequelize.DECIMAL(15, 2),
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: true
       },
       amount: {
-        type: Sequelize.DECIMAL(15, 2),
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: true
       },
       createdAt: {
