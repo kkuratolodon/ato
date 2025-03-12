@@ -6,23 +6,40 @@ module.exports = (sequelize, DataTypes) => {
     
     class PurchaseOrder extends FinancialDocument {
         static associate(models) {
-        models?.Partner && PurchaseOrder.belongsTo(models.Partner, { 
-            foreignKey: 'partner_id', 
-            targetKey: 'uuid',
-            as: 'partner'
-        });
+            if (!models) return;
+            if (models.Partner) {
+                PurchaseOrder.belongsTo(models.Partner, { 
+                    foreignKey: 'partner_id', 
+                    targetKey: 'uuid',
+                    as: 'partner'
+                });
+            }
+            
+            if (models.Customer) {
+                PurchaseOrder.belongsTo(models.Customer, { 
+                    foreignKey: 'customer_id', 
+                    targetKey: 'uuid',
+                    as: 'customer'
+                });
+            }
+            
+            if (models.Vendor) {
+                PurchaseOrder.belongsTo(models.Vendor, { 
+                    foreignKey: 'vendor_id', 
+                    targetKey: 'uuid',
+                    as: 'vendor'
+                });
+            }
+            
+            if (models.Item) {
+                PurchaseOrder.belongsToMany(models.Item, {
+                    through: 'FinancialDocumentItem',
+                    foreignKey: 'financial_document_id',
+                    otherKey: 'item_id',
+                    as: 'items'
+                });
+            }
         
-        models?.Customer && PurchaseOrder.belongsTo(models.Customer, { 
-            foreignKey: 'customer_id', 
-            targetKey: 'uuid',
-            as: 'customer'
-        });
-        
-        models?.Vendor && PurchaseOrder.belongsTo(models.Vendor, { 
-            foreignKey: 'vendor_id', 
-            targetKey: 'uuid',
-            as: 'vendor'
-        });
         }
     }
 

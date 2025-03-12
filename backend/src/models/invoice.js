@@ -29,6 +29,15 @@ module.exports = (sequelize, DataTypes) => {
           as: 'vendor'
         });
       }
+
+      if (models.Item) {
+        Invoice.belongsToMany(models.Item, {
+          through: 'FinancialDocumentItem',
+          foreignKey: 'financial_document_id',
+          otherKey: 'item_id',
+          as: 'items'
+        });
+      }
     }
   }
 
