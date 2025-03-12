@@ -294,7 +294,8 @@ describe("getInvoiceById", () => {
       file_url: 'https://example.com/invoice.pdf',
       status: "Analyzed",
       currency_symbol: "$",
-      currency_code: "USD"
+      currency_code: "USD",
+      tax_amount: 8.5,
     };
 
     // Create a mock Sequelize model instance with a get method
@@ -325,7 +326,7 @@ describe("getInvoiceById", () => {
       total_amount: 500.00,
       subtotal_amount: 450.00,
       discount_amount: 50.00,
-      total_tax_amount: null
+      total_tax_amount: 8.5
     });
   });
   test("Should throw an error when invoice is not found", async () => {

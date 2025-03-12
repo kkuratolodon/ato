@@ -220,7 +220,7 @@ class InvoiceService extends FinancialDocumentService {
             total_amount: invoiceData.total_amount,
             subtotal_amount: invoiceData.subtotal_amount,
             discount_amount: invoiceData.discount_amount,
-            total_tax_amount: null // Belum diimplementasi
+            total_tax_amount: invoiceData.tax_amount,
           }
         },
         items: [] // Belum diimplementasi
