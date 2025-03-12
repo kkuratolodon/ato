@@ -1,0 +1,68 @@
+'use strict';
+
+module.exports = {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('FinancialDocumentItem', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      document_type: {
+        type: Sequelize.STRING(20),
+        allowNull: false,
+        comment: 'Type of financial document (Invoice or PurchaseOrder)'
+      },
+      document_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        comment: 'ID of either Invoice or PurchaseOrder'
+      },
+      item_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'Item',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      quantity: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: true
+      },
+      unit_price: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: true
+      },
+      amount: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: true
+      },
+      createdAt: {
+        allowNull: false,
+        type: Sequelize.DATE
+      },
+      updatedAt: {
+        allowNull: false,
+        type: Sequelize.DATE
+      }
+    });
+
+    // Create indexes for faster lookups
+    await queryInterface.addIndex('FinancialDocumentItem', ['document_type', 'document_id']);
+    await queryInterface.addIndex('FinancialDocumentItem', ['item_id']);
+    
+    // Add compound unique index to prevent duplicate associations
+    await queryInterface.addIndex('FinancialDocumentItem', 
+      ['document_type', 'document_id', 'item_id'], 
+      { unique: true }
+    );
+  },
+
+  down: async (queryInterface) => {
+    await queryInterface.dropTable('FinancialDocumentItem');
+  }
+};
