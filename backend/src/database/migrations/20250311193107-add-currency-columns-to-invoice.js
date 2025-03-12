@@ -5,12 +5,12 @@ module.exports = {
     await queryInterface.addColumn('Invoice', 'currency_symbol', {
       type: Sequelize.STRING,
       allowNull: true,
-      before: 'total_amount' 
+      after: 'purchase_order_id' 
     });
     await queryInterface.addColumn('Invoice', 'currency_code', {
       type: Sequelize.STRING,
       allowNull: true,
-      before: 'total_amount'
+      after: 'purchase_order_id'
     });
   },
 
