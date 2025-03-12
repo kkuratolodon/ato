@@ -247,7 +247,7 @@ class AzureInvoiceMapper {
     
     // Only extract currency symbol if we have a valid number
     if (!isNaN(amount)) {
-      const currencyMatch = amountStr.match(/^([^\d]+)/);
+      const currencyMatch = /^([^\d]+)/.exec(amountStr);
       if (currencyMatch?.[1]) {
         result.currency.currencySymbol = currencyMatch[1].trim();
       }
