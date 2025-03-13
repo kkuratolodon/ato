@@ -19,8 +19,8 @@ class AzureInvoiceMapper {
 
     const document = ocrResult.documents[0];
     const fields = document.fields || {};
-
     // Extract and validate dates
+    console.log(fields)
     const invoiceId = this.getFieldContent(fields.InvoiceId);
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);

@@ -12,11 +12,11 @@ module.exports = (sequelize, DataTypes) => {
             autoIncrement: true
         },
         document_id: {
-            type: DataTypes.UUID,
+            type: DataTypes.INTEGER,
             allowNull: false,
             references: {
                 model: 'FinancialDocument',
-                key: 'uuid'
+                key: 'id'
             }
         },
         document_type: {
@@ -51,7 +51,7 @@ module.exports = (sequelize, DataTypes) => {
         sequelize,
         modelName: 'FinancialDocumentItem',
         tableName: 'FinancialDocumentItem',
-        freezeTableName: true
+        freezeTableName: true,
     });
 
     return FinancialDocumentItem;
