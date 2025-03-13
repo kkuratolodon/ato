@@ -35,7 +35,8 @@ jest.mock('../../src/models', () => {
   };
 
   const mockItem = {
-    findOrCreate: jest.fn()
+    findOrCreate: jest.fn(),
+    findByPk: jest.fn()
   };
 
   const mockFinancialDocumentItem = {
@@ -492,6 +493,221 @@ describe("getInvoiceById", () => {
     expect(result.header.vendor_details).toHaveProperty('name', 'Existing Vendor');
     expect(result.header.vendor_details.address).toHaveProperty('street_address', '456 Vendor St');
     expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
+  });
+  test("Should correctly transform items data to the required format", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      status: "Analyzed"
+    };
+  
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+  
+    Invoice.findByPk.mockResolvedValue(mockInvoice);
+  
+    // Mock items with complete data
+    const mockItems = [
+      {
+        item_id: "item-1",
+        quantity: 2,
+        unit: "pcs",
+        unit_price: 10.50,
+        amount: 21.00,
+        get: jest.fn().mockReturnValue({
+          item_id: "item-1", 
+          quantity: 2, 
+          unit: "pcs", 
+          unit_price: 10.50, 
+          amount: 21.00
+        })
+      }
+    ];
+  
+    models.FinancialDocumentItem.findAll.mockResolvedValue(mockItems);
+  
+    // Mock item details
+    models.Item.findByPk.mockResolvedValue({
+      uuid: "item-1",
+      description: "Test Item",
+      get: jest.fn().mockReturnValue({
+        uuid: "item-1",
+        description: "Test Item"
+      })
+    });
+  
+    const result = await invoiceService.getInvoiceById(1);
+  
+    // Verify transformed items format
+    expect(result.items).toEqual([
+      {
+        amount: 21.00,
+        description: "Test Item",
+        quantity: 2,
+        unit: "pcs",
+        unit_price: 10.50
+      }
+    ]);
+  });
+  
+  test("Should handle items with missing description by setting it to null", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      status: "Analyzed"
+    };
+  
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+  
+    Invoice.findByPk.mockResolvedValue(mockInvoice);
+  
+    // Mock items
+    const mockItems = [
+      {
+        item_id: "item-1",
+        quantity: 3,
+        unit: "kg",
+        unit_price: 5.25,
+        amount: 15.75,
+        get: jest.fn().mockReturnValue({
+          item_id: "item-1", 
+          quantity: 3, 
+          unit: "kg", 
+          unit_price: 5.25, 
+          amount: 15.75
+        })
+      }
+    ];
+  
+    models.FinancialDocumentItem.findAll.mockResolvedValue(mockItems);
+  
+    // Mock item details with no description
+    models.Item.findByPk.mockResolvedValue({
+      uuid: "item-1",
+      // No description property
+      get: jest.fn().mockReturnValue({
+        uuid: "item-1"
+        // No description property
+      })
+    });
+  
+    const result = await invoiceService.getInvoiceById(1);
+  
+    // Verify transformed items with null description
+    expect(result.items).toEqual([
+      {
+        amount: 15.75,
+        description: null,
+        quantity: 3,
+        unit: "kg",
+        unit_price: 5.25
+      }
+    ]);
+  });
+  
+  test("Should return empty items array when no items exist", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      status: "Analyzed"
+    };
+  
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+  
+    Invoice.findByPk.mockResolvedValue(mockInvoice);
+  
+    // Return empty items array
+    models.FinancialDocumentItem.findAll.mockResolvedValue([]);
+  
+    const result = await invoiceService.getInvoiceById(1);
+  
+    // Verify empty items array
+    expect(result.items).toEqual([]);
+  });
+  test("Should filter out items when their item details cannot be found", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      status: "Analyzed"
+    };
+    
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
+  
+    Invoice.findByPk.mockResolvedValue(mockInvoice);
+  
+    // Mock two items - one with valid item_id and one with non-existent item_id
+    const mockItems = [
+      {
+        item_id: "existing-item",
+        quantity: 2,
+        unit: "pcs",
+        unit_price: 10.50,
+        amount: 21.00,
+        get: jest.fn().mockReturnValue({
+          item_id: "existing-item", 
+          quantity: 2, 
+          unit: "pcs", 
+          unit_price: 10.50, 
+          amount: 21.00
+        })
+      },
+      {
+        item_id: "non-existent-item",
+        quantity: 3,
+        unit: "kg",
+        unit_price: 5.00,
+        amount: 15.00,
+        get: jest.fn().mockReturnValue({
+          item_id: "non-existent-item", 
+          quantity: 3, 
+          unit: "kg", 
+          unit_price: 5.00, 
+          amount: 15.00
+        })
+      }
+    ];
+  
+    models.FinancialDocumentItem.findAll.mockResolvedValue(mockItems);
+  
+    // First item has details, second item returns null (item not found)
+    models.Item.findByPk
+      .mockResolvedValueOnce({
+        uuid: "existing-item",
+        description: "Valid Item",
+        get: jest.fn().mockReturnValue({
+          uuid: "existing-item",
+          description: "Valid Item"
+        })
+      })
+      .mockResolvedValueOnce(null); // This simulates item not found
+  
+    const result = await invoiceService.getInvoiceById(1);
+  
+    // Only the first item should be included in the result
+    expect(result.items).toEqual([
+      {
+        amount: 21.00,
+        description: "Valid Item",
+        quantity: 2,
+        unit: "pcs",
+        unit_price: 10.50
+      }
+    ]);
+    
+    // The item with non-existent item_id shouldn't be in the results
+    expect(result.items.length).toBe(1);
+    
+    // Verify findByPk was called for both items
+    expect(models.Item.findByPk).toHaveBeenCalledTimes(4);
+    expect(models.Item.findByPk).toHaveBeenCalledWith("existing-item");
+    expect(models.Item.findByPk).toHaveBeenCalledWith("non-existent-item");
   });
 });
 
