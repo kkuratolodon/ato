@@ -21,15 +21,17 @@ export const options = {
 const pdfData = open('./sample1.pdf', 'b');
 
 export default function() {
-    const url = 'http://localhost:3000/api/invoices/upload';
+    const url = 'http://stg-team6.api.fineksi.com/api/invoices/upload';
     
     const payload = {
         file: http.file(pdfData, 'sample1.pdf', 'application/pdf')
     };
     
     const headers = {
-        'client_id': 'client_3c8e68e6',
-        'client_secret': 'secret_1f582a42'
+        // eslint-disable-next-line no-undef
+        'client_id': __ENV.LOAD_CLIENT_ID,
+        // eslint-disable-next-line no-undef
+        'client_secret': __ENV.LOAD_CLIENT_SECRET 
     };
     
     const startTime = new Date().getTime();
