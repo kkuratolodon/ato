@@ -4,10 +4,7 @@ const FinancialDocumentController = require('./financialDocumentController');
 const { Invoice } = require('../models');
 
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 20 * 1024 * 1024
-  }
+  storage: multer.memoryStorage()
 });
 exports.uploadMiddleware = upload.single('file');
 /**
