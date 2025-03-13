@@ -3,10 +3,7 @@ const pdfValidationService = require('../services/pdfValidationService');
 const multer = require('multer');
 
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 20 * 1024 * 1024
-  }
+  storage: multer.memoryStorage()
 });
 
 exports.uploadMiddleware = upload.single('file');
@@ -82,6 +79,13 @@ exports.uploadInvoice = async (req, res) => {
       
       const { buffer, originalname, mimetype } = req.file;
       const partnerId = req.user.uuid;
+
+      try {
+        await pdfValidationService.validateSizeFile(buffer);
+      } catch (error) {
+        safeResponse(413, "File size exceeds maximum limit");
+        return false;
+      }
       
       try {
         await pdfValidationService.validatePDF(buffer, mimetype, originalname);
@@ -101,13 +105,6 @@ exports.uploadInvoice = async (req, res) => {
       const isValidPdf = await pdfValidationService.checkPdfIntegrity(buffer);
       if (!isValidPdf) {
         safeResponse(400, "PDF file is invalid");
-        return false;
-      }
-
-      try {
-        await pdfValidationService.validateSizeFile(buffer);
-      } catch (error) {
-        safeResponse(413, "File size exceeds maximum limit");
         return false;
       }
 
