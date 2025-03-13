@@ -6,7 +6,6 @@ const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require('../../src/models/customer');
 const VendorModel = require('../../src/models/vendor');
 const { fail } = require('jest');
-const { Item, FinancialDocumentItem } = require('../../src/models');
 
 describe('Item Model', () => {
     let sequelize;
