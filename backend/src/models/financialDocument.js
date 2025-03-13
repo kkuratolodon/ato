@@ -21,6 +21,14 @@ module.exports = (sequelize, DataTypes) => {
                 targetKey: 'uuid',
                 as: 'vendor'
             });
+
+            models?.Item && FinancialDocument.belongsToMany(models.Item, {
+                through: 'FinancialDocumentItem',
+                foreignKey: 'document_id',
+                otherKey: 'item_id',
+                as: 'items',
+                onDelete: 'CASCADE'
+            });
         }
     }
 
