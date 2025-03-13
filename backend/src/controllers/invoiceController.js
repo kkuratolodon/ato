@@ -1,13 +1,12 @@
-const invoiceService = require('../services/invoiceService');
-const pdfValidationService = require('../services/pdfValidationService');
+const InvoiceService = require('../services/invoiceService');
 const multer = require('multer');
+const FinancialDocumentController = require('./financialDocumentController');
+const { Invoice } = require('../models');
 
 const upload = multer({
   storage: multer.memoryStorage()
 });
-
 exports.uploadMiddleware = upload.single('file');
-
 /**
  * Handles the upload and validation of invoice PDF files with an automatic 3-second timeout.
  *
@@ -38,95 +37,17 @@ exports.uploadMiddleware = upload.single('file');
  * Returns a 504 Gateway Timeout response if processing exceeds 3 seconds.
  * Logs internal server errors to the console but provides a generic response to the client.
  */
+
+class InvoiceController extends FinancialDocumentController{
+  constructor(){
+    super(InvoiceService, "Invoice");
+  }
+}
+
+const invoiceController = new InvoiceController();
 exports.uploadInvoice = async (req, res) => {
-  if (req.query && req.query.simulateTimeout === 'true') {
-    return res.status(504).json({ message: "Server timeout - upload processing timed out" });
-  }
-
-  const safeResponse = (status, message) => {
-    if (!res.headersSent) {
-      return res.status(status).json({ message });
-    }
-    return false;
-  };
-
-  const executeWithTimeout = (fn, timeoutMs = 20000) => {
-    let timeoutId;
-    
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => {
-        reject(new Error('Timeout'));
-      }, timeoutMs);
-    });
-    
-    return Promise.race([
-      fn().finally(() => clearTimeout(timeoutId)),
-      timeoutPromise
-    ]);
-  };
-
-  try {
-    await executeWithTimeout(async () => {
-      if (!req.user) {
-        safeResponse(401, "Unauthorized");
-        return false;
-      }
-
-      if (!req.file) {
-        safeResponse(400, "No file uploaded");
-        return false;
-      }
-      
-      const { buffer, originalname, mimetype } = req.file;
-      const partnerId = req.user.uuid;
-
-      try {
-        await pdfValidationService.validateSizeFile(buffer);
-      } catch (error) {
-        safeResponse(413, "File size exceeds maximum limit");
-        return false;
-      }
-      
-      try {
-        await pdfValidationService.validatePDF(buffer, mimetype, originalname);
-      } catch (error) {
-        safeResponse(415, "File format is not PDF");
-        return false;
-      }
-      
-      
-      const isEncrypted = await pdfValidationService.isPdfEncrypted(buffer);
-      if (isEncrypted) {
-        safeResponse(400, "PDF is encrypted");
-        return false;
-      }
-      
-    
-      const isValidPdf = await pdfValidationService.checkPdfIntegrity(buffer);
-      if (!isValidPdf) {
-        safeResponse(400, "PDF file is invalid");
-        return false;
-      }
-
-      try {
-        const result = await invoiceService.uploadInvoice({ originalname, buffer, mimetype, partnerId });
-        safeResponse(200, result);
-        return true;
-      } catch (error) {
-        console.error("Unhandled error in upload process:", error);
-        safeResponse(500, "Internal server error");
-        return false;
-      }
-    }); 
-
-  } catch (error) {
-    if (error.message === 'Timeout') {
-      safeResponse(504, "Server timeout - upload processing timed out");
-    } else {
-      console.error("Unexpected error:", error);
-      safeResponse(500, "Internal server error");
-    }
-  }
+  return invoiceController.uploadFile(req, res);
+  
 };
 
 /**
@@ -149,13 +70,15 @@ exports.getInvoiceById = async (req, res) => {
       return res.status(401).json({message: "Unauthorized"});
     }
 
-    const invoice = await invoiceService.getInvoiceById(parseInt(id));
+    const invoice = await Invoice.findByPk(id);
 
     if(invoice.partner_id !== req.user.uuid){
       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
     }
 
-    return res.status(200).json(invoice);
+    const invoiceDetail = await InvoiceService.getInvoiceById(id);
+
+    return res.status(200).json(invoiceDetail);
   } catch (error) {
     if (error.message === "Invoice not found") {
       return res.status(404).json({ message: "Invoice not found" });
@@ -179,7 +102,7 @@ exports.analyzeInvoice = async (req, res) => {
 
   try {
     // Analisis dokumen, mapping, dan simpan ke database
-    const result = await invoiceService.analyzeInvoice(documentUrl, partnerId);
+    const result = await InvoiceService.analyzeInvoice(documentUrl, partnerId);
     
     if (!result?.savedInvoice) {
       return res.status(500).json({ message: "Failed to analyze invoice: no saved invoice returned" });

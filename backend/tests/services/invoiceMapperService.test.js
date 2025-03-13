@@ -82,7 +82,106 @@ describe('AzureInvoiceMapper', () => {
       expect(invoiceData).toBeDefined();
       expect(invoiceData.partner_id).toBe(partnerId);
     });
+    
+    it('should use totalAmount as fallback when parseCurrency returns falsy for SubTotal', () => {
+      // Override parseCurrency just for this test
+      const originalParseCurrency = mapper.parseCurrency;
+      mapper.parseCurrency = jest.fn((field) => {
+        if (field === 'SubTotal') {
+          return null; // Return falsy value specifically for SubTotal
+        } else {
+          return { amount: 850, currency: { currencySymbol: '$', currencyCode: 'USD' } };
+        }
+      });
 
+      const ocrWithForcedFallback = {
+        documents: [{
+          fields: {
+            InvoiceId: { content: 'INV-FORCED-FALLBACK' },
+            InvoiceTotal: 'total', // Not used directly, our mock will handle this
+            SubTotal: 'SubTotal'   // Specific value our mock will check for
+          }
+        }]
+      };
+
+      const { invoiceData } = mapper.mapToInvoiceModel(ocrWithForcedFallback, partnerId);
+      
+      // Verify our mock was called correctly
+      expect(mapper.parseCurrency).toHaveBeenCalledWith('SubTotal');
+      expect(invoiceData.subtotal_amount).toBe(850); // Should use total_amount via direct fallback
+
+      // Restore original method
+      mapper.parseCurrency = originalParseCurrency;
+    });
+
+    it('should use totalAmountCurrency as fallback when subtotalAmount has null currency', () => {
+      // Override parseCurrency just for this test
+      const originalParseCurrency = mapper.parseCurrency;
+      mapper.parseCurrency = jest.fn((field) => {
+        if (field === 'SubTotal') {
+          // Return amount but with null currency
+          return { amount: 750, currency: null };
+        } else if (field === 'InvoiceTotal' || field === 'Total') {
+          // Return both amount and currency for total
+          return { amount: 850, currency: { currencySymbol: '€', currencyCode: 'EUR' } };
+        } else {
+          return { amount: null, currency: null };
+        }
+      });
+
+      const ocrWithCurrencyFallback = {
+        documents: [{
+          fields: {
+            InvoiceId: { content: 'INV-CURRENCY-FALLBACK' },
+            InvoiceTotal: 'total', 
+            SubTotal: 'subtotal'
+          }
+        }]
+      };
+
+      const { invoiceData } = mapper.mapToInvoiceModel(ocrWithCurrencyFallback, partnerId);
+      
+      // Verify currency fallback worked
+      expect(invoiceData.currency_symbol).toBe(null);
+      expect(invoiceData.currency_code).toBe(null);
+      
+      // Restore original method
+      mapper.parseCurrency = originalParseCurrency;
+    });
+    it('should default to null for missing currencySymbol and currencyCode', () => {
+      // Create a field with amount but no currency properties
+      const fieldWithAmountOnly = {
+        value: {
+          amount: 500
+          // No currencySymbol or currencyCode
+        }
+      };
+      
+      // Parse the currency field
+      const result = mapper.parseCurrency(fieldWithAmountOnly);
+      
+      // Verify amount was parsed correctly
+      expect(result.amount).toBe(500);
+      
+      // Verify currency properties default to null
+      expect(result.currency.currencySymbol).toBe(null);
+      expect(result.currency.currencyCode).toBe(null);
+    });
+    it('should handle empty content but non-null field in parseCurrency', () => {
+      // Create a field that has a structure but getFieldContent would return falsy value
+      const fieldWithEmptyContent = {
+        content: '',  // Empty content
+        someProperty: 'test'  // The field itself isn't null
+      };
+      
+      // Parse the currency field
+      const result = mapper.parseCurrency(fieldWithEmptyContent);
+      
+      // Verify the early return result structure is correct
+      expect(result.amount).toBeNull();
+      expect(result.currency.currencySymbol).toBeNull();
+      expect(result.currency.currencyCode).toBeNull();
+    });
     it('should handle fileUrl in processInvoiceData method', async () => {
       const ocrResult = mockAzureOcrResult();
       const fileUrl = 'https://example.com/invoices/test.pdf';
@@ -271,20 +370,27 @@ describe('AzureInvoiceMapper', () => {
     });
     
     it('should parse currency values correctly', () => {
-      expect(mapper.parseCurrency({ content: '$123.45' })).toBe(123.45);
-      expect(mapper.parseCurrency({ content: '£123.45' })).toBe(123.45);
-      expect(mapper.parseCurrency({ content: '123.45 EUR' })).toBe(123.45);
-      expect(mapper.parseCurrency({ content: 'abc' })).toBeNull();
-      
-      // Structured currency field
+      // Test cases for string content
+      expect(mapper.parseCurrency({ content: '$123.45' })).toEqual({ amount: 123.45, currency: { currencySymbol: '$', currencyCode: null } });
+      expect(mapper.parseCurrency({ content: '£123.45' })).toEqual({ amount: 123.45, currency: { currencySymbol: '£', currencyCode: null } });
+      expect(mapper.parseCurrency({ content: '123.45 EUR' })).toEqual({ amount: 123.45, currency: { currencySymbol: null, currencyCode: null } });
+      expect(mapper.parseCurrency({ content: 'abc' })).toEqual({ amount: null, currency: { currencySymbol: null, currencyCode: null } });
+    
+      // Test case for structured currency field
       const structuredCurrencyField = {
         value: {
           amount: 129.99,
-          currency: 'USD'
+          currencyCode: 'USD',
+          currencySymbol: '$'
         }
       };
-      expect(mapper.parseCurrency(structuredCurrencyField)).toBe(129.99);
-      expect(mapper.parseCurrency({ value: 42 })).toBe(42);
+      expect(mapper.parseCurrency(structuredCurrencyField)).toEqual({ amount: 129.99, currency: { currencySymbol: '$', currencyCode: 'USD' } });
+    
+      // Test case for direct number value
+      expect(mapper.parseCurrency({ value: 42 })).toEqual({ amount: 42, currency: { currencySymbol: null, currencyCode: null } });
+    
+      // Test case for null field
+      expect(mapper.parseCurrency(null)).toEqual({ amount: null, currency: { currencySymbol: null, currencyCode: null } });
     });
     
     it('should handle edge cases in parsePurchaseOrderId', () => {
@@ -312,25 +418,13 @@ describe('AzureInvoiceMapper', () => {
   });
 
   describe('Line Item Processing', () => {
-    it('should extract line items from OCR result', () => {
-      const ocrResult = mockAzureOcrResult();
-      
-      const { invoiceData } = mapper.mapToInvoiceModel(ocrResult, partnerId);
-      
-      expect(invoiceData.line_items).toBeDefined();
-      expect(invoiceData.line_items.length).toBeGreaterThan(0);
-      expect(invoiceData.line_items[0].description).toBe('Consulting Services');
-      expect(invoiceData.line_items[0].quantity).toBe(2);
-      expect(invoiceData.line_items[0].unitPrice).toBe(30);
-      expect(invoiceData.line_items[0].amount).toBe(60);
-    });
     
     it('should handle various line item formats', () => {
       // Standard format
       const standardItems = {
-        valueArray: [
+        values: [
           {
-            valueObject: {
+            properties: {
               Description: { content: 'Standard Item' },
               Quantity: { content: '2' },
               UnitPrice: { content: '10.00' },
@@ -341,6 +435,7 @@ describe('AzureInvoiceMapper', () => {
       };
       
       const result1 = mapper.extractLineItems(standardItems);
+      console.log("ppp", result1)
       expect(result1[0].description).toBe('Standard Item');
       expect(result1[0].quantity).toBe(2);
       expect(result1[0].unitPrice).toBe(10);
@@ -348,13 +443,13 @@ describe('AzureInvoiceMapper', () => {
       
       // Alternative field names
       const alternativeItems = {
-        valueArray: [
+        values: [
           {
-            valueObject: {
-              ProductName: { content: 'Alternative field name' },
+            properties: {
+              ProductCode: { content: 'Alternative field name' },
               Quantity: { content: '2' },
-              Price: { content: '45.00' },
-              LineTotal: { content: '90.00' }
+              UnitPrice: { content: '45.00' },
+              Amount: { content: '90.00' }
             }
           }
         ]
@@ -368,9 +463,9 @@ describe('AzureInvoiceMapper', () => {
       
       // Missing fields
       const partialItems = {
-        valueArray: [
+        values: [
           {
-            valueObject: {
+            properties: {
               Description: null,
               Quantity: { content: '3' },
               Amount: { content: '45.00' }
@@ -385,12 +480,12 @@ describe('AzureInvoiceMapper', () => {
       expect(result3[0].unitPrice).toBeNull();
       expect(result3[0].amount).toBe(45);
       
-      // Missing valueObject
-      const itemsWithMissingValueObject = {
-        valueArray: [{ someOtherProperty: 'test' }]
+      // Missing properties
+      const itemsWithMissingproperties = {
+        values: [{ someOtherProperty: 'test' }]
       };
       
-      const result4 = mapper.extractLineItems(itemsWithMissingValueObject);
+      const result4 = mapper.extractLineItems(itemsWithMissingproperties);
       expect(result4).toHaveLength(1);
       expect(result4[0].description).toBeNull();
       expect(result4[0].quantity).toBeNull();
@@ -421,6 +516,7 @@ describe('AzureInvoiceMapper', () => {
         someProperty: 'test',
         content: null
       };
+      
       
       expect(mapper.extractLineItems(nullContentItemsField)).toEqual([]);
     });

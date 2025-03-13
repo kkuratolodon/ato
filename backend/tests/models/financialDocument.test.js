@@ -20,9 +20,9 @@ describe('FinancialDocument Model', () => {
         Vendor = VendorModel(sequelize, DataTypes);
 
         FinancialDocument.associate({ Partner, Customer, Vendor });
-        Partner.associate && Partner.associate({ FinancialDocument });
-        Customer.associate && Customer.associate({ FinancialDocument });
-        Vendor.associate && Vendor.associate({ FinancialDocument });
+        Partner.associate?.({ FinancialDocument });
+        Customer.associate?.({ FinancialDocument });
+        Vendor.associate?.({ FinancialDocument });
 
         await sequelize.sync({ force: true });
         
