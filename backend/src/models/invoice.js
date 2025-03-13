@@ -29,6 +29,15 @@ module.exports = (sequelize, DataTypes) => {
           as: 'vendor'
         });
       }
+
+      if (models.Item) {
+        Invoice.belongsToMany(models.Item, {
+          through: 'FinancialDocumentItem',
+          foreignKey: 'document_id',
+          otherKey: 'item_id',
+          as: 'items'
+        });
+      }
     }
   }
 
@@ -38,6 +47,10 @@ module.exports = (sequelize, DataTypes) => {
   delete financialDocAttributes.updatedAt;
 
   Invoice.init({
+    invoice_id: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
     invoice_date: { 
       type: DataTypes.DATE, 
       allowNull: true 
