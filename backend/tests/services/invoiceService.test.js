@@ -34,10 +34,20 @@ jest.mock('../../src/models', () => {
     findByPk: jest.fn()
   };
 
+  const mockItem = {
+    findOrCreate: jest.fn()
+  };
+
+  const mockFinancialDocumentItem = {
+    create: jest.fn()
+  };
+
   return {
     Invoice: mockInvoice,
     Customer: mockCustomer,
-    Vendor: mockVendor
+    Vendor: mockVendor,
+    Item: mockItem,
+    FinancialDocumentItem: mockFinancialDocumentItem
   };
 });
 
@@ -1068,5 +1078,81 @@ describe('validateFileData', () => {
     };
 
     expect(() => invoiceService.validateFileData(fileData)).toThrow('Partner ID is required');
+  });
+});
+
+describe('saveInvoiceItems', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Set up mock return values
+    models.Item.findOrCreate.mockResolvedValue([{ uuid: 'item-123' }]);
+    models.FinancialDocumentItem.create.mockResolvedValue({ id: 1 });
+  });
+
+  test('should successfully save invoice items', async () => {
+    const invoiceId = 1;
+    const itemsData = [
+      { description: 'Item 1', quantity: 2, unit: 'pcs', unitPrice: 10.5, amount: 21 },
+      { description: 'Item 2', quantity: 1, unit: 'kg', unitPrice: 15.75, amount: 15.75 }
+    ];
+
+    await invoiceService.saveInvoiceItems(invoiceId, itemsData);
+
+    // Check if Item.findOrCreate was called twice (once for each item)
+    expect(models.Item.findOrCreate).toHaveBeenCalledTimes(2);
+    expect(models.Item.findOrCreate).toHaveBeenCalledWith({
+      where: { description: 'Item 1' },
+      defaults: { description: 'Item 1' }
+    });
+
+    // Check if FinancialDocumentItem.create was called correctly
+    expect(models.FinancialDocumentItem.create).toHaveBeenCalledTimes(2);
+    expect(models.FinancialDocumentItem.create).toHaveBeenCalledWith({
+      document_type: 'Invoice',
+      document_id: invoiceId,
+      item_id: 'item-123',
+      quantity: 2,
+      unit: 'pcs',
+      unit_price: 10.5,
+      amount: 21
+    });
+  });
+
+  test('should handle empty itemsData array', async () => {
+    const invoiceId = 1;
+    const itemsData = [];
+
+    await invoiceService.saveInvoiceItems(invoiceId, itemsData);
+
+    // Expect no database operations
+    expect(models.Item.findOrCreate).not.toHaveBeenCalled();
+    expect(models.FinancialDocumentItem.create).not.toHaveBeenCalled();
+  });
+
+  test('should handle undefined itemsData', async () => {
+    const invoiceId = 1;
+    
+    await invoiceService.saveInvoiceItems(invoiceId, undefined);
+
+    // Expect no database operations
+    expect(models.Item.findOrCreate).not.toHaveBeenCalled();
+    expect(models.FinancialDocumentItem.create).not.toHaveBeenCalled();
+  });
+
+  test('should handle database error when saving item', async () => {
+    const invoiceId = 1;
+    const itemsData = [
+      { description: 'Error Item', quantity: 1, unit: 'ea', unitPrice: 10, amount: 10 }
+    ];
+    
+    // Mock a database error
+    models.Item.findOrCreate.mockRejectedValue(new Error('Database error'));
+    
+    await expect(invoiceService.saveInvoiceItems(invoiceId, itemsData))
+      .rejects.toThrow('Failed to save invoice items: Database error');
+      
+    expect(models.Item.findOrCreate).toHaveBeenCalledTimes(1);
+    expect(models.FinancialDocumentItem.create).not.toHaveBeenCalled();
   });
 });

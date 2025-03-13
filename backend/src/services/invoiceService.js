@@ -5,6 +5,8 @@ const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
 const { Customer } = require("../models");
 const { Vendor } = require("../models");
+const { Item, FinancialDocumentItem } = require('../models');
+
 const Sentry = require("../instrument");
 dotenv.config();
 
@@ -41,16 +43,19 @@ class InvoiceService extends FinancialDocumentService {
       // Destructure setelah validasi
       this.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
-      
+
       const invoiceData = await this.uploadFile(fileData)
-  
+
       invoice = await this.createInvoiceRecord(invoiceData.partner_id, invoiceData.file_url);
-      
+
       // 1. Gunakan method analyzeInvoice untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
-      const { invoiceData2, customerData, vendorData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
+      const { invoiceData2, customerData, vendorData, itemsData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
+      console.log("konz")
+      console.log(itemsData);
       await this.updateInvoiceRecord(invoice.id, invoiceData2);
       await this.updateCustomerAndVendorData(invoice.id, customerData, vendorData);
+      await this.saveInvoiceItems(invoice.id, itemsData);
       return this.buildResponse(invoice);
     } catch (error) {
       if (invoice?.id) {
@@ -84,10 +89,12 @@ class InvoiceService extends FinancialDocumentService {
     if (!analysisResult?.data) {
       throw new Error("Failed to analyze invoice: No data returned");
     }
-    const { invoiceData: invoiceData2, customerData, vendorData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+    const { invoiceData: invoiceData2, customerData, vendorData, itemsData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
     invoiceData2.original_filename = originalname;
     invoiceData2.file_size = fileSize;
-    return { invoiceData2, customerData, vendorData };
+    console.log("woy+")
+    console.log(itemsData)
+    return { invoiceData2, customerData, vendorData, itemsData };
   }
 
   async updateInvoiceRecord(invoiceId, invoiceData2) {
@@ -126,6 +133,44 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
+  /**
+ * Save invoice items and create associations in the database
+ * @param {number} invoiceId - ID of the invoice
+ * @param {Array} itemsData - Array of item data from OCR analysis
+ * @returns {Promise<void>}
+ */
+  async saveInvoiceItems(invoiceId, itemsData) {
+    if (!itemsData || !Array.isArray(itemsData) || itemsData.length === 0) {
+      console.log("No items to save");
+      return;
+    }
+  
+    try {
+      for (const itemData of itemsData) {
+
+        const [item] = await Item.findOrCreate({
+          where: { description: itemData.description },
+          defaults: { description: itemData.description }
+        });
+        
+        await FinancialDocumentItem.create({
+          document_type: 'Invoice',
+          document_id: invoiceId, 
+          item_id: item.uuid,
+          quantity: itemData.quantity,
+          unit: itemData.unit,
+          unit_price: itemData.unitPrice,
+          amount: itemData.amount
+        });
+      }
+  
+      console.log(`Saved ${itemsData.length} items for invoice ${invoiceId}`);
+    } catch (error) {
+      console.error('Error saving invoice items:', error);
+      throw new Error(`Failed to save invoice items: ${error.message}`);
+    }
+  }
+
   buildResponse(invoice) {
     return {
       message: "Invoice successfully processed and saved",
@@ -145,20 +190,20 @@ class InvoiceService extends FinancialDocumentService {
   async getInvoiceById(id) {
     try {
       const invoice = await Invoice.findByPk(id);
-      
+
       if (!invoice) {
         throw new Error("Invoice not found");
       }
-      
+
       const invoiceData = invoice.get({ plain: true });
-      
+
       if (invoiceData.customer_id) {
         const customer = await Customer.findByPk(invoiceData.customer_id);
         if (customer) {
           invoiceData.customer = customer.get({ plain: true });
         }
       }
-      
+
       if (invoiceData.vendor_id) {
         const vendor = await Vendor.findByPk(invoiceData.vendor_id);
         if (vendor) {
@@ -170,9 +215,9 @@ class InvoiceService extends FinancialDocumentService {
         header: {
           invoice_details: {
             invoice_id: invoiceData.invoice_id,
-            purchase_order_id: invoiceData.purchase_order_id ,
-            invoice_date: invoiceData.invoice_date ,
-            due_date: invoiceData.due_date ,
+            purchase_order_id: invoiceData.purchase_order_id,
+            invoice_date: invoiceData.invoice_date,
+            due_date: invoiceData.due_date,
             payment_terms: invoiceData.payment_terms
           },
           vendor_details: invoiceData.vendor ? {
@@ -212,9 +257,9 @@ class InvoiceService extends FinancialDocumentService {
             tax_id: null
           },
           financial_details: {
-            currency: { 
-              currency_symbol: invoiceData.currency_symbol, 
-              currency_code: invoiceData.currency_code 
+            currency: {
+              currency_symbol: invoiceData.currency_symbol,
+              currency_code: invoiceData.currency_code
             },
             total_amount: invoiceData.total_amount,
             subtotal_amount: invoiceData.subtotal_amount,
@@ -224,9 +269,9 @@ class InvoiceService extends FinancialDocumentService {
         },
         items: [] // Belum diimplementasi
       };
-      
+
       return formattedResponse;
-      
+
     } catch (error) {
       console.error("Error retrieving invoice:", error);
       if (error.message === "Invoice not found") {
@@ -236,7 +281,7 @@ class InvoiceService extends FinancialDocumentService {
       }
     }
   }
-  
+
   async analyzeInvoice(documentUrl) {
     if (!documentUrl) {
       throw new Error("documentUrl is required");

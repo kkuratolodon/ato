@@ -52,8 +52,8 @@ class AzureInvoiceMapper {
     const paymentTerms = this.getFieldContent(fields.PaymentTerm);
 
     // Extract line items
-    const ItemsData = this.extractLineItems(fields.Items);
-
+    const itemsData = this.extractLineItems(fields.Items);
+    
     // Extract customer data into a separate object
     const customerData = this.extractCustomerData(fields);
 
@@ -83,7 +83,7 @@ class AzureInvoiceMapper {
       invoiceData,
       customerData,
       vendorData,
-      ItemsData
+      itemsData
     };
   }
 

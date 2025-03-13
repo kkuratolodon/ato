@@ -11,13 +11,17 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             autoIncrement: true
         },
-        financial_document_id: {
+        document_id: {
             type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'FinancialDocument',
                 key: 'uuid'
             }
+        },
+        document_type: {
+            type: DataTypes.STRING,
+            allowNull: false
         },
         item_id: {
             type: DataTypes.UUID,

@@ -24,9 +24,10 @@ module.exports = (sequelize, DataTypes) => {
 
             models?.Item && FinancialDocument.belongsToMany(models.Item, {
                 through: 'FinancialDocumentItem',
-                foreignKey: 'financial_document_id',
+                foreignKey: 'document_id',
                 otherKey: 'item_id',
-                as: 'items'
+                as: 'items',
+                onDelete: 'CASCADE'
             });
         }
     }
