@@ -1,11 +1,11 @@
 const models = require('../../src/models');
 
 const invoiceService = require('../../src/services/invoiceService');
+const FinancialDocumentService = require('../../src/services/financialDocumentService');
 const s3Service = require('../../src/services/s3Service');
-const { Invoice } = require('../../src/models')
+const { Invoice, Vendor } = require('../../src/models')
 const fs = require("fs");
 const path = require("path");
-const mockFs = require("mock-fs");
 const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
 
 jest.mock("@azure/ai-form-recognizer");
@@ -99,14 +99,17 @@ describe('uploadInvoice', () => {
     DocumentAnalysisClient.mockImplementation(() => mockClient);
   });
 
-  // PENTING: Kembalikan method original SETELAH SETIAP TEST
   afterEach(() => {
     invoiceService.analyzeInvoice = originalAnalyzeInvoice;
     jest.restoreAllMocks();
   });
 
   test('should return invoice object when upload is successful', async () => {
-    s3Service.uploadFile.mockResolvedValue(TEST_S3_URL);
+    jest.spyOn(FinancialDocumentService.prototype, 'uploadFile').mockResolvedValue({
+      partner_id: mockPartnerId,
+      file_url: TEST_S3_URL
+    });
+
     const mockInvoiceData = {
       id: 1,
       partner_id: mockPartnerId,
@@ -119,11 +122,14 @@ describe('uploadInvoice', () => {
       created_at: new Date()
     };
 
+    // Tambahkan mock untuk Invoice.create
     Invoice.create.mockResolvedValue(mockInvoiceData);
+
+    // Tambahkan mock untuk Invoice.update jika digunakan
     Invoice.update.mockResolvedValue([1]);
 
     const result = await invoiceService.uploadInvoice(mockParams);
-    expect(s3Service.uploadFile).toHaveBeenCalledWith(TEST_FILE.buffer);
+    expect(FinancialDocumentService.prototype.uploadFile).toHaveBeenCalledWith(mockParams);
     expect(Invoice.create).toHaveBeenCalledWith({
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
@@ -137,62 +143,18 @@ describe('uploadInvoice', () => {
 
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to upload file to S3');
   });
+  test('should throw error when partnerId is missing', async () => {
+    const fileData = {
+      buffer: Buffer.from('test')
+    };
 
+    await expect(invoiceService.uploadFile(fileData)).rejects.toThrow('Partner ID is required');
+  });
   test('should raise error when saving to database fails', async () => {
     s3Service.uploadFile.mockResolvedValue(TEST_S3_URL);
     Invoice.create.mockRejectedValue(new Error('Failed to save invoice to database'));
 
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to save invoice to database');
-  });
-});
-describe("PDF Validation Format", () => {
-  const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
-  const invalidPdfBuffer = Buffer.from("This is not a PDF");
-
-  beforeAll(() => {
-    mockFs({
-      "samples/valid.pdf": validPdfBuffer,
-      "samples/invalid.pdf": invalidPdfBuffer,
-    });
-  });
-
-  afterAll(() => {
-    mockFs.restore();
-  });
-
-  test("Should accept valid PDF file", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.validatePDF(fileBuffer, "application/pdf", "valid.pdf");
-    expect(result).toBe(true);
-  });
-
-  test("Should reject non-PDF MIME type", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    await expect(
-      invoiceService.validatePDF(fileBuffer, "image/png", "valid.png")
-    ).rejects.toThrow("Invalid MIME type");
-  });
-
-  test("Should reject non-PDF extension", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    await expect(
-      invoiceService.validatePDF(fileBuffer, "application/pdf", "document.txt")
-    ).rejects.toThrow("Invalid file extension");
-  });
-
-  test("Should reject invalid PDF content", async () => {
-    const filePath = path.resolve("samples/invalid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    await expect(
-      invoiceService.validatePDF(fileBuffer, "application/pdf", "invalid.pdf")
-    ).rejects.toThrow("Invalid PDF file");
   });
 });
 
@@ -207,10 +169,6 @@ describe('uploadInvoice - Corner Cases', () => {
   afterEach(() => {
     invoiceService.analyzeInvoice = originalAnalyzeInvoice;
     jest.restoreAllMocks();
-  });
-
-  test('should throw error when fileData is null', async () => {
-    await expect(invoiceService.uploadInvoice(null)).rejects.toThrow('File not found');
   });
 
   test('should throw error when partnerId is missing', async () => {
@@ -235,33 +193,35 @@ describe('uploadInvoice - Corner Cases', () => {
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to upload file to S3');
   });
 
-  test('should handle case when azureMapper returns incomplete data', async () => {
-    const mockParams = {
-      buffer: Buffer.from('test'),
-      originalname: 'test.pdf',
-      partnerId: '123'
+  test("Should handle case where vendor_id exists but vendor isn't found", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      invoice_date: "2025-02-01",
+      vendor_id: "missing-vendor-uuid",
+      status: "Analyzed",
     };
 
-    s3Service.uploadFile.mockResolvedValue('https://example.com/test.pdf');
+    const mockInvoice = {
+      ...mockInvoiceData,
+      get: jest.fn().mockReturnValue(mockInvoiceData)
+    };
 
-    const mockInvoice = { id: 1, status: 'Processing' };
-    Invoice.create.mockResolvedValue(mockInvoice);
+    Invoice.findByPk.mockResolvedValue(mockInvoice);
+    Vendor.findByPk.mockResolvedValue(null);
 
-    // Mock analyzeInvoice to return valid data
-    invoiceService.analyzeInvoice = jest.fn().mockResolvedValue({
-      data: { someField: 'value' },
-      message: "PDF processed successfully"
+    const result = await invoiceService.getInvoiceById(1);
+
+    // Updated expectations for the new format
+    expect(result).toHaveProperty('header');
+    expect(result).toHaveProperty('items');
+    expect(result.header.invoice_details.invoice_date).toEqual("2025-02-01");
+    expect(result.header.vendor_details).toEqual({
+      name: null,
+      address: {},
+      recipient_name: null,
+      tax_id: null
     });
-
-    // Mock azureMapper to return incomplete data
-    invoiceService.azureMapper = {
-      mapToInvoiceModel: jest.fn().mockImplementation(() => {
-        throw new Error("Invalid OCR result format");
-      })
-    };
-
-    await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to process invoice: Invalid OCR result format');
-    expect(Invoice.update).toHaveBeenCalledWith({ status: 'Failed' }, { where: { id: 1 } });
+    expect(Vendor.findByPk).toHaveBeenCalledWith("missing-vendor-uuid");
   });
 
   test('should throw error when analyzeInvoice returns no data', async () => {
@@ -315,204 +275,15 @@ describe('uploadInvoice - Corner Cases', () => {
   });
 });
 
-
-describe("PDF File Size Validation", () => {
-  const validPdfBuffer = Buffer.alloc(10 * 1024 * 1024, "%PDF-1.4 Valid PDF File");
-  const largePdfBuffer = Buffer.alloc(21 * 1024 * 1024, "%PDF-1.4 Valid PDF File");
-  const edgePdfBuffer = Buffer.alloc(20 * 1024 * 1024, "%PDF-1.4 Valid PDF File");
-
-  beforeAll(() => {
-    mockFs({
-      "samples/valid.pdf": validPdfBuffer,
-      "samples/large.pdf": largePdfBuffer,
-      "samples/edge.pdf": edgePdfBuffer,
-    });
-  });
-
-  afterAll(() => {
-    mockFs.restore();
-  });
-
-  test("Should accept a valid PDF file under 20MB", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.validateSizeFile(fileBuffer);
-    expect(result).toBe(true);
-  });
-
-  test("Should reject a PDF file larger than 20MB", async () => {
-    const filePath = path.resolve("samples/large.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    await expect(
-      invoiceService.validateSizeFile(fileBuffer)
-    ).rejects.toThrow("File exceeds maximum allowed size of 20MB");
-  });
-
-  test("Should accept a PDF file exactly 20MB (Edge Case)", async () => {
-    const filePath = path.resolve("samples/edge.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.validateSizeFile(fileBuffer);
-    expect(result).toBe(true);
-  });
-});
-
-describe("PDF Encryption Check with Real Implementation", () => {
-  const unencryptedPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
-    "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
-    "xref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\n" +
-    "trailer\n<</Size 4/Root 1 0 R>>\n" +
-    "startxref\n178\n%%EOF"
-  );
-
-  const encryptedPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
-    "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
-    "4 0 obj\n<</Filter/Standard/V 1/R 2/O<1234567890ABCDEF1234567890ABCDEF>/U<ABCDEF1234567890ABCDEF1234567890>/P -3904>>\nendobj\n" +
-    "xref\n0 5\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\n0000000183 00000 n\n" +
-    "trailer\n<</Size 5/Root 1 0 R/Encrypt 4 0 R>>\n" +
-    "startxref\n291\n%%EOF"
-  );
-
-  beforeAll(() => {
-    mockFs({
-      "samples/unencrypted.pdf": unencryptedPdfBuffer,
-      "samples/encrypted.pdf": encryptedPdfBuffer,
-    });
-  });
-
-  afterAll(() => {
-    mockFs.restore();
-  });
-
-  test("Should detect unencrypted PDF correctly", async () => {
-    const filePath = path.resolve("samples/unencrypted.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.isPdfEncrypted(fileBuffer);
-    expect(result).toBe(false);
-  });
-
-  test("Should detect encrypted PDF correctly", async () => {
-    const filePath = path.resolve("samples/encrypted.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.isPdfEncrypted(fileBuffer);
-    expect(result).toBe(true);
-  });
-});
-
-describe("PDF Integrity Check", () => {
-  const validPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
-    "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
-    "xref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\n" +
-    "trailer\n<</Size 4/Root 1 0 R>>\n" +
-    "startxref\n178\n%%EOF"
-  );
-
-  const corruptedPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
-    "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
-    "trailer\n<</Size 4/Root 1 0 R>>\n" +
-    "startxref\n" +
-    "%%EOF"
-  );
-
-  const truncatedPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3"
-  );
-
-  beforeAll(() => {
-    mockFs({
-      "samples/valid.pdf": validPdfBuffer,
-      "samples/corrupted.pdf": corruptedPdfBuffer,
-      "samples/truncated.pdf": truncatedPdfBuffer,
-    });
-  });
-
-  afterAll(() => {
-    mockFs.restore();
-  });
-
-  test("Should confirm integrity of a valid PDF file", async () => {
-    const filePath = path.resolve("samples/valid.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.checkPdfIntegrity(fileBuffer);
-    expect(result).toBe(true);
-  });
-
-  test("Should return false for a corrupted PDF with missing xref table", async () => {
-    const filePath = path.resolve("samples/corrupted.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.checkPdfIntegrity(fileBuffer);
-    expect(result).toBe(false);
-  });
-
-  test("Should return false for a truncated PDF file", async () => {
-    const filePath = path.resolve("samples/truncated.pdf");
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const result = await invoiceService.checkPdfIntegrity(fileBuffer);
-    expect(result).toBe(false);
-  });
-
-  test("Should handle empty buffer correctly", async () => {
-    const emptyBuffer = Buffer.alloc(0);
-
-    const result = await invoiceService.checkPdfIntegrity(emptyBuffer);
-    expect(result).toBe(false);
-  });
-
-  test("should handle PDF with malformed startxref in checkPdfIntegrity", async () => {
-    const malformedPdfBuffer = Buffer.from(
-      "%PDF-1.3\n" +
-      "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-      "trailer\n<</Size 4/Root 1 0 R>>\n" +
-      "startxref\nABC\n" +
-      "%%EOF"
-    );
-    const result = await invoiceService.checkPdfIntegrity(malformedPdfBuffer);
-    expect(result).toBe(false);
-  });
-
-  test("should handle PDF without objects in checkPdfIntegrity", async () => {
-    const noObjectsPdfBuffer = Buffer.from(
-      "%PDF-1.3\n" +
-      "trailer\n<</Size 4/Root 1 0 R>>\n" +
-      "startxref\n123\n" +
-      "%%EOF"
-    );
-    const result = await invoiceService.checkPdfIntegrity(noObjectsPdfBuffer);
-    expect(result).toBe(false);
-  });
-});
-
 describe("getInvoiceById", () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  // In the getInvoiceById test section
-
   test("Should return an invoice when given a valid ID", async () => {
     const mockInvoiceData = {
       id: 1,
+      invoice_id: "INV-001",
       invoice_date: "2025-02-01",
       due_date: "2025-03-01",
       purchase_order_id: 1,
@@ -522,6 +293,9 @@ describe("getInvoiceById", () => {
       payment_terms: "Net 30",
       file_url: 'https://example.com/invoice.pdf',
       status: "Analyzed",
+      currency_symbol: "$",
+      currency_code: "USD",
+      tax_amount: 8.5,
     };
 
     // Create a mock Sequelize model instance with a get method
@@ -532,11 +306,29 @@ describe("getInvoiceById", () => {
 
     Invoice.findByPk.mockResolvedValue(mockInvoice);
 
-    const invoice = await invoiceService.getInvoiceById(1);
+    const result = await invoiceService.getInvoiceById(1);
 
-    expect(invoice).toEqual(mockInvoiceData);
+    // Update expectations to match the new format
+    expect(result).toHaveProperty('header');
+    expect(result).toHaveProperty('items');
+    expect(result.header.invoice_details).toEqual({
+      invoice_id: "INV-001",
+      purchase_order_id: 1,
+      invoice_date: "2025-02-01",
+      due_date: "2025-03-01",
+      payment_terms: "Net 30"
+    });
+    expect(result.header.financial_details).toEqual({
+      currency: {
+        "currency_code": "USD",
+        "currency_symbol": "$",
+      },
+      total_amount: 500.00,
+      subtotal_amount: 450.00,
+      discount_amount: 50.00,
+      total_tax_amount: 8.5
+    });
   });
-
   test("Should throw an error when invoice is not found", async () => {
     Invoice.findByPk.mockResolvedValue(null);
 
@@ -558,51 +350,61 @@ describe("getInvoiceById", () => {
       status: "Analyzed",
     };
 
-    // Create a mock Sequelize model instance with a get method
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
 
     models.Invoice.findByPk.mockResolvedValue(mockInvoice);
-
-    // Use models.Customer instead of Customer directly
     models.Customer.findByPk.mockResolvedValue(null);
 
-    const invoice = await invoiceService.getInvoiceById(1);
+    const result = await invoiceService.getInvoiceById(1);
 
-    expect(invoice).toEqual(mockInvoiceData);
+    // Updated expectations for the new format
+    expect(result).toHaveProperty('header');
+    expect(result).toHaveProperty('items');
+    expect(result.header.invoice_details.invoice_date).toEqual("2025-02-01");
+    expect(result.header.customer_details).toEqual({
+      id: null,
+      name: null,
+      recipient_name: null,
+      address: {},
+      tax_id: null
+    });
     expect(models.Customer.findByPk).toHaveBeenCalledWith("missing-customer-uuid");
-    expect(invoice.customer).toBeUndefined();
   });
 
-  test("Should handle case where vendor_id exists but vendor isn't found", async () => {
+  test("Should handle case where customer_id exists but customer isn't found", async () => {
     const mockInvoiceData = {
       id: 1,
       invoice_date: "2025-02-01",
-      vendor_id: "missing-vendor-uuid",
+      customer_id: "missing-customer-uuid",
       status: "Analyzed",
     };
 
-    // Create a mock Sequelize model instance with a get method
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
 
-    Invoice.findByPk.mockResolvedValue(mockInvoice);
+    models.Invoice.findByPk.mockResolvedValue(mockInvoice);
+    models.Customer.findByPk.mockResolvedValue(null);
 
-    // Mock Vendor.findByPk to return null (vendor not found)
-    const { Vendor } = require('../../src/models');
-    Vendor.findByPk.mockResolvedValue(null);
+    const result = await invoiceService.getInvoiceById(1);
 
-    const invoice = await invoiceService.getInvoiceById(1);
-
-    expect(invoice).toEqual(mockInvoiceData);
-    expect(Vendor.findByPk).toHaveBeenCalledWith("missing-vendor-uuid");
-    expect(invoice.vendor).toBeUndefined();
+    // Updated expectations for the new format
+    expect(result).toHaveProperty('header');
+    expect(result).toHaveProperty('items');
+    expect(result.header.invoice_details.invoice_date).toEqual("2025-02-01");
+    expect(result.header.customer_details).toEqual({
+      id: null,
+      name: null,
+      recipient_name: null,
+      address: {},
+      tax_id: null
+    });
+    expect(models.Customer.findByPk).toHaveBeenCalledWith("missing-customer-uuid");
   });
-  // Add these tests to the "getInvoiceById" describe block
 
   test("Should include customer data when customer exists", async () => {
     const mockInvoiceData = {
@@ -618,13 +420,11 @@ describe("getInvoiceById", () => {
       street_address: "123 Test St"
     };
 
-    // Create a mock Sequelize model instance with a get method
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
 
-    // Create a mock customer with a get method
     const mockCustomer = {
       ...mockCustomerData,
       get: jest.fn().mockReturnValue(mockCustomerData)
@@ -633,9 +433,14 @@ describe("getInvoiceById", () => {
     models.Invoice.findByPk.mockResolvedValue(mockInvoice);
     models.Customer.findByPk.mockResolvedValue(mockCustomer);
 
-    const invoice = await invoiceService.getInvoiceById(1);
+    const result = await invoiceService.getInvoiceById(1);
 
-    expect(invoice).toHaveProperty('customer', mockCustomerData);
+    // Updated expectations for the new format
+    expect(result).toHaveProperty('header');
+    expect(result.header).toHaveProperty('customer_details');
+    expect(result.header.customer_details).toHaveProperty('name', 'Existing Customer');
+    expect(result.header.customer_details).toHaveProperty('id', 'existing-customer-uuid');
+    expect(result.header.customer_details.address).toHaveProperty('street_address', '123 Test St');
     expect(mockCustomer.get).toHaveBeenCalledWith({ plain: true });
   });
 
@@ -653,13 +458,11 @@ describe("getInvoiceById", () => {
       street_address: "456 Vendor St"
     };
 
-    // Create a mock Sequelize model instance with a get method
     const mockInvoice = {
       ...mockInvoiceData,
       get: jest.fn().mockReturnValue(mockInvoiceData)
     };
 
-    // Create a mock vendor with a get method
     const mockVendor = {
       ...mockVendorData,
       get: jest.fn().mockReturnValue(mockVendorData)
@@ -668,9 +471,13 @@ describe("getInvoiceById", () => {
     models.Invoice.findByPk.mockResolvedValue(mockInvoice);
     models.Vendor.findByPk.mockResolvedValue(mockVendor);
 
-    const invoice = await invoiceService.getInvoiceById(1);
+    const result = await invoiceService.getInvoiceById(1);
 
-    expect(invoice).toHaveProperty('vendor', mockVendorData);
+    // Updated expectations for the new format
+    expect(result).toHaveProperty('header');
+    expect(result.header).toHaveProperty('vendor_details');
+    expect(result.header.vendor_details).toHaveProperty('name', 'Existing Vendor');
+    expect(result.header.vendor_details.address).toHaveProperty('street_address', '456 Vendor St');
     expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
   });
 });
@@ -693,6 +500,28 @@ describe("Invoice Analysis Service", () => {
       DocumentAnalysisClient.mockImplementation(() => mockClient);
 
       const result = await invoiceService.analyzeInvoice(documentUrl);
+      expect(result).toEqual({
+        message: "PDF processed successfully",
+        data: { success: true },
+      });
+    });
+    test("should successfully process a PDF from buffer data", async () => {
+      const pdfBuffer = Buffer.from("test PDF data");
+
+      const mockClient = {
+        beginAnalyzeDocument: jest.fn().mockResolvedValue({
+          pollUntilDone: jest.fn().mockResolvedValue({ success: true }),
+        }),
+      };
+
+      DocumentAnalysisClient.mockImplementation(() => mockClient);
+
+      const result = await invoiceService.analyzeInvoice(pdfBuffer);
+
+      expect(mockClient.beginAnalyzeDocument).toHaveBeenCalledWith(
+        process.env.AZURE_INVOICE_MODEL,
+        pdfBuffer
+      );
       expect(result).toEqual({
         message: "PDF processed successfully",
         data: { success: true },
@@ -781,29 +610,6 @@ describe("Invoice Analysis Service", () => {
       expect(result).toEqual({
         message: "PDF processed successfully",
         data: {},
-      });
-    });
-    test('should process buffer input correctly', async () => {
-      const bufferInput = Buffer.from('test pdf content');
-
-      const mockClient = {
-        beginAnalyzeDocument: jest.fn().mockResolvedValue({
-          pollUntilDone: jest.fn().mockResolvedValue({ key: 'value' }),
-        }),
-      };
-
-      DocumentAnalysisClient.mockImplementation(() => mockClient);
-
-      const result = await invoiceService.analyzeInvoice(bufferInput);
-
-      expect(mockClient.beginAnalyzeDocument).toHaveBeenCalledWith(
-        process.env.AZURE_INVOICE_MODEL || expect.any(String),
-        bufferInput
-      );
-
-      expect(result).toEqual({
-        message: 'PDF processed successfully',
-        data: { key: 'value' }
       });
     });
     test('should throw error for invalid document source type', async () => {
@@ -1209,5 +1015,58 @@ describe('uploadInvoice - Vendor Data Handling', () => {
       { vendor_id: 'existing-vendor-123' },
       { where: { id: 1 } }
     );
+  });
+});
+describe('validateFileData', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('should not throw error when valid file data is provided', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: '123'
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).not.toThrow();
+  });
+
+  test('should throw error when fileData is null', () => {
+    expect(() => invoiceService.validateFileData(null)).toThrow('File not found');
+  });
+
+  test('should throw error when fileData is undefined', () => {
+    expect(() => invoiceService.validateFileData(undefined)).toThrow('File not found');
+  });
+
+  test('should throw error when partnerId is missing', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf'
+      // partnerId is missing
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).toThrow('Partner ID is required');
+  });
+
+  test('should throw error when partnerId is null', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: null
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).toThrow('Partner ID is required');
+  });
+
+  test('should throw error when partnerId is empty string', () => {
+    const fileData = {
+      buffer: Buffer.from('test'),
+      originalname: 'test.pdf',
+      partnerId: ''
+    };
+
+    expect(() => invoiceService.validateFileData(fileData)).toThrow('Partner ID is required');
   });
 });

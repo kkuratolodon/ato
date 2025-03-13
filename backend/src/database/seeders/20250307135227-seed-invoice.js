@@ -13,8 +13,9 @@ module.exports = {
       return;
     }
 
-    const invoices = partners.flatMap(partner => ([
+    const invoices = partners.flatMap((partner, index) => ([
       {
+        invoice_id: `INV-${1001 + (index * 2)}`,
         invoice_date: new Date('2024-01-01'),
         due_date: new Date('2024-02-01'),
         purchase_order_id: 1001,
@@ -29,6 +30,7 @@ module.exports = {
         updatedAt: new Date()
       },
       {
+        invoice_id: `INV-${1002 + (index * 2)}`,
         invoice_date: new Date('2024-02-01'),
         due_date: new Date('2024-03-01'),
         purchase_order_id: 1002,

@@ -4,8 +4,8 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
     class FinancialDocument extends Model {
         static associate(models) {
-            models?.Partner && FinancialDocument.belongsTo(models.Partner, { 
-                foreignKey: 'partner_id', 
+            models?.Partner && FinancialDocument.belongsTo(models.Partner, {
+                foreignKey: 'partner_id',
                 targetKey: 'uuid',
                 as: 'partner'
             });
@@ -25,36 +25,50 @@ module.exports = (sequelize, DataTypes) => {
     }
 
     FinancialDocument.init({
-        due_date: { 
-            type: DataTypes.DATE, 
+        due_date: {
+            type: DataTypes.DATE,
             allowNull: true
         },
-        total_amount: { 
-            type: DataTypes.DECIMAL, 
+        total_amount: {
+            type: DataTypes.DECIMAL,
             allowNull: true,
             validate: {
                 min: 0
             }
         },
-        subtotal_amount: { 
-            type: DataTypes.DECIMAL, 
-            allowNull: true 
+        currency_symbol: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: '$'
         },
-        discount_amount: { 
-            type: DataTypes.DECIMAL, 
-            allowNull: true 
+        currency_code: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: 'AUD'
         },
-        payment_terms: { 
-            type: DataTypes.STRING, 
-            allowNull: true 
+        subtotal_amount: {
+            type: DataTypes.DECIMAL,
+            allowNull: true
         },
-        file_url: { 
-            type: DataTypes.STRING, 
-            allowNull: true, 
-            defaultValue: null 
+        discount_amount: {
+            type: DataTypes.DECIMAL,
+            allowNull: true
         },
-        status: { 
-            type: DataTypes.STRING, 
+        tax_amount: {
+            type: DataTypes.DECIMAL,
+            allowNull: true
+        },
+        payment_terms: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        file_url: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: null
+        },
+        status: {
+            type: DataTypes.STRING,
             allowNull: false,
             validate: {
                 isIn: {
@@ -63,10 +77,10 @@ module.exports = (sequelize, DataTypes) => {
                 }
             }
         },
-        partner_id: { 
+        partner_id: {
             type: DataTypes.STRING(45),
             allowNull: false,
-            defaultValue: null 
+            defaultValue: null
         },
         customer_id: {
             type: DataTypes.UUID,
@@ -75,7 +89,7 @@ module.exports = (sequelize, DataTypes) => {
                 model: 'Customer',
                 key: 'uuid'
             },
-            defaultValue: null 
+            defaultValue: null
         },
         vendor_id: {
             type: DataTypes.UUID,
@@ -84,7 +98,7 @@ module.exports = (sequelize, DataTypes) => {
                 model: 'Vendor',
                 key: 'uuid'
             },
-            defaultValue: null 
+            defaultValue: null
         }
     }, {
         sequelize,

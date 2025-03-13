@@ -38,6 +38,10 @@ module.exports = (sequelize, DataTypes) => {
   delete financialDocAttributes.updatedAt;
 
   Invoice.init({
+    invoice_id: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
     invoice_date: { 
       type: DataTypes.DATE, 
       allowNull: true 

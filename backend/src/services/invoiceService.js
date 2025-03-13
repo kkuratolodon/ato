@@ -1,7 +1,5 @@
-const path = require("path");
-
 const { Invoice } = require("../models");
-const s3Service = require("./s3Service");
+const FinancialDocumentService = require("./financialDocumentService")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
@@ -14,8 +12,10 @@ const endpoint = process.env.AZURE_ENDPOINT;
 const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
 
-class InvoiceService {
+
+class InvoiceService extends FinancialDocumentService {
   constructor() {
+    super("Invoice");
     this.azureMapper = new AzureInvoiceMapper();
   }
   /**
@@ -38,10 +38,15 @@ class InvoiceService {
   async uploadInvoice(fileData) {
     let invoice;
     try {
+      // Destructure setelah validasi
       this.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
-      const s3Url = await this.uploadToS3(buffer);
-      invoice = await this.createInvoiceRecord(partnerId, s3Url);
+      
+      const invoiceData = await this.uploadFile(fileData)
+  
+      invoice = await this.createInvoiceRecord(invoiceData.partner_id, invoiceData.file_url);
+      
+      // 1. Gunakan method analyzeInvoice untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
       const { invoiceData2, customerData, vendorData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
       await this.updateInvoiceRecord(invoice.id, invoiceData2);
@@ -64,14 +69,6 @@ class InvoiceService {
     if (!partnerId) {
       throw new Error("Partner ID is required");
     }
-  }
-
-  async uploadToS3(buffer) {
-    const s3Url = await s3Service.uploadFile(buffer);
-    if (!s3Url) {
-      throw new Error("Failed to upload file to S3");
-    }
-    return s3Url;
   }
 
   async createInvoiceRecord(partnerId, s3Url) {
@@ -168,8 +165,67 @@ class InvoiceService {
           invoiceData.vendor = vendor.get({ plain: true });
         }
       }
+      // Transformasi ke format yang diinginkan
+      const formattedResponse = {
+        header: {
+          invoice_details: {
+            invoice_id: invoiceData.invoice_id,
+            purchase_order_id: invoiceData.purchase_order_id ,
+            invoice_date: invoiceData.invoice_date ,
+            due_date: invoiceData.due_date ,
+            payment_terms: invoiceData.payment_terms
+          },
+          vendor_details: invoiceData.vendor ? {
+            name: invoiceData.vendor.name,
+            address: {
+              street_address: invoiceData.vendor.street_address,
+              city: invoiceData.vendor.city,
+              state: invoiceData.vendor.state,
+              postal_code: invoiceData.vendor.postal_code,
+              house: invoiceData.vendor.house
+            },
+            recipient_name: invoiceData.vendor.recipient_name,
+            tax_id: invoiceData.vendor.tax_id
+          } : {
+            name: null,
+            address: {},
+            recipient_name: null,
+            tax_id: null
+          },
+          customer_details: invoiceData.customer ? {
+            id: invoiceData.customer.uuid,
+            name: invoiceData.customer.name,
+            recipient_name: invoiceData.customer.recipient_name,
+            address: {
+              street_address: invoiceData.customer.street_address,
+              city: invoiceData.customer.city,
+              state: invoiceData.customer.state,
+              postal_code: invoiceData.customer.postal_code,
+              house: invoiceData.customer.house
+            },
+            tax_id: invoiceData.customer.tax_id
+          } : {
+            id: null,
+            name: null,
+            recipient_name: null,
+            address: {},
+            tax_id: null
+          },
+          financial_details: {
+            currency: { 
+              currency_symbol: invoiceData.currency_symbol, 
+              currency_code: invoiceData.currency_code 
+            },
+            total_amount: invoiceData.total_amount,
+            subtotal_amount: invoiceData.subtotal_amount,
+            discount_amount: invoiceData.discount_amount,
+            total_tax_amount: invoiceData.tax_amount,
+          }
+        },
+        items: [] // Belum diimplementasi
+      };
       
-      return invoiceData;
+      return formattedResponse;
       
     } catch (error) {
       console.error("Error retrieving invoice:", error);
@@ -181,193 +237,91 @@ class InvoiceService {
     }
   }
   
-  /**
-   * Validates if a file is a valid PDF
-   * This function checks three criteria to determine if a file is a valid PDF:
-   * 1. The MIME type must be "application/pdf"
-   * 2. The file extension must be ".pdf"
-   * 3. The file content must begin with the PDF signature "%PDF-"
-   * 
-   * @param {Buffer} fileBuffer - The file content as a buffer
-   * @param {string} mimeType - The MIME type of the file
-   * @param {string} fileName - The original filename with extension
-   * @returns {Promise<boolean>} Returns true if validation passes, throws an error otherwise
-   * @throws {Error} Throws an error with a specific message if validation fails
-   */
-  async validatePDF(fileBuffer, mimeType, fileName) {
-      if (mimeType !== "application/pdf") {
-          throw new Error("Invalid MIME type");
-      }
-
-      const validExtensions = [".pdf"];
-      const fileExtension = path.extname(fileName).toLowerCase();
-      if (!validExtensions.includes(fileExtension)) {
-          throw new Error("Invalid file extension");
-      }
-
-        const pdfSignature = "%PDF-";
-        const fileHeader = fileBuffer.subarray(0, 5).toString();
-        if (fileHeader !== pdfSignature) {
-            throw new Error("Invalid PDF file");
-        }
-
-      return true;
-  }
-
-    /**
-     * Validates the size of a file
-     * @param {Buffer} fileBuffer - The file buffer to validate
-     * @returns {Promise<boolean>} - Returns true if validation passes
-     * @throws {Error} - Throws an error if validation fails
-     */
-    async validateSizeFile(fileBuffer) {
-        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-        
-        if (fileBuffer.length > MAX_FILE_SIZE) {
-          throw new Error(`File exceeds maximum allowed size of 20MB`);
-        }
-    
-        return true;
+  async analyzeInvoice(documentUrl) {
+    if (!documentUrl) {
+      throw new Error("documentUrl is required");
     }
 
-    /**
-     * Checks if a PDF file is encrypted.
-     * 
-     * This function analyzes a PDF buffer to determine if it's encrypted
-     * by searching for the '/Encrypt' entry in the PDF trailer section.
-     * 
-     * @param {Buffer} pdfBuffer - Buffer containing the PDF file data to check
-     * @returns {boolean} - Returns true if the PDF is encrypted, false otherwise
-     */
-    async isPdfEncrypted(pdfBuffer) {
-        const bufferSize = pdfBuffer.length;
-        const searchSize = Math.min(bufferSize, 8192); 
-        
-        const pdfTrailer = pdfBuffer.subarray(bufferSize - searchSize).toString('utf-8');
-        return pdfTrailer.includes('/Encrypt');
-    }
-
-    /**
-     * Checks the integrity of a PDF file.
-     * 
-     * This function validates that a PDF file has the proper structure
-     * by checking for required PDF components including trailer, xref table,
-     * startxref position, and proper EOF marker placement.
-     * 
-     * @param {Buffer} buffer - Buffer containing the PDF file data to check
-     * @returns {Promise<boolean>} - Returns true if the PDF has proper structure, false otherwise
-     */
-    async checkPdfIntegrity(buffer) {
-        if (!buffer || buffer.length === 0) {
-          return false;
-        }
-    
-        const content = buffer.toString('utf-8');
-        
-        const hasTrailer = content.includes('trailer');
-        const hasEOF = content.includes('%%EOF');
-        const hasXref = content.includes('xref');
-        const hasStartXref = content.includes('startxref');
-        
-        if (!hasTrailer || !hasEOF || !hasXref || !hasStartXref) {
-          return false;
-        }
-    
-        const startXrefPos = content.lastIndexOf('startxref');
-        const eofPos = content.lastIndexOf('%%EOF');
-    
-        const startXrefSection = content.substring(startXrefPos, eofPos);
-        const regex = /startxref\s*(\d+)/;
-        const matches = regex.exec(startXrefSection);;
-    
-        return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
-    }
-
-    async analyzeInvoice(documentUrl) {
-      if (!documentUrl) {
-        throw new Error("documentUrl is required");
-      }
-  
-      return Sentry.startSpan(
-        {
-          name: "analyzeInvoice",
-          attributes: {
-            documentUrl: typeof documentUrl === "string" ? documentUrl : "Buffer data",
-          },
+    return Sentry.startSpan(
+      {
+        name: "analyzeInvoice",
+        attributes: {
+          documentUrl: typeof documentUrl === "string" ? documentUrl : "Buffer data",
         },
-        async (span) => {
-          try {
-            Sentry.captureMessage(`analyzeInvoice() called with documentUrl: ${typeof documentUrl === 'string' ? documentUrl : 'Buffer data'}`);
-  
-            Sentry.addBreadcrumb({
-              category: "analyzeInvoice",
-              message: `Starting document analysis for: ${typeof documentUrl === "string" ? documentUrl : "Binary Buffer"}`,
-              level: "info",
-            });
-  
-            console.log("Processing PDF...");
-            const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
-            let poller;
-  
-            if (typeof documentUrl === 'string') {
-              poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-            } else if (Buffer.isBuffer(documentUrl)) {
-              poller = await client.beginAnalyzeDocument(modelId, documentUrl);
-            } else {
-              throw new Error("Invalid document source type");
-            }
-  
-            Sentry.addBreadcrumb({
-              category: "analyzeInvoice",
-              message: "Azure analysis started...",
-              level: "info",
-            });
-  
-            const azureResult = await poller.pollUntilDone();
-            console.log("Analysis completed");
-  
-            Sentry.addBreadcrumb({
-              category: "analyzeInvoice",
-              message: "Azure analysis completed successfully",
-              level: "info",
-            });
-  
-            Sentry.captureMessage("analyzeInvoice() completed successfully");
-  
-            return {
-              message: "PDF processed successfully",
-              data: azureResult,
-            };
-          } catch (error) {
-            Sentry.addBreadcrumb({
-              category: "analyzeInvoice",
-              message: `Error encountered: ${error.message}`,
-              level: "error",
-            });
+      },
+      async (span) => {
+        try {
+          Sentry.captureMessage(`analyzeInvoice() called with documentUrl: ${typeof documentUrl === 'string' ? documentUrl : 'Buffer data'}`);
 
-            Sentry.captureException(error);
-            if (error.message === 'Invalid date format') {
-              throw new Error("Invoice contains invalid date format");
-            }
-            if (error.message === 'Invalid document source type') {
-              throw error;
-            }
-            if (error.statusCode === 503) {
-              console.error("Service Unavailable:", error);
-              throw new Error("Service is temporarily unavailable. Please try again later.");
-            } else if (error.statusCode === 409) {
-              console.error("Conflict Error:", error);
-              throw new Error("Conflict error occurred. Please check the document and try again.");
-            } else {
-              console.error(error);
-              throw new Error("Failed to process the document");
-            }
-          } finally {
-            span.end(); // Ensure transaction is always finished
+          Sentry.addBreadcrumb({
+            category: "analyzeInvoice",
+            message: `Starting document analysis for: ${typeof documentUrl === "string" ? documentUrl : "Binary Buffer"}`,
+            level: "info",
+          });
+
+          console.log("Processing PDF...");
+          const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+          let poller;
+
+          if (typeof documentUrl === 'string') {
+            poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+          } else if (Buffer.isBuffer(documentUrl)) {
+            poller = await client.beginAnalyzeDocument(modelId, documentUrl);
+          } else {
+            throw new Error("Invalid document source type");
           }
+
+          Sentry.addBreadcrumb({
+            category: "analyzeInvoice",
+            message: "Azure analysis started...",
+            level: "info",
+          });
+
+          const azureResult = await poller.pollUntilDone();
+          console.log("Analysis completed");
+
+          Sentry.addBreadcrumb({
+            category: "analyzeInvoice",
+            message: "Azure analysis completed successfully",
+            level: "info",
+          });
+
+          Sentry.captureMessage("analyzeInvoice() completed successfully");
+
+          return {
+            message: "PDF processed successfully",
+            data: azureResult,
+          };
+        } catch (error) {
+          Sentry.addBreadcrumb({
+            category: "analyzeInvoice",
+            message: `Error encountered: ${error.message}`,
+            level: "error",
+          });
+
+          Sentry.captureException(error);
+          if (error.message === 'Invalid date format') {
+            throw new Error("Invoice contains invalid date format");
+          }
+          if (error.message === 'Invalid document source type') {
+            throw error;
+          }
+          if (error.statusCode === 503) {
+            console.error("Service Unavailable:", error);
+            throw new Error("Service is temporarily unavailable. Please try again later.");
+          } else if (error.statusCode === 409) {
+            console.error("Conflict Error:", error);
+            throw new Error("Conflict error occurred. Please check the document and try again.");
+          } else {
+            console.error(error);
+            throw new Error("Failed to process the document");
+          }
+        } finally {
+          span.end(); // Ensure transaction is always finished
         }
-      );
-    }
+      }
+    );
+  }
 }
 
 module.exports = new InvoiceService();

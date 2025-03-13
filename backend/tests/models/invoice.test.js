@@ -19,8 +19,8 @@ describe("Invoice Model", () => {
 
     // Set up the associations between models
     Invoice.associate({ Partner, Customer });
-    Partner.associate && Partner.associate({ Invoice });
-    Customer.associate && Customer.associate({ Invoice });
+    Partner.associate?.({ Invoice });
+    Customer.associate?.({ Invoice });
     Vendor.associate && Vendor.associate({ Invoice });
     await sequelize.sync({ force: true });
   });
