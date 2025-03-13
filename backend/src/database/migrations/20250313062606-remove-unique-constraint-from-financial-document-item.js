@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
+  up: async (queryInterface) => {
     try {
       // Get all indexes for the table
       const [indexes] = await queryInterface.sequelize.query(
@@ -72,7 +72,7 @@ module.exports = {
     }
   },
 
-  down: async (queryInterface, Sequelize) => {
+  down: async (queryInterface) => {
     // Recreate indexes if needed
     await queryInterface.addIndex('FinancialDocumentItem', ['document_type', 'document_id']);
     await queryInterface.addIndex('FinancialDocumentItem', ['item_id']);
