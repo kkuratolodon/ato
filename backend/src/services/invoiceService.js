@@ -51,8 +51,6 @@ class InvoiceService extends FinancialDocumentService {
       // 1. Gunakan method analyzeInvoice untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
       const { invoiceData2, customerData, vendorData, itemsData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
-      console.log("konz")
-      console.log(itemsData);
       await this.updateInvoiceRecord(invoice.id, invoiceData2);
       await this.updateCustomerAndVendorData(invoice.id, customerData, vendorData);
       await this.saveInvoiceItems(invoice.id, itemsData);
@@ -210,6 +208,33 @@ class InvoiceService extends FinancialDocumentService {
           invoiceData.vendor = vendor.get({ plain: true });
         }
       }
+      const invoiceItems = await FinancialDocumentItem.findAll({
+        where: { 
+          document_type: 'Invoice', 
+          document_id: id 
+        }
+      });
+      const itemsWithDetails = [];
+      for (const item of invoiceItems) {
+        const itemData = item.get({ plain: true });
+        const itemDetails = await Item.findByPk(itemData.item_id);
+        if (itemDetails) {
+          itemData.item = itemDetails.get({ plain: true });
+          itemsWithDetails.push(itemData);
+        }
+      }
+
+      invoiceData.items = itemsWithDetails;
+      
+      // Transform items data to the required format
+      const formattedItems = itemsWithDetails.map(item => ({
+        amount: item.amount,
+        description: item.item?.description || null,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_price: item.unit_price
+      }));
+      invoiceData.items = formattedItems;
       // Transformasi ke format yang diinginkan
       const formattedResponse = {
         header: {
@@ -267,7 +292,7 @@ class InvoiceService extends FinancialDocumentService {
             total_tax_amount: invoiceData.tax_amount,
           }
         },
-        items: [] // Belum diimplementasi
+        items: invoiceData.items
       };
 
       return formattedResponse;

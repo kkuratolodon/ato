@@ -39,7 +39,8 @@ jest.mock('../../src/models', () => {
   };
 
   const mockFinancialDocumentItem = {
-    create: jest.fn()
+    create: jest.fn(),
+    findAll: jest.fn()
   };
 
   return {
@@ -173,6 +174,8 @@ describe('uploadInvoice - Corner Cases', () => {
 
   beforeEach(() => {
     originalAnalyzeInvoice = invoiceService.analyzeInvoice;
+    models.FinancialDocumentItem.findAll.mockResolvedValue([]);
+
     jest.clearAllMocks();
   });
 
