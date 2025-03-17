@@ -426,7 +426,53 @@ describe('AzureInvoiceMapper', () => {
       // Test case for null field
       expect(mapper.parseCurrency(null)).toEqual({ amount: null, currency: { currencySymbol: null, currencyCode: null } });
     });
-    
+    it('should correctly parse Rupiah currency format', () => {
+      const mapper = new AzureInvoiceMapper();
+      
+      // Test structured currency field with Rupiah content
+      const rupiahField = {
+        value: {
+          amount: 100000, // This value should be overridden by the parsed content
+          currencySymbol: '$', // This should be replaced with Rp
+          currencyCode: 'USD' // This should be replaced with IDR
+        },
+        content: 'Rp67.998'
+      };
+      
+      const result = mapper.parseCurrency(rupiahField);
+      
+      // Should parse Indonesian number format (67.998 → 67998)
+      expect(result.amount).toBe(67998);
+      expect(result.currency.currencySymbol).toBe('Rp');
+      expect(result.currency.currencyCode).toBe('IDR');
+      
+      // Test with decimal comma
+      const rupiahWithDecimal = {
+        value: {
+          amount: 50000
+        },
+        content: 'Rp45.750,50'
+      };
+      
+      const resultWithDecimal = mapper.parseCurrency(rupiahWithDecimal);
+      // 45.750,50 should be converted to 45750.50
+      expect(resultWithDecimal.amount).toBe(45750.50);
+      expect(resultWithDecimal.currency.currencySymbol).toBe('Rp');
+      expect(resultWithDecimal.currency.currencyCode).toBe('IDR');
+      
+      // Test with no thousands separator
+      const simplifiedRupiah = {
+        value: {
+          amount: 1000
+        },
+        content: 'Rp5000'
+      };
+      
+      const simpleResult = mapper.parseCurrency(simplifiedRupiah);
+      expect(simpleResult.amount).toBe(5000);
+      expect(simpleResult.currency.currencySymbol).toBe('Rp');
+      expect(simpleResult.currency.currencyCode).toBe('IDR');
+    });
     it('should handle edge cases in parsePurchaseOrderId', () => {
       expect(mapper.parsePurchaseOrderId({ content: '12345' })).toBe(12345);
       expect(mapper.parsePurchaseOrderId({ content: 'ABC-DEF' })).toBe(0);
