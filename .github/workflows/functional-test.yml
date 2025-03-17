@@ -1,0 +1,48 @@
+name: Functional Test
+
+on:
+    push:
+      branches:
+        - "**"
+    pull_request:
+      types: [opened, synchronize, reopened]
+
+jobs:
+  functional-test:
+    name: Run Functional Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: backend
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Start Server
+        run: npm start
+        working-directory: backend
+
+      - name: Wait for Server to Start
+        run: sleep 10 
+
+      - name: Copy Functional Test Folder
+        run: cp -r functional_test /home/runner/work/
+
+      - name: Create dev-environment.json from secret
+        run: echo '${{ secrets.DEV_ENVIRONMENT_JSON }}' > tests/dev-environment.json
+        working-directory: backend
+
+      - name: Run Functional Tests
+        run: newman run tests/functional-test-1.json -e tests/dev-environment.json
+        working-directory: backend
