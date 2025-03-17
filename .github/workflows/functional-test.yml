@@ -31,7 +31,7 @@ jobs:
         run: npm install -g newman
 
       - name: Start Server
-        run: npm start
+        run: npm start &
         working-directory: backend
 
       - name: Wait for Server to Start
