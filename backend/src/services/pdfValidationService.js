@@ -1,4 +1,3 @@
-console.log("Loading pdfValidationService.js at path:", __filename);
 const path = require("path");
 const pdfjsLib = require("pdfjs-dist");
 
