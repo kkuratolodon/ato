@@ -164,6 +164,21 @@ class AzureInvoiceMapper {
       console.warn('Date field missing, using current date as fallback');
       return new Date(); // Default to current date if missing
     }
+    const ddmmyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
+    console.log(dateStr)
+    if (ddmmyyRegex.test(dateStr)) {
+      const [, day, month, year] = ddmmyyRegex.exec(dateStr);
+      const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
+      const formattedDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      return new Date(formattedDate);
+    }
+    
+    const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    if (ddmmyyyyRegex.test(dateStr)) {
+      const [, day, month, year] = ddmmyyyyRegex.exec(dateStr);
+      const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      return new Date(formattedDate);
+    }
 
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
@@ -230,6 +245,7 @@ class AzureInvoiceMapper {
 
     // Structured currency object case
     if (field?.value?.amount && typeof field.value.amount === 'number') {
+      console.log(this.getFieldContent(field))
       result.amount = field.value.amount;
       result.currency.currencySymbol = field.value.currencySymbol || null;
       result.currency.currencyCode = field.value.currencyCode || null;
