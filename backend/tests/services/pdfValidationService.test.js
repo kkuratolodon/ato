@@ -1,8 +1,7 @@
 const pdfValidationService = require("../../src/services/pdfValidationService");
 const fs = require("fs");
 const path = require("path");
-// Hapus mock-fs import
-// const mockFs = require("mock-fs");
+const pdfjsLib = require("pdfjs-dist");
 
 describe("PDF Validation Format", () => {
   const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
@@ -248,5 +247,51 @@ describe("PDF Integrity Check", () => {
   test("should handle PDF without objects in checkPdfIntegrity", async () => {
     const result = await pdfValidationService.checkPdfIntegrity(noObjectsPdfBuffer);
     expect(result).toBe(false);
+  });
+});
+
+jest.mock("pdfjs-dist", () => ({
+  getDocument: jest.fn()
+}));
+
+describe("PDF Page Count Validation", () => {
+  beforeEach(() => {
+      jest.clearAllMocks();
+  });
+
+  test("Valid PDF with 100 pages", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.resolve({ numPages: 100 })
+      });
+
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).resolves.toBe(true);
+  });
+
+  test("PDF with 101 pages", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.resolve({ numPages: 101 })
+      });
+
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).rejects.toThrow("PDF exceeds the maximum allowed pages (100).");
+  });
+
+  test("Empty PDF with 0 pages", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.resolve({ numPages: 0 })
+      });
+
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).rejects.toThrow("PDF has no pages.");
+  });
+
+  test("Error reading PDF", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.reject(new Error("Failed to parse PDF"))
+      });
+
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).rejects.toThrow("Failed to read PDF page count.");
   });
 });
