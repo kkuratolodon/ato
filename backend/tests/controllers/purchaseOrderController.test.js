@@ -22,6 +22,7 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
     pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
+    pdfValidationService.validatePdfPageCount.mockResolvedValue(1);
 
     authService.authenticate.mockResolvedValue(true);
 
@@ -237,6 +238,69 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: "Invalid document type provided" });
+  });
+
+  test("should return status 400 if PDF has zero pages", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+  
+    // Mock correct error response
+    pdfValidationService.validatePdfPageCount.mockRejectedValue(
+      new Error("PDF has no pages.")
+    );
+  
+    await purchaseOrderController.uploadPurchaseOrder(req, res);
+  
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "PDF has no pages." 
+    });
+  });
+  
+  test("should return status 400 if PDF exceeds maximum page count", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+  
+    // Mock error for exceeding maximum page count
+    pdfValidationService.validatePdfPageCount.mockRejectedValue(
+      new Error("PDF exceeds the maximum allowed pages (100).")
+    );
+  
+    await purchaseOrderController.uploadPurchaseOrder(req, res);
+  
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "PDF exceeds the maximum allowed pages (100)." 
+    });
+  });
+  
+  test("should handle generic error when validatePdfPageCount fails", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+  
+    // Mock general error
+    pdfValidationService.validatePdfPageCount.mockRejectedValue(
+      new Error("Some unexpected error")
+    );
+  
+    await purchaseOrderController.uploadPurchaseOrder(req, res);
+  
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "Failed to determine PDF page count." 
+    });
   });
 
 
