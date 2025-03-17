@@ -38,7 +38,7 @@ jobs:
         run: sleep 10 
 
       - name: Copy Functional Test Folder
-        run: cp -r functional_test /home/runner/work/
+        run: cp -r functional_test_files /home/runner/work/
 
       - name: Create dev-environment.json from secret
         run: echo '${{ secrets.DEV_ENVIRONMENT_JSON }}' > tests/dev-environment.json
