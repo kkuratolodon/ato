@@ -1,10 +1,12 @@
 const { Invoice } = require("../models");
-const s3Service = require("./s3Service");
+const FinancialDocumentService = require("./financialDocumentService")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const { AzureInvoiceMapper } = require("./invoiceMapperService");
 const dotenv = require("dotenv");
 const { Customer } = require("../models");
 const { Vendor } = require("../models");
+const { Item, FinancialDocumentItem } = require('../models');
+
 const Sentry = require("../instrument");
 dotenv.config();
 
@@ -12,8 +14,10 @@ const endpoint = process.env.AZURE_ENDPOINT;
 const key = process.env.AZURE_KEY;
 const modelId = process.env.AZURE_INVOICE_MODEL;
 
-class InvoiceService {
+
+class InvoiceService extends FinancialDocumentService {
   constructor() {
+    super("Invoice");
     this.azureMapper = new AzureInvoiceMapper();
   }
   /**
@@ -36,14 +40,20 @@ class InvoiceService {
   async uploadInvoice(fileData) {
     let invoice;
     try {
+      // Destructure setelah validasi
       this.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
-      const s3Url = await this.uploadToS3(buffer);
-      invoice = await this.createInvoiceRecord(partnerId, s3Url);
+
+      const invoiceData = await this.uploadFile(fileData)
+
+      invoice = await this.createInvoiceRecord(invoiceData.partner_id, invoiceData.file_url);
+
+      // 1. Gunakan method analyzeInvoice untuk memproses dokumen
       const analysisResult = await this.analyzeInvoice(buffer);
-      const { invoiceData2, customerData, vendorData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
+      const { invoiceData2, customerData, vendorData, itemsData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
       await this.updateInvoiceRecord(invoice.id, invoiceData2);
       await this.updateCustomerAndVendorData(invoice.id, customerData, vendorData);
+      await this.saveInvoiceItems(invoice.id, itemsData);
       return this.buildResponse(invoice);
     } catch (error) {
       if (invoice?.id) {
@@ -64,14 +74,6 @@ class InvoiceService {
     }
   }
 
-  async uploadToS3(buffer) {
-    const s3Url = await s3Service.uploadFile(buffer);
-    if (!s3Url) {
-      throw new Error("Failed to upload file to S3");
-    }
-    return s3Url;
-  }
-
   async createInvoiceRecord(partnerId, s3Url) {
     const invoiceData = {
       status: "Processing",
@@ -85,10 +87,10 @@ class InvoiceService {
     if (!analysisResult?.data) {
       throw new Error("Failed to analyze invoice: No data returned");
     }
-    const { invoiceData: invoiceData2, customerData, vendorData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+    const { invoiceData: invoiceData2, customerData, vendorData, itemsData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
     invoiceData2.original_filename = originalname;
     invoiceData2.file_size = fileSize;
-    return { invoiceData2, customerData, vendorData };
+    return { invoiceData2, customerData, vendorData, itemsData };
   }
 
   async updateInvoiceRecord(invoiceId, invoiceData2) {
@@ -127,6 +129,44 @@ class InvoiceService {
     }
   }
 
+  /**
+ * Save invoice items and create associations in the database
+ * @param {number} invoiceId - ID of the invoice
+ * @param {Array} itemsData - Array of item data from OCR analysis
+ * @returns {Promise<void>}
+ */
+  async saveInvoiceItems(invoiceId, itemsData) {
+    if (!itemsData || !Array.isArray(itemsData) || itemsData.length === 0) {
+      console.log("No items to save");
+      return;
+    }
+  
+    try {
+      for (const itemData of itemsData) {
+
+        const [item] = await Item.findOrCreate({
+          where: { description: itemData.description },
+          defaults: { description: itemData.description }
+        });
+        
+        await FinancialDocumentItem.create({
+          document_type: 'Invoice',
+          document_id: invoiceId, 
+          item_id: item.uuid,
+          quantity: itemData.quantity,
+          unit: itemData.unit,
+          unit_price: itemData.unitPrice,
+          amount: itemData.amount
+        });
+      }
+  
+      console.log(`Saved ${itemsData.length} items for invoice ${invoiceId}`);
+    } catch (error) {
+      console.error('Error saving invoice items:', error);
+      throw new Error(`Failed to save invoice items: ${error.message}`);
+    }
+  }
+
   buildResponse(invoice) {
     return {
       message: "Invoice successfully processed and saved",
@@ -146,29 +186,115 @@ class InvoiceService {
   async getInvoiceById(id) {
     try {
       const invoice = await Invoice.findByPk(id);
-      
+
       if (!invoice) {
         throw new Error("Invoice not found");
       }
-      
+
       const invoiceData = invoice.get({ plain: true });
-      
+
       if (invoiceData.customer_id) {
         const customer = await Customer.findByPk(invoiceData.customer_id);
         if (customer) {
           invoiceData.customer = customer.get({ plain: true });
         }
       }
-      
+
       if (invoiceData.vendor_id) {
         const vendor = await Vendor.findByPk(invoiceData.vendor_id);
         if (vendor) {
           invoiceData.vendor = vendor.get({ plain: true });
         }
       }
+      const invoiceItems = await FinancialDocumentItem.findAll({
+        where: { 
+          document_type: 'Invoice', 
+          document_id: id 
+        }
+      });
+      const itemsWithDetails = [];
+      for (const item of invoiceItems) {
+        const itemData = item.get({ plain: true });
+        const itemDetails = await Item.findByPk(itemData.item_id);
+        if (itemDetails) {
+          itemData.item = itemDetails.get({ plain: true });
+          itemsWithDetails.push(itemData);
+        }
+      }
+
+      invoiceData.items = itemsWithDetails;
       
-      return invoiceData;
-      
+      // Transform items data to the required format
+      const formattedItems = itemsWithDetails.map(item => ({
+        amount: item.amount,
+        description: item.item?.description || null,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_price: item.unit_price
+      }));
+      invoiceData.items = formattedItems;
+      // Transformasi ke format yang diinginkan
+      const formattedResponse = {
+        header: {
+          invoice_details: {
+            invoice_id: invoiceData.invoice_id,
+            purchase_order_id: invoiceData.purchase_order_id,
+            invoice_date: invoiceData.invoice_date,
+            due_date: invoiceData.due_date,
+            payment_terms: invoiceData.payment_terms
+          },
+          vendor_details: invoiceData.vendor ? {
+            name: invoiceData.vendor.name,
+            address: {
+              street_address: invoiceData.vendor.street_address,
+              city: invoiceData.vendor.city,
+              state: invoiceData.vendor.state,
+              postal_code: invoiceData.vendor.postal_code,
+              house: invoiceData.vendor.house
+            },
+            recipient_name: invoiceData.vendor.recipient_name,
+            tax_id: invoiceData.vendor.tax_id
+          } : {
+            name: null,
+            address: {},
+            recipient_name: null,
+            tax_id: null
+          },
+          customer_details: invoiceData.customer ? {
+            id: invoiceData.customer.uuid,
+            name: invoiceData.customer.name,
+            recipient_name: invoiceData.customer.recipient_name,
+            address: {
+              street_address: invoiceData.customer.street_address,
+              city: invoiceData.customer.city,
+              state: invoiceData.customer.state,
+              postal_code: invoiceData.customer.postal_code,
+              house: invoiceData.customer.house
+            },
+            tax_id: invoiceData.customer.tax_id
+          } : {
+            id: null,
+            name: null,
+            recipient_name: null,
+            address: {},
+            tax_id: null
+          },
+          financial_details: {
+            currency: {
+              currency_symbol: invoiceData.currency_symbol,
+              currency_code: invoiceData.currency_code
+            },
+            total_amount: invoiceData.total_amount,
+            subtotal_amount: invoiceData.subtotal_amount,
+            discount_amount: invoiceData.discount_amount,
+            total_tax_amount: invoiceData.tax_amount,
+          }
+        },
+        items: invoiceData.items
+      };
+
+      return formattedResponse;
+
     } catch (error) {
       console.error("Error retrieving invoice:", error);
       if (error.message === "Invoice not found") {
@@ -178,7 +304,7 @@ class InvoiceService {
       }
     }
   }
-  
+
   async analyzeInvoice(documentUrl) {
     if (!documentUrl) {
       throw new Error("documentUrl is required");

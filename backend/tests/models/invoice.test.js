@@ -3,9 +3,10 @@ const InvoiceModel = require("../../src/models/invoice");
 const PartnerModel = require("../../src/models/partner");
 const CustomerModel = require("../../src/models/customer");
 const VendorModel = require("../../src/models/vendor");
+const item = require("../../src/models/item");
 
 describe("Invoice Model", () => {
-  let sequelize, Invoice, Partner, Vendor, Customer;
+  let sequelize, Invoice, Partner, Vendor, Customer, Item;
 
   beforeAll(async () => {
     // Initialize Sequelize with an in-memory SQLite database
@@ -16,13 +17,16 @@ describe("Invoice Model", () => {
     Invoice = InvoiceModel(sequelize, DataTypes);
     Customer = CustomerModel(sequelize, DataTypes);
     Vendor = VendorModel(sequelize, DataTypes);
-
+    Item = item(sequelize, DataTypes);
     // Set up the associations between models
-    Invoice.associate({ Partner, Customer });
-    Partner.associate && Partner.associate({ Invoice });
-    Customer.associate && Customer.associate({ Invoice });
+    Invoice.associate({ Partner, Customer, Item });
+    Partner.associate?.({ Invoice });
+    Customer.associate?.({ Invoice });
     Vendor.associate && Vendor.associate({ Invoice });
+    Item.associate && Item.associate({ FinancialDocument: Invoice });    
     await sequelize.sync({ force: true });
+    console.log('Available models:', Object.keys(sequelize.models));
+
   });
   
 
@@ -68,6 +72,7 @@ describe("Invoice Model", () => {
   });
   // Add this test case
   describe('Invoice Model Associations', () => {
+
     it('should associate with Vendor correctly', () => {
       // Save original belongsTo method
       const originalBelongsTo = Invoice.belongsTo;
@@ -80,7 +85,8 @@ describe("Invoice Model", () => {
         Invoice.associate({
           Partner: { name: 'Partner' },
           Customer: { name: 'Customer' },
-          Vendor: { name: 'Vendor' }
+          Vendor: { name: 'Vendor' },
+          item: { name: 'Item' }
         });
         
         // Test with no models (should return early)
@@ -204,4 +210,5 @@ describe("Invoice Model", () => {
       partner_id: "partner-uuid-123",
     })).rejects.toThrow();
   });
+  
 });
