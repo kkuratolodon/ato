@@ -236,19 +236,32 @@ class AzureInvoiceMapper {
       }
     };
 
-    // Direct number value case
     if (field?.value && typeof field.value === 'number') {
       result.amount = field.value;
       return result;
     }
 
-    // Structured currency object case
     if (field?.value?.amount && typeof field.value.amount === 'number') {
-      console.log(this.getFieldContent(field))
-      result.amount = field.value.amount;
-      result.currency.currencySymbol = field.value.currencySymbol || null;
-      result.currency.currencyCode = field.value.currencyCode || null;
+      if (field?.value?.amount && typeof field.value.amount === 'number') {
+        const currencyContent = this.getFieldContent(field);
+        
+        if (currencyContent && currencyContent.includes('Rp')) {
+          const numericStr = currencyContent.replace(/Rp/i, '')
+                                            .replace(/\./g, '')
+                                            .replace(/,/g, '.')
+                                            .trim();
+          const amount = parseFloat(numericStr);
+          
+          result.amount = isNaN(amount) ? null : amount;
+          result.currency.currencySymbol = 'Rp';
+          result.currency.currencyCode = 'IDR';
+        } else {
+          result.amount = field.value.amount;
+          result.currency.currencySymbol = field.value.currencySymbol || null;
+          result.currency.currencyCode = field.value.currencyCode || null;
+        }
       return result;
+      }
     }
 
     // String content case
