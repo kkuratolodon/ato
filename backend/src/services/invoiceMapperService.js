@@ -242,7 +242,6 @@ class AzureInvoiceMapper {
     }
 
     if (field?.value?.amount && typeof field.value.amount === 'number') {
-      if (field?.value?.amount && typeof field.value.amount === 'number') {
         const currencyContent = this.getFieldContent(field);
         
         if (currencyContent && currencyContent.includes('Rp')) {
@@ -252,7 +251,7 @@ class AzureInvoiceMapper {
                                             .trim();
           const amount = parseFloat(numericStr);
           
-          result.amount = isNaN(amount) ? null : amount;
+          result.amount = amount;
           result.currency.currencySymbol = 'Rp';
           result.currency.currencyCode = 'IDR';
         } else {
@@ -261,7 +260,6 @@ class AzureInvoiceMapper {
           result.currency.currencyCode = field.value.currencyCode || null;
         }
       return result;
-      }
     }
 
     // String content case
