@@ -65,7 +65,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "./test-valid.pdf"
+									"src": "../functional_test_files/test-valid.pdf"
 								}
 							]
 						},
@@ -142,7 +142,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "./test-nonpdf.txt"
+									"src": "../functional_test_files/test-nonpdf.txt"
 								}
 							]
 						},
@@ -347,7 +347,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "./test-encrypted.pdf"
+									"src": "../functional_test_files/test-encrypted.pdf"
 								}
 							]
 						},
@@ -411,7 +411,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "./test-valid.pdf"
+									"src": "../functional_test_files/test-valid.pdf"
 								}
 							]
 						},
@@ -486,7 +486,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "./test-80mb.pdf"
+									"src": "../functional_test_files/test-80mb.pdf"
 								}
 							]
 						},
