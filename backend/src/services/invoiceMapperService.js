@@ -244,7 +244,7 @@ class AzureInvoiceMapper {
     if (field?.value?.amount && typeof field.value.amount === 'number') {
         const currencyContent = this.getFieldContent(field);
         
-        if (currencyContent && currencyContent.includes('Rp')) {
+        if (currencyContent?.includes('Rp')) {
           const numericStr = currencyContent.replace(/Rp/i, '')
                                             .replace(/\./g, '')
                                             .replace(/,/g, '.')
