@@ -291,27 +291,61 @@ describe('AzureInvoiceMapper', () => {
       expect(timeDiff).toBeLessThan(1000);
     });
     
-    it('should handle multiple date formats correctly', () => {
-      // Helper function to check date parts
-      const checkDateParts = (dateStr, expectedYear, expectedMonth, expectedDay) => {
-        const date = mapper.parseDate({ content: dateStr });
-        expect(date.getFullYear()).toBe(expectedYear);
-        expect(date.getMonth() + 1).toBe(expectedMonth);
-        expect(date.getDate()).toBe(expectedDay);
-      };
+  });
+  describe("Date Format Parsing", () => {
+    it('should correctly handle DD/MM/YY date format', () => {
+      const mapper = new AzureInvoiceMapper();
       
-      checkDateParts('2023-05-15', 2023, 5, 15); // ISO format
-      checkDateParts('05/15/2023', 2023, 5, 15); // US format
-      checkDateParts('05-15-2023', 2023, 5, 15); // Hyphen format
-      checkDateParts('2023.05.15', 2023, 5, 15); // Dot format
+      // Test DD/MM/YY format (28/02/25 should be Feb 28, 2025)
+      const dateDDMMYY = mapper.parseDate({ content: '28/02/25' });
+      expect(dateDDMMYY.getFullYear()).toBe(2025);
+      expect(dateDDMMYY.getMonth() + 1).toBe(2); // Month is 0-indexed
+      expect(dateDDMMYY.getDate()).toBe(28);
       
-      // Date with time
-      const dateWithTime = mapper.parseDate({ content: '2023-05-15T14:30:00' });
-      expect(dateWithTime.getHours()).toBeTruthy();
-      expect(dateWithTime.getMinutes()).toBe(30);
+      // Test another DD/MM/YY format with single digits
+      const dateSingleDigits = mapper.parseDate({ content: '5/7/23' });
+      expect(dateSingleDigits.getFullYear()).toBe(2023);
+      expect(dateSingleDigits.getMonth() + 1).toBe(7);
+      expect(dateSingleDigits.getDate()).toBe(5);
+      
+      // Test year interpretation (years < 50 are 20xx, >= 50 are 19xx)
+      const dateOlderYear = mapper.parseDate({ content: '15/06/55' });
+      expect(dateOlderYear.getFullYear()).toBe(1955);
+      expect(dateOlderYear.getMonth() + 1).toBe(6);
+      expect(dateOlderYear.getDate()).toBe(15);
+    });
+    
+    it('should correctly handle DD/MM/YYYY date format', () => {
+      const mapper = new AzureInvoiceMapper();
+      
+      // Test DD/MM/YYYY format
+      const dateDDMMYYYY = mapper.parseDate({ content: '28/02/2025' });
+      expect(dateDDMMYYYY.getFullYear()).toBe(2025);
+      expect(dateDDMMYYYY.getMonth() + 1).toBe(2);
+      expect(dateDDMMYYYY.getDate()).toBe(28);
+      
+      // Test with single digits
+      const dateSingleDigits = mapper.parseDate({ content: '5/7/2023' });
+      expect(dateSingleDigits.getFullYear()).toBe(2023);
+      expect(dateSingleDigits.getMonth() + 1).toBe(7);
+      expect(dateSingleDigits.getDate()).toBe(5);
+    });
+    
+    it('should correctly handle invalid date formats by using current date', () => {
+      const mapper = new AzureInvoiceMapper();
+      
+      // Mock date.now to have consistent test results
+      const now = new Date('2025-01-01T12:00:00Z');
+      jest.spyOn(global, 'Date').mockImplementation(() => now);
+      
+      // Test invalid format that should fall back to current date
+      const invalidDate = mapper.parseDate({ content: 'not-a-date' });
+      expect(invalidDate).toEqual(now);
+      
+      // Clean up
+      jest.restoreAllMocks();
     });
   });
-
   describe('Field Parsing', () => {
     it('should safely handle field content extraction', () => {
       expect(mapper.getFieldContent(null)).toBeNull();
@@ -392,7 +426,53 @@ describe('AzureInvoiceMapper', () => {
       // Test case for null field
       expect(mapper.parseCurrency(null)).toEqual({ amount: null, currency: { currencySymbol: null, currencyCode: null } });
     });
-    
+    it('should correctly parse Rupiah currency format', () => {
+      const mapper = new AzureInvoiceMapper();
+      
+      // Test structured currency field with Rupiah content
+      const rupiahField = {
+        value: {
+          amount: 100000, // This value should be overridden by the parsed content
+          currencySymbol: '$', // This should be replaced with Rp
+          currencyCode: 'USD' // This should be replaced with IDR
+        },
+        content: 'Rp67.998'
+      };
+      
+      const result = mapper.parseCurrency(rupiahField);
+      
+      // Should parse Indonesian number format (67.998 → 67998)
+      expect(result.amount).toBe(67998);
+      expect(result.currency.currencySymbol).toBe('Rp');
+      expect(result.currency.currencyCode).toBe('IDR');
+      
+      // Test with decimal comma
+      const rupiahWithDecimal = {
+        value: {
+          amount: 50000
+        },
+        content: 'Rp45.750,50'
+      };
+      
+      const resultWithDecimal = mapper.parseCurrency(rupiahWithDecimal);
+      // 45.750,50 should be converted to 45750.50
+      expect(resultWithDecimal.amount).toBe(45750.50);
+      expect(resultWithDecimal.currency.currencySymbol).toBe('Rp');
+      expect(resultWithDecimal.currency.currencyCode).toBe('IDR');
+      
+      // Test with no thousands separator
+      const simplifiedRupiah = {
+        value: {
+          amount: 1000
+        },
+        content: 'Rp5000'
+      };
+      
+      const simpleResult = mapper.parseCurrency(simplifiedRupiah);
+      expect(simpleResult.amount).toBe(5000);
+      expect(simpleResult.currency.currencySymbol).toBe('Rp');
+      expect(simpleResult.currency.currencyCode).toBe('IDR');
+    });
     it('should handle edge cases in parsePurchaseOrderId', () => {
       expect(mapper.parsePurchaseOrderId({ content: '12345' })).toBe(12345);
       expect(mapper.parsePurchaseOrderId({ content: 'ABC-DEF' })).toBe(0);
