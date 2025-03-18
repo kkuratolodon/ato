@@ -260,6 +260,41 @@ describe('uploadInvoice - Corner Cases', () => {
   });
   });
 
+describe("getPartnerId", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("Should return partner_id when given a valid invoice ID", async () => {
+    const mockInvoiceData = {
+      id: 1,
+      partner_id: "partner-123",
+      get: jest.fn().mockReturnValue({ partner_id: "partner-123" })
+    };
+
+    Invoice.findByPk = jest.fn().mockResolvedValue(mockInvoiceData);
+
+    const result = await invoiceService.getPartnerId(1);
+    
+    expect(result).toBe("partner-123");
+    expect(Invoice.findByPk).toHaveBeenCalledWith(1);
+  });
+
+  test("Should throw an error when invoice is not found", async () => {
+    Invoice.findByPk = jest.fn().mockResolvedValue(null);
+
+    await expect(invoiceService.getPartnerId(99999999)).rejects.toThrow("Invoice not found");
+    expect(Invoice.findByPk).toHaveBeenCalledWith(99999999);
+  });
+
+  test("Should throw an error when database fails", async () => {
+    Invoice.findByPk = jest.fn().mockRejectedValue(new Error("Database error"));
+
+    await expect(invoiceService.getPartnerId(1)).rejects.toThrow("Database error");
+    expect(Invoice.findByPk).toHaveBeenCalledWith(1);
+  });
+});
+
 describe("getInvoiceById", () => {
   beforeEach(() => {
     // Reset all mocks before each test
