@@ -7,9 +7,9 @@ module.exports = (sequelize, DataTypes) => {
 
     FinancialDocumentItem.init({
         id: {
-            type: DataTypes.INTEGER,
-            primaryKey: true,
-            autoIncrement: true
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
         },
         document_id: {
             type: DataTypes.INTEGER,

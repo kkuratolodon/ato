@@ -74,7 +74,11 @@ class FinancialDocumentController {
                 result = await this.service.uploadInvoice({
                     originalname, buffer, mimetype, partnerId,
                 });
-                return safeResponse(res, 200, result);
+                return safeResponse(res, 200, { 
+                  message: result.message,
+                  id: result.id, 
+                  status: result.status
+                });
             } 
             else if (this.documentType === "Purchase Order") {
                 result = await this.service.uploadPurchaseOrder({
@@ -87,6 +91,9 @@ class FinancialDocumentController {
             }
           }catch(error){
             console.error("Unhandled error in upload process:", error);
+            if (error.message.includes("Failed to upload file to S3")) {
+              return safeResponse(res, 500, "Failed to upload document. Please try again.");
+            }
             if(error.message === "document type unknown"){
               return safeResponse(res, 400, "Invalid document type provided" );
             }
@@ -104,4 +111,3 @@ class FinancialDocumentController {
   }
   
   module.exports = FinancialDocumentController;
-  

@@ -6,6 +6,7 @@ const dotenv = require("dotenv");
 const { Customer } = require("../models");
 const { Vendor } = require("../models");
 const { Item, FinancialDocumentItem } = require('../models');
+const { v4: uuidv4 } = require('uuid');
 
 const Sentry = require("../instrument");
 dotenv.config();
@@ -38,29 +39,87 @@ class InvoiceService extends FinancialDocumentService {
    * @throws {Error} If file validation fails, S3 upload fails, analysis fails, or database operations fail
    */
   async uploadInvoice(fileData) {
-    let invoice;
     try {
-      // Destructure setelah validasi
+      // Validate file data
       this.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
-
-      const invoiceData = await this.uploadFile(fileData)
-
-      invoice = await this.createInvoiceRecord(invoiceData.partner_id, invoiceData.file_url);
-
-      // 1. Gunakan method analyzeInvoice untuk memproses dokumen
-      const analysisResult = await this.analyzeInvoice(buffer);
-      const { invoiceData2, customerData, vendorData, itemsData } = this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
-      await this.updateInvoiceRecord(invoice.id, invoiceData2);
-      await this.updateCustomerAndVendorData(invoice.id, customerData, vendorData);
-      await this.saveInvoiceItems(invoice.id, itemsData);
-      return this.buildResponse(invoice);
-    } catch (error) {
-      if (invoice?.id) {
-        await Invoice.update({ status: "Failed" }, { where: { id: invoice.id } });
+      
+      // Generate UUID untuk invoice
+      const invoiceUuid = uuidv4();
+      
+      // Upload file ke S3
+      let s3Result;
+      try {
+        s3Result = await this.uploadFile(fileData);
+      } catch (error) {
+        console.error("Error uploading to S3:", error);
+        throw new Error("Failed to upload file to S3");
       }
-      console.error("Error processing invoice:", error);
-      throw new Error("Failed to process invoice: " + error.message);
+
+      // Buat record invoice awal dengan status "Processing"
+      // Explisit set id dengan UUID yang digenerate
+      const invoice = await Invoice.create({
+        id: invoiceUuid,
+        status: "Processing",
+        partner_id: partnerId,
+        file_url: s3Result.file_url,
+        original_filename: originalname,
+        file_size: buffer.length,
+      });
+      
+      // Mulai processing di background (tidak await)
+      this.processInvoiceAsync(invoice.id, buffer, partnerId, originalname, invoiceUuid);
+      
+      // Kembalikan UUID dan status segera
+      return {
+        message: "Invoice upload initiated",
+        id: invoiceUuid, 
+        status: "Processing"
+      };
+    } catch (error) {
+      console.error("Error in uploadInvoice:", error);
+      throw new Error(`Failed to process invoice: ${error.message}`);
+    }
+  }
+
+  /**
+   * Process invoice asynchronously in background
+   * @private
+   */
+  async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid) {
+    try {
+      Sentry.addBreadcrumb({
+        category: "invoiceProcessing",
+        message: `Starting async processing for invoice ${uuid}`,
+        level: "info"
+      });
+      
+      // 1. Analisis invoice menggunakan Azure
+      const analysisResult = await this.analyzeInvoice(buffer);
+      
+      // 2. Map hasil analisis ke model data
+      const { invoiceData, customerData, vendorData, itemsData } = 
+        this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
+      
+      // 3. Update record invoice dengan data hasil analisis
+      await this.updateInvoiceRecord(invoiceId, invoiceData);
+      
+      // 4. Update data customer dan vendor
+      await this.updateCustomerAndVendorData(invoiceId, customerData, vendorData);
+      
+      // 5. Simpan item invoice
+      await this.saveInvoiceItems(invoiceId, itemsData);
+      
+      // 6. Update status menjadi "Analyzed"
+      await Invoice.update({ status: "Analyzed" }, { where: { id: invoiceId } });
+      
+      Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
+    } catch (error) {
+      console.error(`Error in async processing for invoice ${uuid}:`, error);
+      Sentry.captureException(error);
+      
+      // Update status menjadi "Failed" jika processing gagal
+      await Invoice.update({ status: "Failed" }, { where: { id: invoiceId } });
     }
   }
 
@@ -87,15 +146,39 @@ class InvoiceService extends FinancialDocumentService {
     if (!analysisResult?.data) {
       throw new Error("Failed to analyze invoice: No data returned");
     }
-    const { invoiceData: invoiceData2, customerData, vendorData, itemsData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
-    invoiceData2.original_filename = originalname;
-    invoiceData2.file_size = fileSize;
-    return { invoiceData2, customerData, vendorData, itemsData };
+    
+    const { invoiceData, customerData, vendorData, itemsData } = 
+      this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+      
+    // Tambahkan metadata file
+    invoiceData.original_filename = originalname;
+    invoiceData.file_size = fileSize;
+    
+    console.log("Invoice data mapped:", JSON.stringify(invoiceData, null, 2));
+    
+    // Return dengan nama yang konsisten
+    return { invoiceData, customerData, vendorData, itemsData };
   }
 
-  async updateInvoiceRecord(invoiceId, invoiceData2) {
-    await Invoice.update(invoiceData2, { where: { id: invoiceId } });
-    await Invoice.update({ status: "Analyzed" }, { where: { id: invoiceId } });
+  async updateInvoiceRecord(invoiceId, invoiceData) {
+    try {
+      // Log data dengan nama variabel yang konsisten
+      console.log("Data yang akan diupdate ke Invoice:", JSON.stringify(invoiceData, null, 2));
+      
+      if (!invoiceData) {
+        console.error("Invoice data is undefined!");
+        return;
+      }
+      
+      // Update invoice dengan data lengkap
+      await Invoice.update(invoiceData, { where: { id: invoiceId } });
+      console.log(`Invoice data updated for ${invoiceId}`);
+      
+      // Status diupdate dalam langkah terpisah (sudah benar)
+    } catch (error) {
+      console.error("Error updating invoice:", error);
+      throw new Error(`Failed to update invoice: ${error.message}`);
+    }
   }
 
   async updateCustomerAndVendorData(invoiceId, customerData, vendorData) {
@@ -146,17 +229,24 @@ class InvoiceService extends FinancialDocumentService {
 
         const [item] = await Item.findOrCreate({
           where: { description: itemData.description },
-          defaults: { description: itemData.description }
+          defaults: { 
+            uuid: uuidv4(), 
+            description: itemData.description 
+          }
         });
         
+        // Generate UUID untuk item dokumen
+        const documentItemId = uuidv4();
+        
         await FinancialDocumentItem.create({
+          id: documentItemId, 
           document_type: 'Invoice',
           document_id: invoiceId, 
           item_id: item.uuid,
-          quantity: itemData.quantity,
-          unit: itemData.unit,
-          unit_price: itemData.unitPrice,
-          amount: itemData.amount
+          quantity: itemData.quantity || 0,
+          unit: itemData.unit || null,
+          unit_price: itemData.unit_price || 0,
+          amount: itemData.amount || 0
         });
       }
   
@@ -185,7 +275,10 @@ class InvoiceService extends FinancialDocumentService {
 
   async getInvoiceById(id) {
     try {
-      const invoice = await Invoice.findByPk(id);
+      // Ubah dari findByPk ke findOne with where clause untuk mencari berdasarkan uuid
+      const invoice = await Invoice.findOne({ 
+        where: { uuid: id }
+      });
 
       if (!invoice) {
         throw new Error("Invoice not found");
@@ -206,12 +299,14 @@ class InvoiceService extends FinancialDocumentService {
           invoiceData.vendor = vendor.get({ plain: true });
         }
       }
+      
       const invoiceItems = await FinancialDocumentItem.findAll({
         where: { 
           document_type: 'Invoice', 
           document_id: id 
         }
       });
+      
       const itemsWithDetails = [];
       for (const item of invoiceItems) {
         const itemData = item.get({ plain: true });
