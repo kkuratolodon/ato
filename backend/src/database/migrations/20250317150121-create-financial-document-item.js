@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  async up(queryInterface, Sequelize) {
+  async up(queryInterface, _Sequelize) {
     try {
       // 1. Periksa tipe data kolom uuid di tabel Item
       const [itemColResults] = await queryInterface.sequelize.query(
@@ -65,7 +65,7 @@ module.exports = {
     }
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface, _Sequelize) {
     try {
       await queryInterface.dropTable('FinancialDocumentItem');
       console.log('FinancialDocumentItem table dropped');

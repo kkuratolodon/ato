@@ -1,9 +1,8 @@
 const models = require('../../src/models');
-
 const invoiceService = require('../../src/services/invoiceService');
 const FinancialDocumentService = require('../../src/services/financialDocumentService');
 const s3Service = require('../../src/services/s3Service');
-const { Invoice, Vendor } = require('../../src/models')
+const { Invoice } = require('../../src/models'); 
 const fs = require("fs");
 const path = require("path");
 const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");

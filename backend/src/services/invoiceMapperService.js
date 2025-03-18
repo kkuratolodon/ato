@@ -63,7 +63,6 @@ class AzureInvoiceMapper {
     const invoiceData = {
       invoice_number: invoiceId, 
       invoice_date: invoiceDate,
-      invoice_number: invoiceNumber,
       due_date: dueDate || this.calculateDueDate(invoiceDate, paymentTerms),
       purchase_order_id: purchaseOrderId,
       total_amount: totalAmountAmount,
