@@ -62,20 +62,27 @@ exports.uploadInvoice = async (req, res) => {
 exports.getInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
-    // check positive integer
-    if( !id  || isNaN(id) || parseInt(id) <= 0 ){
-      return res.status(400).json({message: "Invalid invoice ID"});
+    
+    if (!id) {
+      return res.status(400).json({message: "Invoice ID is required"});
     }
-    if(!req.user){
+    
+    if (!req.user) {
       return res.status(401).json({message: "Unauthorized"});
     }
 
-    const invoice = await Invoice.findByPk(id);
+    // Cari invoice berdasarkan UUID, bukan ID numerik
+    const invoice = await Invoice.findOne({ where: { uuid: id } });
+    
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
 
-    if(invoice.partner_id !== req.user.uuid){
+    if (invoice.partner_id !== req.user.uuid) {
       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
     }
 
+    // Method getInvoiceById sudah diubah untuk menerima UUID
     const invoiceDetail = await InvoiceService.getInvoiceById(id);
 
     return res.status(200).json(invoiceDetail);

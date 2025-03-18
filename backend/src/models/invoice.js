@@ -47,6 +47,11 @@ module.exports = (sequelize, DataTypes) => {
   delete financialDocAttributes.updatedAt;
 
   Invoice.init({
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true
+    },
     invoice_id: {
       type: DataTypes.STRING(100),
       allowNull: true

@@ -61,7 +61,7 @@ class AzureInvoiceMapper {
 
     // Build invoice data object matching our model requirements
     const invoiceData = {
-      invoice_id: invoiceId,
+      invoice_number: invoiceId, 
       invoice_date: invoiceDate,
       invoice_number: invoiceNumber,
       due_date: dueDate || this.calculateDueDate(invoiceDate, paymentTerms),
