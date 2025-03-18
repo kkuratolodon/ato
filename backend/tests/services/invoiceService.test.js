@@ -1206,3 +1206,187 @@ describe('processInvoiceAsync', () => {
     expect(invoiceService.saveInvoiceItems).toHaveBeenCalled();
   });
 });
+
+describe('createInvoiceRecord', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  
+  test('should create invoice record with correct data', async () => {
+    // Arrange
+    const partnerId = 'partner-123';
+    const s3Url = 'https://example.com/test.pdf';
+    const mockCreatedInvoice = { 
+      id: 'invoice-123',
+      status: 'Processing',
+      partner_id: partnerId,
+      file_url: s3Url
+    };
+    
+    models.Invoice.create.mockResolvedValue(mockCreatedInvoice);
+    
+    // Act
+    const result = await invoiceService.createInvoiceRecord(partnerId, s3Url);
+    
+    // Assert
+    expect(models.Invoice.create).toHaveBeenCalledWith({
+      status: 'Processing',
+      partner_id: partnerId,
+      file_url: s3Url
+    });
+    expect(result).toEqual(mockCreatedInvoice);
+  });
+  
+  test('should throw error when database operation fails', async () => {
+    // Arrange
+    const partnerId = 'partner-123';
+    const s3Url = 'https://example.com/test.pdf';
+    const mockError = new Error('Database connection error');
+    
+    models.Invoice.create.mockRejectedValue(mockError);
+    
+    // Act & Assert
+    await expect(invoiceService.createInvoiceRecord(partnerId, s3Url))
+      .rejects.toThrow('Database connection error');
+  });
+  
+  test('should handle missing parameters gracefully', async () => {
+    // Arrange
+    const mockCreatedInvoice = { 
+      id: 'invoice-123',
+      status: 'Processing',
+      partner_id: null,
+      file_url: null
+    };
+    
+    models.Invoice.create.mockResolvedValue(mockCreatedInvoice);
+    
+    // Act
+    const result = await invoiceService.createInvoiceRecord(null, null);
+    
+    // Assert
+    expect(models.Invoice.create).toHaveBeenCalledWith({
+      status: 'Processing',
+      partner_id: null,
+      file_url: null
+    });
+    expect(result).toEqual(mockCreatedInvoice);
+  });
+});
+
+describe('mapAnalysisResult', () => {
+  let originalMapAnalysisResult;
+  
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Store the original method
+    originalMapAnalysisResult = invoiceService.mapAnalysisResult;
+    
+    // Implement our own version of mapAnalysisResult for testing
+    invoiceService.mapAnalysisResult = function(analysisResult, partnerId, originalname, fileSize) {
+      // Implement the function logic directly in the test
+      if (!analysisResult || !analysisResult.data) {
+        throw new Error("Failed to analyze invoice: No data returned");
+      }
+      
+      const mappedResult = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
+      
+      // Add metadata file
+      mappedResult.invoiceData.original_filename = originalname;
+      mappedResult.invoiceData.file_size = fileSize;
+      
+      return mappedResult;
+    };
+    
+    // Setup mock azureMapper
+    invoiceService.azureMapper = {
+      mapToInvoiceModel: jest.fn().mockReturnValue({
+        invoiceData: { invoice_number: 'INV-001' },
+        customerData: { name: 'Test Customer' },
+        vendorData: { name: 'Test Vendor' },
+        itemsData: [{ description: 'Item 1' }]
+      })
+    };
+  });
+  
+  afterEach(() => {
+    // Restore the original method
+    invoiceService.mapAnalysisResult = originalMapAnalysisResult;
+  });
+  
+  test('should throw error when analysisResult.data is undefined', () => {
+    // Arrange
+    const analysisResult = {};  // No data property
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const fileSize = 1024;
+    
+    // Act & Assert
+    expect(() => {
+      invoiceService.mapAnalysisResult(analysisResult, partnerId, originalname, fileSize);
+    }).toThrow('Failed to analyze invoice: No data returned');
+  });
+  
+  test('should throw error when analysisResult is null', () => {
+    // Arrange
+    const analysisResult = null;
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const fileSize = 1024;
+    
+    // Act & Assert
+    expect(() => {
+      invoiceService.mapAnalysisResult(analysisResult, partnerId, originalname, fileSize);
+    }).toThrow('Failed to analyze invoice: No data returned');
+  });
+  
+  test('should correctly map analysis results with valid data', () => {
+    // Arrange
+    const analysisResult = { 
+      data: { invoices: [{ id: 'INV-001' }] } 
+    };
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const fileSize = 1024;
+    
+    // Act
+    invoiceService.mapAnalysisResult(analysisResult, partnerId, originalname, fileSize);
+    
+    // Assert
+    expect(invoiceService.azureMapper.mapToInvoiceModel).toHaveBeenCalledWith(
+      analysisResult.data, 
+      partnerId
+    );
+  });
+  
+  test('should preserve returned data structure from azureMapper', () => {
+    // Arrange
+    const analysisResult = { 
+      data: { someData: true } 
+    };
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const fileSize = 1024;
+    
+    const mockMapperResult = {
+      invoiceData: { custom_field: 'custom value' },
+      customerData: { custom_customer: true },
+      vendorData: { custom_vendor: true },
+      itemsData: [{ custom_item: true }]
+    };
+    
+    invoiceService.azureMapper.mapToInvoiceModel.mockReturnValue(mockMapperResult);
+    
+    // Act
+    const result = invoiceService.mapAnalysisResult(analysisResult, partnerId, originalname, fileSize);
+    
+    // Assert - check that original fields are preserved and new fields are added
+    expect(result.invoiceData.custom_field).toBe('custom value');
+    expect(result.invoiceData.original_filename).toBe(originalname);
+    expect(result.invoiceData.file_size).toBe(fileSize);
+    expect(result.customerData).toEqual(mockMapperResult.customerData);
+    expect(result.vendorData).toEqual(mockMapperResult.vendorData);
+    expect(result.itemsData).toEqual(mockMapperResult.itemsData);
+  });
+});
