@@ -587,36 +587,40 @@ describe("getInvoiceById", () => {
   });
   describe("Positive Cases",() => {
     test("Should return an invoice when given a valid ID", async () => {
-      // Setup
-      const mockUuid = "valid-uuid-123";
-      req.params = { id: mockUuid };
-      req.user = { uuid: "partner-123" };
-      
-      // Mock invoice dengan UUID
-      const mockInvoice = {
-        uuid: mockUuid,
-        partner_id: "partner-123",
-        status: "Analyzed"
-      };
-      
-      // Update mock untuk mencari dengan UUID
-      Invoice.findOne = jest.fn().mockResolvedValue(mockInvoice);
-      
-      // Mock hasil dari service
+      req.user = { uuid: "uuid" };
+      req.params = { id: 1 };
+    
+      // Ensure mock returns the correct `partner_id`
+      invoiceService.getPartnerId = jest.fn().mockResolvedValue("uuid"); // Mock correctly
+    
+      // Dummy invoice for service response
       const mockFormattedResponse = {
-        header: { invoice_details: {} },
-        items: []
+        id: 1,
+        invoice_date: "2025-02-01",
+        due_date: "2025-03-01",
+        purchase_order_id: "12345",
+        total_amount: 500.0,
+        subtotal_amount: 450.0,
+        discount_amount: 50.0,
+        payment_terms: "Net 30",
+        file_url: "https://example.com/invoice.pdf",
+        status: "Analyzed",
+        partner_id: "uuid",
+        customer_id: "cust123",
+        vendor_id: "vend456",
+        createdAt: "2025-03-11T16:03:00.000Z",
+        updatedAt: "2025-03-11T16:03:07.000Z",
       };
-      invoiceService.getInvoiceById = jest.fn().mockResolvedValue(mockFormattedResponse);
-      
+    
+      // Mock getInvoiceById service response
+      invoiceService.getInvoiceById.mockResolvedValue(mockFormattedResponse);
+    
       await getInvoiceById(req, res);
-      
-      expect(Invoice.findOne).toHaveBeenCalledWith({
-        where: { id: mockUuid }
-      });
+    
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(mockFormattedResponse);
     });
+    
   });
 
   describe("Negative - Authorization Cases",() => {
@@ -648,82 +652,69 @@ describe("getInvoiceById", () => {
       await getInvoiceById(req, res);
       
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Forbidden: You do not have access to this invoice"
-      });
-    });
+      expect(res.json).toHaveBeenCalledWith({message: "Forbidden: You do not have access to this invoice"});
+  
+      
+    })
   })
 
   describe("Negative - Error Handling",() => {
     test("Should return 404 when invoice is not found", async () => {
-      // Setup
-      const mockUuid = "non-existent-uuid";
-      req.params = { id: mockUuid };
-      req.user = { uuid: "partner-123" };
-      
-      // Invoice tidak ditemukan
-      Invoice.findOne = jest.fn().mockResolvedValue(null);
-      
+      req.user = { uuid: "valid-user-uuid" }; // ✅ Use a valid user
+      req.params = { id: 999 }; // ✅ Use an invoice ID that does not exist
+    
+      // ✅ Mock `getPartnerId` to return a valid user (to bypass 403 Forbidden)
+      invoiceService.getPartnerId = jest.fn().mockResolvedValue("valid-user-uuid");
+    
+      // ✅ Mock `getInvoiceById` to THROW an error instead of returning `null`
+      invoiceService.getInvoiceById = jest.fn().mockRejectedValue(new Error("Invoice not found"));
+    
       await getInvoiceById(req, res);
-      
+    
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ message: "Invoice not found" });
-    });
-    
+    });    
+  
     test("Should return 500 when internal server error occurs", async () => {
-      req.user = {uuid: "dummy-uuid"};
-      req.params = {id: "test-uuid-123"}; // Gunakan UUID string, bukan ID numerik
-      
-      // Gunakan findOne sesuai implementasi terbaru
-      Invoice.findOne = jest.fn().mockRejectedValue(new Error("Internal server error"));
-      
+      req.user = { uuid: "dummy-uuid" };
+      req.params = { id: 1 };
+  
+      // Mock `getPartnerId` to throw an unexpected error
+      invoiceService.getPartnerId = jest.fn().mockRejectedValue(new Error("Internal server error"));
+  
       await getInvoiceById(req, res);
   
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({message: "Internal server error"});
+      expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
     });
-
-    test("Should return 404 when InvoiceService throws 'Invoice not found' error", async () => {
-      // Setup
-      const mockUuid = "valid-uuid-exists-in-db";
-      req.params = { id: mockUuid };
-      req.user = { uuid: "partner-123" };
-      
-      // Mock invoice exists in DB and passes authorization check
-      const mockInvoice = {
-        uuid: mockUuid,
-        partner_id: "partner-123",
-        status: "Analyzed"
-      };
-      
-      // First query to check if invoice exists succeeds
-      Invoice.findOne = jest.fn().mockResolvedValue(mockInvoice);
-      
-      // But the service method throws "Invoice not found" error
-      // This could happen if the invoice record exists but related data is missing
-      invoiceService.getInvoiceById = jest.fn().mockRejectedValue(
-        new Error("Invoice not found")
-      );
-      
-      await getInvoiceById(req, res);
-      
-      // Should trigger the specific catch block we want to test
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ message: "Invoice not found" });
-      
-      // Verify that both the findOne and getInvoiceById were called
-      expect(Invoice.findOne).toHaveBeenCalled();
-      expect(invoiceService.getInvoiceById).toHaveBeenCalledWith(mockUuid);
-    });
-  })
+  
+  });
+  
 
   describe("Corner Cases",() => {
-    test("should return 400 if ID is null", async () => {
+    test("should return 400 if ID is not a number",async () => {
+      req.user = { uuid: "dummy-uuid" };
+      req.params = { id: "invalid-id" };
+      await getInvoiceById(req,res);
+  
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({message: "Invalid invoice ID"});
+    })  
+  
+    test("should return 400 if ID is null",async () => {
+      req.user = { uuid: "dummy-uuid" };
       req.params = { id: null };
-      req.user = { uuid: "partner-123" };
-      
-      await getInvoiceById(req, res);
-      
+      await getInvoiceById(req,res);
+  
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({message: "Invalid invoice ID"});
+    })  
+  
+    test("should return 400 if ID is negative",async () => {
+      req.user = { uuid: "dummy-uuid" };
+      req.params = { id: -5 };
+      await getInvoiceById(req,res);
+  
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ message: "Invoice ID is required" });
     });
