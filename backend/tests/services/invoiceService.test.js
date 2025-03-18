@@ -280,7 +280,7 @@ describe("getInvoiceById", () => {
     const result = await invoiceService.getInvoiceById('1');
 
     expect(models.Invoice.findOne).toHaveBeenCalledWith({
-      where: { uuid: '1' }
+      where: { id: '1' }
     });
 
     expect(result).toHaveProperty('header');

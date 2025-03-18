@@ -612,7 +612,7 @@ describe("getInvoiceById", () => {
       await getInvoiceById(req, res);
       
       expect(Invoice.findOne).toHaveBeenCalledWith({
-        where: { uuid: mockUuid }
+        where: { id: mockUuid }
       });
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(mockFormattedResponse);
