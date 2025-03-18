@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  async up(queryInterface, _Sequelize) {
+  async up(queryInterface, Sequelize) {
     try {
       // 1. Hapus tabel Invoice jika sudah ada untuk clean slate
       try {
@@ -117,7 +117,7 @@ module.exports = {
     }
   },
 
-  async down(queryInterface, _Sequelize) {
+  async down(queryInterface) {
     try {
       await queryInterface.dropTable('Invoice');
       console.log('Invoice table dropped in down migration');
