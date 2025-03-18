@@ -61,6 +61,7 @@ class FinancialDocumentController {
         await pdfValidationService.validatePdfPageCount(buffer);
         
       } catch (error) {
+        console.error("PDF Validation Error:", error); 
         if (error.message === "PDF has no pages.") {
             return safeResponse(res, 400, "PDF has no pages.");
         }

@@ -116,7 +116,9 @@ class PdfValidationService {
      */
     async validatePdfPageCount(fileBuffer) {
         try {
-            const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
+            const uint8ArrayBuffer = new Uint8Array(fileBuffer);
+
+            const loadingTask = pdfjsLib.getDocument({ data: uint8ArrayBuffer });
             const pdfDocument = await loadingTask.promise;
             const pageCount = pdfDocument.numPages;
 
