@@ -926,3 +926,61 @@ describe("getInvoiceById - Additional Error Cases", () => {
     expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
   });
 });
+
+/* ------------------------------------------------------------------
+   6) FINANCIAL DOCUMENT CONTROLLER - S3 Upload Error
+   ------------------------------------------------------------------ */
+describe("Financial Document Controller - S3 Upload Error", () => {
+  let req, res;
+  
+  beforeEach(() => {
+    req = mockRequest();
+    res = mockResponse();
+    jest.clearAllMocks();
+    
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+    
+    // Set up passing validations
+    pdfValidationService.validatePDF.mockResolvedValue(true);
+    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
+    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
+    pdfValidationService.validateSizeFile.mockResolvedValue(true);
+  });
+
+  test("should handle S3 upload failure with specific error message", async () => {
+    // Import FinancialDocumentController
+    const FinancialDocumentController = require("../../src/controllers/financialDocumentController");
+    
+    // Mock service with specific S3 error
+    const mockService = {
+      uploadInvoice: jest.fn().mockRejectedValue(
+        new Error("Failed to upload file to S3: Network error")
+      )
+    };
+    
+    // Create a controller instance with the mocked service
+    const docController = new FinancialDocumentController(mockService, "Invoice");
+    
+    // Call uploadFile method which should trigger the S3 error handling
+    await docController.uploadFile(req, res);
+    
+    // Verify correct error response
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "Failed to upload document. Please try again." 
+    });
+    
+    // Verify the service was called with correct parameters
+    expect(mockService.uploadInvoice).toHaveBeenCalledWith({
+      originalname: req.file.originalname,
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
+      partnerId: req.user.uuid
+    });
+  });
+});
