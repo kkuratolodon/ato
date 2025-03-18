@@ -69,10 +69,9 @@ exports.getInvoiceById = async (req, res) => {
     if(!req.user){
       return res.status(401).json({message: "Unauthorized"});
     }
-
-    const invoice = await Invoice.findByPk(id);
-
-    if(invoice.partner_id !== req.user.uuid){
+    const invoicePartnerId = await InvoiceService.getPartnerId(id);
+    
+    if(invoicePartnerId !== req.user.uuid){
       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
     }
 
