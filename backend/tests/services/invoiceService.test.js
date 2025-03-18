@@ -58,6 +58,19 @@ jest.mock('uuid', () => ({
   v4: jest.fn().mockReturnValue('mocked-uuid-123')
 }));
 
+// Tambahkan di awal file - mock global untuk Sentry untuk menghindari issues
+jest.mock('@sentry/node', () => ({
+  init: jest.fn(),
+  startSpan: jest.fn((_, callback) => callback({ 
+    setAttribute: jest.fn(),
+    setStatus: jest.fn(),
+    end: jest.fn() 
+  })),
+  captureMessage: jest.fn(),
+  captureException: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
+
 describe('uploadInvoice', () => {
   const TEST_FILE_PATH = path.join(__dirname, '..', 'controllers', 'test-files', 'test-invoice.pdf');
   const TEST_FILE = { buffer: fs.readFileSync(TEST_FILE_PATH) };
@@ -939,5 +952,257 @@ describe('saveInvoiceItems', () => {
       
     expect(models.Item.findOrCreate).toHaveBeenCalledTimes(1);
     expect(models.FinancialDocumentItem.create).not.toHaveBeenCalled();
+  });
+});
+
+// Test untuk processInvoiceAsync
+describe('processInvoiceAsync', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Mock semua metode yang dipanggil dalam proses
+    jest.spyOn(invoiceService, 'analyzeInvoice').mockImplementation();
+    jest.spyOn(invoiceService, 'mapAnalysisResult').mockImplementation();
+    jest.spyOn(invoiceService, 'updateInvoiceRecord').mockImplementation();
+    jest.spyOn(invoiceService, 'updateCustomerAndVendorData').mockImplementation();
+    jest.spyOn(invoiceService, 'saveInvoiceItems').mockImplementation();
+    
+    // Mock Invoice.update
+    models.Invoice.update = jest.fn().mockResolvedValue([1]);
+  });
+  
+  test('should process invoice asynchronously and update status to Analyzed', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+    
+    const mockAnalysisResult = { data: 'test-analysis' };
+    const mockMappedResults = {
+      invoiceData: { invoice_number: 'INV-001' },
+      customerData: { name: 'Test Customer' },
+      vendorData: { name: 'Test Vendor' },
+      itemsData: [{ description: 'Item 1', quantity: 2 }]
+    };
+    
+    // Setup mocks to return values
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    
+    // Assert
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalledWith(buffer);
+    expect(invoiceService.mapAnalysisResult).toHaveBeenCalledWith(
+      mockAnalysisResult, partnerId, originalname, buffer.length
+    );
+    expect(invoiceService.updateInvoiceRecord).toHaveBeenCalledWith(
+      invoiceId, mockMappedResults.invoiceData
+    );
+    expect(invoiceService.updateCustomerAndVendorData).toHaveBeenCalledWith(
+      invoiceId, mockMappedResults.customerData, mockMappedResults.vendorData
+    );
+    expect(invoiceService.saveInvoiceItems).toHaveBeenCalledWith(
+      invoiceId, mockMappedResults.itemsData
+    );
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Analyzed' },
+      { where: { id: invoiceId } }
+    );
+  });
+  
+  test('should handle error during analyzeInvoice and update status to Failed', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+    
+    const testError = new Error('Analysis failed');
+    invoiceService.analyzeInvoice.mockRejectedValue(testError);
+    
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    
+    // Assert
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Failed' },
+      { where: { id: invoiceId } }
+    );
+    // Verifikasi langkah-langkah berikutnya tidak dipanggil
+    expect(invoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
+  });
+  
+  test('should handle error during mapAnalysisResult and update status to Failed', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+    
+    const mockAnalysisResult = { data: 'test-analysis' };
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    
+    const testError = new Error('Mapping failed');
+    invoiceService.mapAnalysisResult.mockImplementation(() => { throw testError; });
+    
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    
+    // Assert
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Failed' },
+      { where: { id: invoiceId } }
+    );
+    // Verifikasi langkah-langkah berikutnya tidak dipanggil
+    expect(invoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
+  });
+  
+  test('should handle error during updateInvoiceRecord and update status to Failed', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+    
+    const mockAnalysisResult = { data: 'test-analysis' };
+    const mockMappedResults = {
+      invoiceData: { invoice_number: 'INV-001' },
+      customerData: { name: 'Test Customer' },
+      vendorData: { name: 'Test Vendor' },
+      itemsData: [{ description: 'Item 1', quantity: 2 }]
+    };
+    
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    
+    const testError = new Error('Database update error');
+    invoiceService.updateInvoiceRecord.mockRejectedValue(testError);
+    
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    
+    // Assert
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
+    expect(invoiceService.updateInvoiceRecord).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Failed' },
+      { where: { id: invoiceId } }
+    );
+    // Verifikasi langkah-langkah berikutnya tidak dipanggil
+    expect(invoiceService.updateCustomerAndVendorData).not.toHaveBeenCalled();
+  });
+  
+  test('should handle error during updateCustomerAndVendorData and update status to Failed', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+    
+    const mockAnalysisResult = { data: 'test-analysis' };
+    const mockMappedResults = {
+      invoiceData: { invoice_number: 'INV-001' },
+      customerData: { name: 'Test Customer' },
+      vendorData: { name: 'Test Vendor' },
+      itemsData: [{ description: 'Item 1', quantity: 2 }]
+    };
+    
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    
+    const testError = new Error('Customer/vendor update error');
+    invoiceService.updateCustomerAndVendorData.mockRejectedValue(testError);
+    
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    
+    // Assert
+    expect(invoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Failed' },
+      { where: { id: invoiceId } }
+    );
+    // Verifikasi langkah-langkah berikutnya tidak dipanggil
+    expect(invoiceService.saveInvoiceItems).not.toHaveBeenCalled();
+  });
+  
+  test('should handle error during saveInvoiceItems and update status to Failed', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+    
+    const mockAnalysisResult = { data: 'test-analysis' };
+    const mockMappedResults = {
+      invoiceData: { invoice_number: 'INV-001' },
+      customerData: { name: 'Test Customer' },
+      vendorData: { name: 'Test Vendor' },
+      itemsData: [{ description: 'Item 1', quantity: 2 }]
+    };
+    
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    
+    const testError = new Error('Item save error');
+    invoiceService.saveInvoiceItems.mockRejectedValue(testError);
+    
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    
+    // Assert
+    expect(invoiceService.saveInvoiceItems).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Failed' },
+      { where: { id: invoiceId } }
+    );
+  });
+  
+  test('should handle error during final status update', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+    
+    const mockAnalysisResult = { data: 'test-analysis' };
+    const mockMappedResults = {
+      invoiceData: { invoice_number: 'INV-001' },
+      customerData: { name: 'Test Customer' },
+      vendorData: { name: 'Test Vendor' },
+      itemsData: [{ description: 'Item 1', quantity: 2 }]
+    };
+    
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    
+    const testError = new Error('Final status update error');
+    models.Invoice.update
+      .mockResolvedValueOnce([1]) // Berhasil untuk update lain
+      .mockRejectedValueOnce(testError); // Gagal untuk update status Analyzed
+    
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    
+    // Assert - Semua fungsi telah dipanggil
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
+    expect(invoiceService.updateInvoiceRecord).toHaveBeenCalled();
+    expect(invoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
+    expect(invoiceService.saveInvoiceItems).toHaveBeenCalled();
   });
 });
