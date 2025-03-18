@@ -70,15 +70,9 @@ exports.getInvoiceById = async (req, res) => {
     if (!req.user) {
       return res.status(401).json({message: "Unauthorized"});
     }
-
-    // Cari invoice berdasarkan UUID, bukan ID numerik
-    const invoice = await Invoice.findOne({ where: { id: id } });
+    const invoicePartnerId = await InvoiceService.getPartnerId(id);
     
-    if (!invoice) {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-
-    if (invoice.partner_id !== req.user.uuid) {
+    if(invoicePartnerId !== req.user.uuid){
       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
     }
 
