@@ -953,6 +953,116 @@ describe('saveInvoiceItems', () => {
     expect(models.Item.findOrCreate).toHaveBeenCalledTimes(1);
     expect(models.FinancialDocumentItem.create).not.toHaveBeenCalled();
   });
+
+  test('should apply fallback values when item data fields are missing or falsy', async () => {
+    // Arrange
+    const invoiceId = '1';
+    const itemsWithMissingValues = [
+      { 
+        description: 'Item with missing values' 
+        // quantity, unit, unit_price, and amount are missing
+      },
+      { 
+        description: 'Item with null values',
+        quantity: null,
+        unit: null,
+        unit_price: null,  // Changed from unitPrice to unit_price
+        amount: null 
+      },
+      { 
+        description: 'Item with zero values',
+        quantity: 0,
+        unit_price: 0,  // Changed from unitPrice to unit_price
+        amount: 0
+      }
+    ];
+    
+    // Mock uuid
+    const mockUuid = jest.spyOn(require('uuid'), 'v4');
+    mockUuid.mockReturnValue('test-document-item-uuid');
+    
+    // Mock findOrCreate to return consistent test item
+    models.Item.findOrCreate.mockResolvedValue([{ uuid: 'test-item-uuid' }]);
+    
+    // Act
+    await invoiceService.saveInvoiceItems(invoiceId, itemsWithMissingValues);
+    
+    // Assert
+    
+    // Check first call (missing values)
+    expect(models.FinancialDocumentItem.create.mock.calls[0][0]).toEqual({
+      id: 'test-document-item-uuid',
+      document_type: 'Invoice',
+      document_id: invoiceId,
+      item_id: 'test-item-uuid',
+      quantity: 0,            // Default value applied
+      unit: null,             // Default value applied
+      unit_price: 0,          // Default value applied
+      amount: 0               // Default value applied
+    });
+    
+    // Check second call (null values)
+    expect(models.FinancialDocumentItem.create.mock.calls[1][0]).toEqual({
+      id: 'test-document-item-uuid',
+      document_type: 'Invoice',
+      document_id: invoiceId,
+      item_id: 'test-item-uuid',
+      quantity: 0,            // Default value applied
+      unit: null,             // Null preserved
+      unit_price: 0,          // Default value applied
+      amount: 0               // Default value applied
+    });
+    
+    // Check third call (zero values)
+    expect(models.FinancialDocumentItem.create.mock.calls[2][0]).toEqual({
+      id: 'test-document-item-uuid',
+      document_type: 'Invoice',
+      document_id: invoiceId,
+      item_id: 'test-item-uuid',
+      quantity: 0,            // Zero preserved
+      unit: null,             // Default value applied
+      unit_price: 0,          // Zero preserved
+      amount: 0               // Zero preserved
+    });
+    
+    // Should have been called 3 times (once per item)
+    expect(models.FinancialDocumentItem.create).toHaveBeenCalledTimes(3);
+  });
+
+  test('should correctly handle item data with all fields present', async () => {
+    // Arrange
+    const invoiceId = '1';
+    const completeItemData = {
+      description: 'Complete Item',
+      quantity: 5,
+      unit: 'kg',
+      unitPrice: 0, 
+      amount: 54.95
+    };
+    
+    // Mock uuid
+    const mockUuid = jest.spyOn(require('uuid'), 'v4');
+    mockUuid.mockReturnValueOnce('item-uuid').mockReturnValueOnce('doc-item-uuid');
+    
+    // Mock findOrCreate to return test item
+    models.Item.findOrCreate.mockResolvedValue([{ uuid: 'test-item-uuid' }]);
+    
+    // Act
+    await invoiceService.saveInvoiceItems(invoiceId, [completeItemData]);
+    
+    // Assert
+    expect(models.FinancialDocumentItem.create).toHaveBeenCalledWith({
+      id: 'doc-item-uuid',
+      document_type: 'Invoice',
+      document_id: invoiceId,
+      item_id: 'test-item-uuid',
+      quantity: 5,
+      unit: 'kg',
+      unit_price: 0,
+      amount: 54.95
+    });
+  });
+
 });
 
 // Test untuk processInvoiceAsync
