@@ -25,9 +25,6 @@ class AzureInvoiceMapper {
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);
 
-    // Extract invoice number (check multiple possible field names)
-    // const invoiceNumber = this.extractInvoiceNumber(fields);
-
     // Extract purchase order ID
     const purchaseOrderId = this.parsePurchaseOrderId(fields.PurchaseOrder);
     // Extract monetary values
