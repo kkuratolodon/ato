@@ -277,7 +277,7 @@ class InvoiceService extends FinancialDocumentService {
     try {
       // Ubah dari findByPk ke findOne with where clause untuk mencari berdasarkan uuid
       const invoice = await Invoice.findOne({ 
-        where: { uuid: id }
+        where: { id: id } 
       });
 
       if (!invoice) {
@@ -285,7 +285,14 @@ class InvoiceService extends FinancialDocumentService {
       }
 
       const invoiceData = invoice.get({ plain: true });
-
+    
+      const invoiceItems = await FinancialDocumentItem.findAll({
+        where: { 
+          document_type: 'Invoice', 
+          document_id: id 
+        }
+      });
+    
       if (invoiceData.customer_id) {
         const customer = await Customer.findByPk(invoiceData.customer_id);
         if (customer) {
@@ -299,13 +306,6 @@ class InvoiceService extends FinancialDocumentService {
           invoiceData.vendor = vendor.get({ plain: true });
         }
       }
-      
-      const invoiceItems = await FinancialDocumentItem.findAll({
-        where: { 
-          document_type: 'Invoice', 
-          document_id: id 
-        }
-      });
       
       const itemsWithDetails = [];
       for (const item of invoiceItems) {
@@ -332,7 +332,7 @@ class InvoiceService extends FinancialDocumentService {
       const formattedResponse = {
         header: {
           invoice_details: {
-            invoice_id: invoiceData.invoice_id,
+            invoice_number: invoiceData.invoice_number,
             purchase_order_id: invoiceData.purchase_order_id,
             invoice_date: invoiceData.invoice_date,
             due_date: invoiceData.due_date,
@@ -480,7 +480,7 @@ class InvoiceService extends FinancialDocumentService {
             throw new Error("Failed to process the document");
           }
         } finally {
-          span.end(); // Ensure transaction is always finished
+          span.end(); 
         }
       }
     );

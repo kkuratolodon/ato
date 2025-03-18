@@ -52,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true
     },
-    invoice_id: {
+    invoice_number: {
       type: DataTypes.STRING(100),
       allowNull: true
     },

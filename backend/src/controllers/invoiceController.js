@@ -72,7 +72,7 @@ exports.getInvoiceById = async (req, res) => {
     }
 
     // Cari invoice berdasarkan UUID, bukan ID numerik
-    const invoice = await Invoice.findOne({ where: { uuid: id } });
+    const invoice = await Invoice.findOne({ where: { id: id } });
     
     if (!invoice) {
       return res.status(404).json({ message: "Invoice not found" });
