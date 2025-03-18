@@ -1,7 +1,6 @@
 const InvoiceService = require('../services/invoiceService');
 const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
-const { Invoice } = require('../models');
 
 const upload = multer({
   storage: multer.memoryStorage()
