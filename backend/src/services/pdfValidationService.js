@@ -1,5 +1,5 @@
-console.log("Loading pdfValidationService.js at path:", __filename);
 const path = require("path");
+const pdfjsLib = require("pdfjs-dist");
 
 class PdfValidationService {
     /**
@@ -102,6 +102,41 @@ class PdfValidationService {
         const matches = regex.exec(startXrefSection);
 
         return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
+    }
+
+    /**
+     * Validates the number of pages in a PDF file.
+     * 
+     * This function ensures that the PDF has at least 1 page 
+     * and does not exceed 100 pages.
+     * 
+     * @param {Buffer} fileBuffer - Buffer containing the PDF file data
+     * @returns {Promise<boolean>} - Returns true if the PDF has a valid page count
+     * @throws {Error} - Throws an error if the PDF is empty or exceeds the limit
+     */
+    async validatePdfPageCount(fileBuffer) {
+        try {
+            const uint8ArrayBuffer = new Uint8Array(fileBuffer);
+
+            const loadingTask = pdfjsLib.getDocument({ data: uint8ArrayBuffer });
+            const pdfDocument = await loadingTask.promise;
+            const pageCount = pdfDocument.numPages;
+
+            if (pageCount === 0) {
+                throw new Error("PDF has no pages.");
+            }
+
+            if (pageCount > 100) {
+                throw new Error("PDF exceeds the maximum allowed pages (100).");
+            }
+
+            return true;
+        } catch (error) {
+            if (error.message === "PDF has no pages." || error.message === "PDF exceeds the maximum allowed pages (100).") {
+                throw error;
+            }
+            throw new Error("Failed to read PDF page count.");
+        }
     }
 }
 

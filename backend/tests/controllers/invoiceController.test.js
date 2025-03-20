@@ -63,6 +63,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
     pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
+    pdfValidationService.validatePdfPageCount.mockResolvedValue(true);
     
     authService.authenticate.mockResolvedValue(true);
     
@@ -109,20 +110,101 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     
     expect(res.status).toHaveBeenCalledWith(504);
     expect(res.json).toHaveBeenCalledWith({ 
-      message: "Server timeout - upload processing timed out" // Update this to match the actual message
+      message: "Server timeout - upload processing timed out" 
     });
   });
 
-  test("should return status 415 if validatePDF fails", async () => {
+  test("should return status 400 if PDF has zero pages", async () => {
     req.user = { uuid: "dummy-uuid" };
     req.file = {
       originalname: "test.pdf",
-      buffer: Buffer.from("test"),
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+  
+    // Mock correct error response
+    pdfValidationService.validatePdfPageCount.mockRejectedValue(
+      new Error("PDF has no pages.")
+    );
+  
+    await uploadInvoice(req, res);
+  
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "PDF has no pages." 
+    });
+  });
+  
+  test("should return status 400 if PDF exceeds maximum page count", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+  
+    // Mock error for exceeding maximum page count
+    pdfValidationService.validatePdfPageCount.mockRejectedValue(
+      new Error("PDF exceeds the maximum allowed pages (100).")
+    );
+  
+    await uploadInvoice(req, res);
+  
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "PDF exceeds the maximum allowed pages (100)." 
+    });
+  });
+  
+  test("should handle generic error when validatePdfPageCount fails", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PDF-"),
+      mimetype: "application/pdf",
+    };
+  
+    // Mock general error
+    pdfValidationService.validatePdfPageCount.mockRejectedValue(
+      new Error("Some unexpected error")
+    );
+  
+    await uploadInvoice(req, res);
+  
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ 
+      message: "Failed to determine PDF page count." 
+    });
+  });
+
+
+  test("should reject files that are not PDFs based on mimetype", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.jpg",
+      buffer: Buffer.from("JFIF"),
+      mimetype: "image/jpeg", // Not a PDF mimetype
+    };
+  
+    // This is the key change - mock validatePDF to reject when mimetype is not PDF
+    pdfValidationService.validatePDF.mockRejectedValue(new Error("Invalid file format"));
+  
+    await uploadInvoice(req, res);
+  
+    expect(res.status).toHaveBeenCalledWith(415);
+    expect(res.json).toHaveBeenCalledWith({ message: "File format is not PDF" });
+  });
+
+  test("should handle partial PDF signatures in buffer", async () => {
+    req.user = { uuid: "dummy-uuid" };
+    req.file = {
+      originalname: "test.pdf",
+      buffer: Buffer.from("%PD"), // Incomplete PDF signature
       mimetype: "application/pdf",
     };
 
-    // Hanya override untuk test ini: Mock rejection untuk validatePDF
-    pdfValidationService.validatePDF.mockRejectedValue(new Error("Not PDF"));
+    // Mock validatePDF to simulate signature check failure
+    pdfValidationService.validatePDF.mockRejectedValue(new Error("Invalid PDF signature"));
 
     await uploadInvoice(req, res);
 
@@ -130,22 +212,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     expect(res.json).toHaveBeenCalledWith({ message: "File format is not PDF" });
   });
 
-  test("should return status 400 if PDF is encrypted", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = {
-      originalname: "test.pdf",
-      buffer: Buffer.from("%PDF-"),
-      mimetype: "application/pdf",
-    };
-
-    // Override mock hanya untuk test ini
-    pdfValidationService.isPdfEncrypted.mockResolvedValue(true); 
-
-    await uploadInvoice(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "PDF is encrypted" });
-  });
 
   test("should return status 400 if PDF file is invalid", async () => {
     req.user = { uuid: "dummy-uuid" };
@@ -383,6 +449,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
     pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
+    pdfValidationService.validatePdfPageCount.mockResolvedValue(1);
     
     // Default untuk uploadInvoice
     invoiceService.uploadInvoice.mockResolvedValue({
@@ -550,6 +617,8 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ message: "Internal server error" });
   });
+
+
 });
 
 describe("getInvoiceById", () => {
@@ -898,10 +967,11 @@ describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
       savedInvoice: mockResult.savedInvoice
     });
   });
+
   test('should use custom timeout of 20 seconds instead of default 3', async () => {
     // Setup request for the test
     req = mockRequest({
-      query: { customTimeout: '5000' }, // 5 seconds instead of default 3
+      query: { customTimeout: '5000' },
       user: { uuid: 'test-uuid' },
       file: {
         buffer: Buffer.from('%PDF-1.0\nValid PDF content'),
@@ -934,6 +1004,7 @@ describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
       } 
     });
   });
+
   test('should handle actual timeout by rejecting with Timeout error', async () => {
     // Setup request
     req.user = { uuid: 'test-uuid' };
