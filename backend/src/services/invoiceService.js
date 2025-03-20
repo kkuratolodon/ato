@@ -90,8 +90,6 @@ class InvoiceService extends FinancialDocumentService {
     const { invoiceData: invoiceData2, customerData, vendorData, itemsData } = this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
     invoiceData2.original_filename = originalname;
     invoiceData2.file_size = fileSize;
-    console.log("woy+")
-    console.log(itemsData)
     return { invoiceData2, customerData, vendorData, itemsData };
   }
 

@@ -19,8 +19,8 @@ class AzureInvoiceMapper {
 
     const document = ocrResult.documents[0];
     const fields = document.fields || {};
-
     // Extract and validate dates
+    console.log(fields)
     const invoiceId = this.getFieldContent(fields.InvoiceId);
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);
@@ -164,6 +164,21 @@ class AzureInvoiceMapper {
       console.warn('Date field missing, using current date as fallback');
       return new Date(); // Default to current date if missing
     }
+    const ddmmyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
+    console.log(dateStr)
+    if (ddmmyyRegex.test(dateStr)) {
+      const [, day, month, year] = ddmmyyRegex.exec(dateStr);
+      const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
+      const formattedDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      return new Date(formattedDate);
+    }
+    
+    const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    if (ddmmyyyyRegex.test(dateStr)) {
+      const [, day, month, year] = ddmmyyyyRegex.exec(dateStr);
+      const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      return new Date(formattedDate);
+    }
 
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
@@ -222,17 +237,29 @@ class AzureInvoiceMapper {
       }
     };
 
-    // Direct number value case
     if (field?.value && typeof field.value === 'number') {
       result.amount = field.value;
       return result;
     }
 
-    // Structured currency object case
     if (field?.value?.amount && typeof field.value.amount === 'number') {
-      result.amount = field.value.amount;
-      result.currency.currencySymbol = field.value.currencySymbol || null;
-      result.currency.currencyCode = field.value.currencyCode || null;
+        const currencyContent = this.getFieldContent(field);
+        
+        if (currencyContent?.includes('Rp')) {
+          const numericStr = currencyContent.replace(/Rp/i, '')
+                                            .replace(/\./g, '')
+                                            .replace(/,/g, '.')
+                                            .trim();
+          const amount = parseFloat(numericStr);
+          
+          result.amount = amount;
+          result.currency.currencySymbol = 'Rp';
+          result.currency.currencyCode = 'IDR';
+        } else {
+          result.amount = field.value.amount;
+          result.currency.currencySymbol = field.value.currencySymbol || null;
+          result.currency.currencyCode = field.value.currencyCode || null;
+        }
       return result;
     }
 
