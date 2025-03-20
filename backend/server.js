@@ -1,8 +1,7 @@
-require("./src/instrument.js");
-require('dotenv').config();
-
-const Sentry = require("@sentry/node");
+const Sentry = require("./src/instrument.js");
 const app = require("./src/app");
+
+require('dotenv').config();
 
 // The error handler must be registered before any other error middleware and after all controllers
 Sentry.setupExpressErrorHandler(app);
@@ -19,7 +18,6 @@ app.use(function onError(err, req, res, next) {
 
     next(err); // Forward to the next error handler if any
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
