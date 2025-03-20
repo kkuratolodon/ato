@@ -89,6 +89,9 @@ class AzureInvoiceMapper {
    * @returns {string} Extracted invoice number
    */
   extractInvoiceNumber(fields) {
+    // Check if fields is null or undefined
+    if (!fields) return '';
+    
     // Check multiple possible field names
     return this.getFieldContent(fields.InvoiceId) ||
       this.getFieldContent(fields.InvoiceNumber) ||
