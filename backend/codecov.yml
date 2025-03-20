@@ -1,4 +1,7 @@
 coverage:
+  precision: 2
+  round: down
+  range: "50...80"
   status:
     project:
       default:
@@ -13,8 +16,13 @@ coverage:
         target: auto
         flags:
           - controller 
+  critical_files_paths:
+    - src/services/*
+    - src/controllers/*
+    - src/models/*
           
 codecov:
+  require_ci_to_pass: yes
   notify:
     manual_trigger: true
     notify_error: true
@@ -54,3 +62,10 @@ component_management:
       flag_regexes: # List of lags to be included in the component.
         - "controller"
         - "service"
+
+- name: Upload coverage reports to Codecov
+  uses: codecov/codecov-action@v5
+  with:
+    token: ${{ secrets.CODECOV_TOKEN }}
+    directory: ./backend/coverage 
+    verbose: true

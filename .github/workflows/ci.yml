@@ -81,9 +81,9 @@ jobs:
         working-directory: backend
         run: npm run lint
 
-      - name: Run Tests
+      - name: Run Tests with Coverage
         working-directory: backend
-        run: npm test
+        run: npm test -- --coverage 
         env:
           NODE_ENV: ${{ secrets.NODE_ENV }}
           DB_HOST: ${{ secrets.DB_HOST }}
@@ -103,6 +103,15 @@ jobs:
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage 
+          fail_ci_if_error: true  
+          verbose: true  
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
