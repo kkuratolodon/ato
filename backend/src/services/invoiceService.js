@@ -183,6 +183,15 @@ class InvoiceService extends FinancialDocumentService {
     };
   }
 
+  async getPartnerId(id) {
+    const invoice = await Invoice.findByPk(id);
+    
+    if (!invoice) {
+      throw new Error("Invoice not found");
+    }
+    return invoice.partner_id;
+  }
+
   async getInvoiceById(id) {
     try {
       const invoice = await Invoice.findByPk(id);
