@@ -682,6 +682,39 @@ describe("getInvoiceById", () => {
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({message: "Internal server error"});
     });
+
+    test("Should return 404 when InvoiceService throws 'Invoice not found' error", async () => {
+      // Setup
+      const mockUuid = "valid-uuid-exists-in-db";
+      req.params = { id: mockUuid };
+      req.user = { uuid: "partner-123" };
+      
+      // Mock invoice exists in DB and passes authorization check
+      const mockInvoice = {
+        uuid: mockUuid,
+        partner_id: "partner-123",
+        status: "Analyzed"
+      };
+      
+      // First query to check if invoice exists succeeds
+      Invoice.findOne = jest.fn().mockResolvedValue(mockInvoice);
+      
+      // But the service method throws "Invoice not found" error
+      // This could happen if the invoice record exists but related data is missing
+      invoiceService.getInvoiceById = jest.fn().mockRejectedValue(
+        new Error("Invoice not found")
+      );
+      
+      await getInvoiceById(req, res);
+      
+      // Should trigger the specific catch block we want to test
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: "Invoice not found" });
+      
+      // Verify that both the findOne and getInvoiceById were called
+      expect(Invoice.findOne).toHaveBeenCalled();
+      expect(invoiceService.getInvoiceById).toHaveBeenCalledWith(mockUuid);
+    });
   })
 
   describe("Corner Cases",() => {
