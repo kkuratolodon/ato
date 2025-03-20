@@ -13,7 +13,6 @@ const authService = require("../../src/services/authService");
 
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { Invoice } = require("../../src/models");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");
@@ -630,33 +629,13 @@ describe("getInvoiceById", () => {
   });
   describe("Positive Cases",() => {
     test("Should return an invoice when given a valid ID", async () => {
-      req.user = {uuid: "uuid"};
-      req.params = {id: 1};
-  
-      // Dummy invoice dari database untuk pengecekan otorisasi di controller
-      const mockRawInvoice = {
-        id: 1,
-        invoice_date: "2025-02-01",
-        due_date: "2025-03-01",
-        purchase_order_id: "12345",
-        total_amount: 500.0,
-        subtotal_amount: 450.0,
-        discount_amount: 50.0,
-        payment_terms: "Net 30",
-        file_url: "https://example.com/invoice.pdf",
-        status: "Analyzed",
-        partner_id: "uuid",
-        customer_id: "cust123",
-        vendor_id: "vend456",
-        createdAt: "2025-03-11T16:03:00.000Z",
-        updatedAt: "2025-03-11T16:03:07.000Z",
-        get: jest.fn().mockReturnValue({
-          id: 1,
-          partner_id: "uuid"
-        })
-      };
-      
-      // Format respons yang diharapkan dari service
+      req.user = { uuid: "uuid" };
+      req.params = { id: 1 };
+    
+      // Ensure mock returns the correct `partner_id`
+      invoiceService.getPartnerId = jest.fn().mockResolvedValue("uuid"); // Mock correctly
+    
+      // Dummy invoice for service response
       const mockFormattedResponse = {
         id: 1,
         invoice_date: "2025-02-01",
@@ -673,87 +652,17 @@ describe("getInvoiceById", () => {
         vendor_id: "vend456",
         createdAt: "2025-03-11T16:03:00.000Z",
         updatedAt: "2025-03-11T16:03:07.000Z",
-        customer: {
-          uuid: "cust123",
-          name: "Test Business",
-          street_address: "123 Somewhere St",
-          city: "Melbourne",
-          state: "VIC",
-          postal_code: "3000",
-          house: null,
-          recipient_name: "Test Business",
-          tax_id: null,
-          createdAt: "2025-03-09T17:49:45.000Z",
-          updatedAt: "2025-03-09T17:49:45.000Z"
-        },
-        vendor: {
-          uuid: "vend456",
-          name: "SlicedInvoices",
-          street_address: "123 Somewhere Street Suite 5A-1204",
-          city: "Your City",
-          state: "AZ",
-          postal_code: "12345",
-          house: "123",
-          recipient_name: "DEMO - Sliced Invoices",
-          tax_id: null,
-          createdAt: "2025-03-10T06:21:00.000Z",
-          updatedAt: "2025-03-10T06:21:00.000Z"
-        },
-        header: {
-          invoice_details: {
-            invoice_id: null,
-            purchase_order_id: "12345",
-            invoice_date: "2025-02-01",
-            due_date: "2025-03-01",
-            payment_terms: "Net 30"
-          },
-          vendor_details: {
-            name: "SlicedInvoices",
-            address: {
-              street_address: "123 Somewhere Street Suite 5A-1204",
-              city: "Your City",
-              state: "AZ",
-              postal_code: "12345",
-              house: "123"
-            },
-            recipient_name: "DEMO - Sliced Invoices",
-            tax_id: null
-          },
-          customer_details: {
-            id: "cust123",
-            name: "Test Business",
-            recipient_name: "Test Business",
-            address: {
-              street_address: "123 Somewhere St",
-              city: "Melbourne",
-              state: "VIC",
-              postal_code: "3000",
-              house: null
-            },
-            tax_id: null
-          },
-          financial_details: {
-            currency: null,
-            total_amount: 500.0,
-            subtotal_amount: 450.0,
-            discount_amount: 50.0,
-            total_tax_amount: null
-          }
-        },
-        items: []
       };
-      
-      // Mock findByPk untuk pengecekan otorisasi di controller
-      Invoice.findByPk.mockResolvedValue(mockRawInvoice);
-      
-      // Mock getInvoiceById service untuk mengembalikan formatted response
+    
+      // Mock getInvoiceById service response
       invoiceService.getInvoiceById.mockResolvedValue(mockFormattedResponse);
-      
+    
       await getInvoiceById(req, res);
-      
+    
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(mockFormattedResponse);
     });
+    
   });
 
   describe("Negative - Authorization Cases",() => {
@@ -795,30 +704,64 @@ describe("getInvoiceById", () => {
     })
   })
 
-  describe("Negative - Error Handling",() => {
-    test("Should return 404 when invoice is not found", async () => {
-      req.user = {uuid: "dummy-uuid"};
-      req.params = {id: 1};
-      Invoice.findByPk.mockRejectedValue(new Error("Invoice not found"));
+  // describe("Negative - Error Handling",() => {
+  //   test("Should return 404 when invoice is not found", async () => {
+  //     req.user = {uuid: "dummy-uuid"};
+  //     req.params = {id: 1};
+  //     Invoice.findByPk.mockRejectedValue(new Error("Invoice not found"));
       
-      await getInvoiceById(req,res);
+  //     await getInvoiceById(req,res);
       
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({message: "Invoice not found"})
-    });
+  //     expect(res.status).toHaveBeenCalledWith(404);
+  //     expect(res.json).toHaveBeenCalledWith({message: "Invoice not found"})
+  //   });
     
-    test("Should return 500 when internal server error occurs", async () => {
-      req.user = {uuid: "dummy-uuid"};
-      req.params = {id: 1};
-      Invoice.findByPk.mockRejectedValue(new Error("Internal server error"));
+  //   test("Should return 500 when internal server error occurs", async () => {
+  //     req.user = {uuid: "dummy-uuid"};
+  //     req.params = {id: 1};
+  //     Invoice.findByPk.mockRejectedValue(new Error("Internal server error"));
       
-      await getInvoiceById(req,res);
+  //     await getInvoiceById(req,res);
+  
+  //     expect(res.status).toHaveBeenCalledWith(500);
+  //     expect(res.json).toHaveBeenCalledWith({message: "Internal server error"});
+  
+  //   });
+  // })
+
+  describe("Negative - Error Handling", () => {
+  
+    test("Should return 404 when invoice is not found", async () => {
+      req.user = { uuid: "valid-user-uuid" }; // ✅ Use a valid user
+      req.params = { id: 999 }; // ✅ Use an invoice ID that does not exist
+    
+      // ✅ Mock `getPartnerId` to return a valid user (to bypass 403 Forbidden)
+      invoiceService.getPartnerId = jest.fn().mockResolvedValue("valid-user-uuid");
+    
+      // ✅ Mock `getInvoiceById` to THROW an error instead of returning `null`
+      invoiceService.getInvoiceById = jest.fn().mockRejectedValue(new Error("Invoice not found"));
+    
+      await getInvoiceById(req, res);
+    
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: "Invoice not found" });
+    });    
+  
+    test("Should return 500 when internal server error occurs", async () => {
+      req.user = { uuid: "dummy-uuid" };
+      req.params = { id: 1 };
+  
+      // Mock `getPartnerId` to throw an unexpected error
+      invoiceService.getPartnerId = jest.fn().mockRejectedValue(new Error("Internal server error"));
+  
+      await getInvoiceById(req, res);
   
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({message: "Internal server error"});
-  
+      expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
     });
-  })
+  
+  });
+  
 
   describe("Corner Cases",() => {
     test("should return 400 if ID is not a number",async () => {
