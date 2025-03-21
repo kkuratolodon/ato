@@ -1,22 +1,32 @@
 const { DataTypes, Sequelize } = require('sequelize');
 const CustomerModel = require('../../src/models/customer');
-const FinancialDocumentModel = require('../../src/models/financialDocument');
+const InvoiceModel = require('../../src/models/invoice');
+const PurchaseOrderModel = require('../../src/models/purchaseOrder');
 
 describe('Customer Model', () => {
     let sequelize;
     let Customer;
-    let FinancialDocument;
+    let Invoice;
+    let PurchaseOrder;
     let customerId;
 
     beforeEach(async () => {
         // Create in-memory database
         sequelize = new Sequelize('sqlite::memory:', { logging: false });
         Customer = CustomerModel(sequelize, DataTypes);
-        FinancialDocument = FinancialDocumentModel(sequelize, DataTypes);
+        Invoice = InvoiceModel(sequelize, DataTypes);
+        PurchaseOrder = PurchaseOrderModel(sequelize, DataTypes);
         
         // Setup associations
-        Customer.associate({ FinancialDocument });
-        FinancialDocument.associate({ Customer });
+        Customer.associate({ Invoice, PurchaseOrder });
+        Invoice.belongsTo(Customer, {
+            foreignKey: 'customer_id',
+            as: 'customer'
+        });
+        PurchaseOrder.belongsTo(Customer, {
+            foreignKey: 'customer_id',
+            as: 'customer'
+        });
         
         // Sync models to database
         await sequelize.sync({ force: true });
@@ -54,5 +64,18 @@ describe('Customer Model', () => {
         expect(customer).toBeTruthy();
         expect(customer.name).toBe('Test Customer');
         expect(customer.city).toBe('Test City');
+    });
+    
+    // You can add association tests here if needed
+    test('should have correct association with Invoice', () => {
+        expect(Customer.associations).toBeDefined();
+        expect(Customer.associations.invoices).toBeDefined();
+        expect(Customer.associations.invoices.associationType).toBe('HasMany');
+    });
+    
+    test('should have correct association with PurchaseOrder', () => {
+        expect(Customer.associations).toBeDefined();
+        expect(Customer.associations.purchase_orders).toBeDefined();
+        expect(Customer.associations.purchase_orders.associationType).toBe('HasMany');
     });
 });

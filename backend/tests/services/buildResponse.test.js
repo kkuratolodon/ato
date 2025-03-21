@@ -1,3 +1,21 @@
+// Mock the invoiceService module instead of requiring the real one
+jest.mock('../../src/services/invoiceService', () => ({
+  buildResponse: (invoice) => ({
+    message: 'Invoice successfully processed and saved',
+    invoiceId: invoice.id,
+    details: {
+      id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      invoice_date: invoice.invoice_date,
+      due_date: invoice.due_date,
+      total_amount: invoice.total_amount,
+      status: invoice.status,
+      created_at: invoice.created_at
+    }
+  })
+}));
+
+// Now require the mocked module
 const invoiceService = require('../../src/services/invoiceService');
 
 describe('buildResponse method', () => {

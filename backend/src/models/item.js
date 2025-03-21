@@ -4,15 +4,25 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
     class Item extends Model {
         static associate(models) {
-            Item.belongsToMany(models.FinancialDocument, {
-                through: {
-                    model: sequelize.models.FinancialDocumentItem,
-                    unique: false
-                },
-                foreignKey: 'item_id',
-                otherKey: 'document_id',
-                as: 'financial_documents'
-            });
+            if (models.Invoice) {
+                Item.belongsToMany(models.Invoice, {
+                    through: 'FinancialDocumentItem',
+                    foreignKey: 'item_id',
+                    otherKey: 'document_id',
+                    as: 'invoices',
+                    constraints: false
+                });
+            }
+            
+            if (models.PurchaseOrder) {
+                Item.belongsToMany(models.PurchaseOrder, {
+                    through: 'FinancialDocumentItem',
+                    foreignKey: 'item_id',
+                    otherKey: 'document_id',
+                    as: 'purchase_orders',
+                    constraints: false
+                });
+            }
         }
     }
 
