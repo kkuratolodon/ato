@@ -11,7 +11,6 @@ describe('Vendor Model', () => {
     let vendorId;
     let Invoice;  // Replace FinancialDocument with concrete models
     let PurchaseOrder;
-    let partnerId = 'test-partner-id';
 
     beforeEach(async () => {
         // Create in-memory database
