@@ -4,6 +4,7 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
     class Item extends Model {
         static associate(models) {
+            if (!models) return;
             if (models.Invoice) {
                 Item.belongsToMany(models.Invoice, {
                     through: 'FinancialDocumentItem',

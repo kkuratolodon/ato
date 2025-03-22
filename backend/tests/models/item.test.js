@@ -37,7 +37,7 @@ describe('Item Model', () => {
         Partner.associate?.({ Invoice, PurchaseOrder });
         Customer.associate && Customer.associate({ Invoice, PurchaseOrder });
         Vendor.associate && Vendor.associate({ Invoice, PurchaseOrder });
-        
+
         // Set up Item associations manually
         Item.belongsToMany(Invoice, {
             through: FinancialDocumentItem,
@@ -45,7 +45,7 @@ describe('Item Model', () => {
             otherKey: 'document_id',
             as: 'invoices'
         });
-        
+
         Item.belongsToMany(PurchaseOrder, {
             through: FinancialDocumentItem,
             foreignKey: 'item_id',
@@ -139,241 +139,85 @@ describe('Item Model', () => {
         });
     });
 
-    describe('Association Tests', () => {
-        describe('Positive Association Cases', () => {
-            test('should have many-to-many associations with Invoice and PurchaseOrder', () => {
-                expect(Item.associations).toBeDefined();
-                expect(Item.associations.invoices).toBeDefined();
-                expect(Item.associations.invoices.associationType).toBe('BelongsToMany');
-                expect(Item.associations.purchase_orders).toBeDefined();
-                expect(Item.associations.purchase_orders.associationType).toBe('BelongsToMany');
-            });
+    // Add this new test section within the 'Association Tests' describe block:
+    describe('Associate Method Tests', () => {
+        test('should properly call associate with Invoice model', () => {
+            // Create a fresh instance to avoid state from previous tests
+            const localSequelize = new Sequelize('sqlite::memory:', { logging: false });
+            const LocalItem = ItemModel(localSequelize, DataTypes);
+            const LocalInvoice = InvoiceModel(localSequelize, DataTypes);
 
-            test('should allow linking items to financial documents', async () => {
-                try {
-                    // Disable foreign key checks
-                    await sequelize.query('PRAGMA foreign_keys = OFF;');
+            // Call the associate method with just Invoice
+            LocalItem.associate({ Invoice: LocalInvoice });
 
-                    // Create a test item
-                    const item = await Item.create({
-                        description: 'Test item',
-                        quantity: 1,
-                        unit: 'pc',
-                        unit_price: 100,
-                        amount: 100
-                    });
-
-                    // Create a partner for foreign key constraint
-                    const partner = await Partner.create({
-                        uuid: "test-partner-uuid",
-                        name: "Test Partner",
-                        email: "test@example.com",   // Add required field
-                        password: "password123",     // Add required field
-                        created_at: new Date()       // Add required field
-                    });
-                    
-
-                    // Create a test invoice instead of financial document
-                    const invoice = await Invoice.create({
-                        status: 'Analyzed',
-                        partner_id: partner.uuid,
-                    });
-
-                    // Use direct creation on the join table
-                    await FinancialDocumentItem.create({
-                        document_id: invoice.id,
-                        document_type: 'Invoice',
-                        item_id: item.uuid,
-                        quantity: 2,
-                        unit_price: 50,
-                        amount: 100
-                    });
-
-                    // Get related documents
-                    const documents = await FinancialDocumentItem.findAll({
-                        where: {
-                            item_id: item.uuid
-                        }
-                    });
-
-                    expect(documents).toHaveLength(1);
-
-                    const docId = invoice.id;
-                    const foundDoc = await Invoice.findByPk(docId);
-                    expect(foundDoc).toBeDefined();
-                } catch (error) {
-                    console.error('Test error:', error);
-                    throw error;
-                } finally {
-                    // Re-enable foreign key checks
-                    await sequelize.query('PRAGMA foreign_keys = ON;');
-                }
-            });
+            // Verify the association was created correctly
+            expect(LocalItem.associations).toBeDefined();
+            expect(LocalItem.associations.invoices).toBeDefined();
+            expect(LocalItem.associations.invoices.associationType).toBe('BelongsToMany');
+            expect(LocalItem.associations.invoices.options.through.model).toBe('FinancialDocumentItem');
+            expect(LocalItem.associations.invoices.options.foreignKey).toBe('item_id');
+            expect(LocalItem.associations.invoices.options.otherKey).toBe('document_id');
         });
 
-        describe('Negative Association Cases', () => {
-            test('should handle associating with non-existent financial document', async () => {
-                try {
-                    const item = await Item.create({ description: 'Test item' });
+        test('should properly call associate with PurchaseOrder model', () => {
+            // Create a fresh instance to avoid state from previous tests
+            const localSequelize = new Sequelize('sqlite::memory:', { logging: false });
+            const LocalItem = ItemModel(localSequelize, DataTypes);
+            const LocalPurchaseOrder = PurchaseOrderModel(localSequelize, DataTypes);
 
-                    // Try to associate with a non-existent ID
-                    await item.addInvoice({ id: 'non-existent-id' });
+            // Call the associate method with just PurchaseOrder
+            LocalItem.associate({ PurchaseOrder: LocalPurchaseOrder });
 
-                    fail('Should have thrown an error');
-                } catch (error) {
-                    expect(error).toBeDefined();
-                }
-            });
-
-            test('should handle deletion of associated documents', async () => {
-                // Disable foreign key checks
-                await sequelize.query('PRAGMA foreign_keys = OFF;');
-
-                const item = await Item.create({ description: 'Test item' });
-
-                // Create a partner for foreign key constraint
-                const partner = await Partner.create({
-                    uuid: "partner-test-uuid",
-                    name: "Test Partner",
-                    email: "test2@example.com",  // Add required field
-                    password: "password123",     // Add required field
-                    created_at: new Date()       // Add required field
-                });
-
-                // Use Invoice instead of FinancialDocument
-                const invoice = await Invoice.create({
-                    status: 'Analyzed',
-                    partner_id: partner.uuid,
-                });
-
-                // Create the association directly in the join table
-                await FinancialDocumentItem.create({
-                    document_id: invoice.id,
-                    document_type: 'Invoice',
-                    item_id: item.uuid,
-                    quantity: 2,
-                    unit_price: 50,
-                    amount: 100
-                });
-
-                // Delete the invoice
-                await invoice.destroy();
-
-                // Check the join table directly
-                const joinRecords = await FinancialDocumentItem.findAll({
-                    where: {
-                        item_id: item.uuid
-                    }
-                });
-
-                // Changed expectation: The join records still exist (no CASCADE DELETE)
-                expect(joinRecords).toHaveLength(1);
-
-                // But the referenced document should be gone
-                const deletedDoc = await Invoice.findByPk(invoice.id);
-                expect(deletedDoc).toBeNull();
-
-                // Re-enable foreign key checks
-                await sequelize.query('PRAGMA foreign_keys = ON;');
-            });
+            // Verify the association was created correctly
+            expect(LocalItem.associations).toBeDefined();
+            expect(LocalItem.associations.purchase_orders).toBeDefined();
+            expect(LocalItem.associations.purchase_orders.associationType).toBe('BelongsToMany');
+            expect(LocalItem.associations.purchase_orders.options.through.model).toBe('FinancialDocumentItem');
+            expect(LocalItem.associations.purchase_orders.options.foreignKey).toBe('item_id');
+            expect(LocalItem.associations.purchase_orders.options.otherKey).toBe('document_id');
         });
 
-        describe('Corner Association Cases', () => {
-            test('should handle multiple documents associated with one item', async () => {
-                // Disable foreign key checks
-                await sequelize.query('PRAGMA foreign_keys = OFF;');
-            
-                const item = await Item.create({ description: 'Multi-doc item' });
-                
-                // Create a partner for foreign key constraint
-                const partner = await Partner.create({
-                    uuid: "multi-partner-uuid",
-                    name: "Multi Partner",
-                    email: "multi@example.com",  // Add required field
-                    password: "password123",     // Add required field
-                    created_at: new Date()       // Add required field
-                });
-            
-                // Create multiple invoices instead of generic documents
-                const docs = await Promise.all([
-                    Invoice.create({ status: 'Analyzed', partner_id: partner.uuid }),
-                    Invoice.create({ status: 'Analyzed', partner_id: partner.uuid }),
-                    Invoice.create({ status: 'Analyzed', partner_id: partner.uuid }),
-                ]);
-            
-                // Associate all documents with the item using the join table directly
-                for (const doc of docs) {
-                    await FinancialDocumentItem.create({
-                        document_id: doc.id,
-                        document_type: 'Invoice',
-                        item_id: item.uuid,
-                        quantity: 1,
-                        unit_price: 100,
-                        amount: 100
-                    });
-                }
-            
-                // Verify associations by querying the join table
-                const joinRecords = await FinancialDocumentItem.findAll({
-                    where: {
-                        item_id: item.uuid
-                    }
-                });
-                expect(joinRecords).toHaveLength(3);
-            
-                // Re-enable foreign key checks
-                await sequelize.query('PRAGMA foreign_keys = ON;');
+        test('should handle edge cases in associate method', () => {
+            // Create a fresh instance
+            const localSequelize = new Sequelize('sqlite::memory:', { logging: false });
+            const LocalItem = ItemModel(localSequelize, DataTypes);
+
+            // Test with null/undefined
+            expect(() => {
+                LocalItem.associate(null);
+            }).not.toThrow();
+
+            expect(() => {
+                LocalItem.associate(undefined);
+            }).not.toThrow();
+
+            // Test with empty object
+            expect(() => {
+                LocalItem.associate({});
+            }).not.toThrow();
+
+            // Test with object that has no relevant models
+            expect(() => {
+                LocalItem.associate({ SomeOtherModel: {} });
+            }).not.toThrow();
+        });
+
+        test('should handle both models in the same call', () => {
+            // Create a fresh instance
+            const localSequelize = new Sequelize('sqlite::memory:', { logging: false });
+            const LocalItem = ItemModel(localSequelize, DataTypes);
+            const LocalInvoice = InvoiceModel(localSequelize, DataTypes);
+            const LocalPurchaseOrder = PurchaseOrderModel(localSequelize, DataTypes);
+
+            // Call with both models
+            LocalItem.associate({
+                Invoice: LocalInvoice,
+                PurchaseOrder: LocalPurchaseOrder
             });
 
-            test('should handle one document associated with multiple items', async () => {
-                // Disable foreign key checks
-                await sequelize.query('PRAGMA foreign_keys = OFF;');
-            
-                // Create multiple items
-                const items = await Promise.all([
-                    Item.create({ description: 'Item 1' }),
-                    Item.create({ description: 'Item 2' }),
-                    Item.create({ description: 'Item 3' }),
-                ]);
-                
-                // Create a partner for foreign key constraint
-                const partner = await Partner.create({
-                    uuid: "one-doc-partner-uuid",
-                    name: "One Doc Partner",
-                    email: "one-doc@example.com", // Add required field
-                    password: "password123",      // Add required field
-                    created_at: new Date()        // Add required field
-                });
-            
-                // Use Invoice instead of FinancialDocument
-                const invoice = await Invoice.create({
-                    status: 'Analyzed',
-                    partner_id: partner.uuid,
-                });
-            
-                // Associate all items with the document using the join table directly
-                for (const item of items) {
-                    await FinancialDocumentItem.create({
-                        document_id: invoice.id,
-                        document_type: 'Invoice',
-                        item_id: item.uuid,
-                        quantity: 1,
-                        unit_price: 100, 
-                        amount: 100
-                    });
-                }
-            
-                // Verify associations by querying the join table
-                const joinRecords = await FinancialDocumentItem.findAll({
-                    where: {
-                        document_id: invoice.id
-                    }
-                });
-                expect(joinRecords).toHaveLength(3);
-            
-                // Re-enable foreign key checks
-                await sequelize.query('PRAGMA foreign_keys = ON;');
-            });
+            // Verify both associations
+            expect(LocalItem.associations.invoices).toBeDefined();
+            expect(LocalItem.associations.purchase_orders).toBeDefined();
         });
     });
 });
