@@ -29,14 +29,8 @@ module.exports = (sequelize, DataTypes) => {
         }
     }
 
-    // Initialize with only entity-specific fields
-    // Common fields are added by the parent class
+    // Initialize with empty object since all fields are in BusinessEntity
     Customer.init({
-        recipient_name: {
-            type: DataTypes.STRING,
-            allowNull: true
-        }
-        // Add any other Customer-specific fields here
     }, {
         sequelize,
         modelName: 'Customer',

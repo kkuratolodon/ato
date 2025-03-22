@@ -29,13 +29,8 @@ module.exports = (sequelize, DataTypes) => {
         }
     }
 
-    // Initialize with only entity-specific fields
+    // Initialize with empty object since all fields are in BusinessEntity
     Vendor.init({
-        contact_person: {
-            type: DataTypes.STRING,
-            allowNull: true
-        }
-        // Add any other Vendor-specific fields here
     }, {
         sequelize,
         modelName: 'Vendor',
