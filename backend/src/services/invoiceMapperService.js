@@ -25,9 +25,6 @@ class AzureInvoiceMapper {
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);
 
-    // Extract invoice number (check multiple possible field names)
-    const invoiceNumber = this.extractInvoiceNumber(fields);
-
     // Extract purchase order ID
     const purchaseOrderId = this.parsePurchaseOrderId(fields.PurchaseOrder);
     // Extract monetary values
@@ -61,9 +58,8 @@ class AzureInvoiceMapper {
 
     // Build invoice data object matching our model requirements
     const invoiceData = {
-      invoice_id: invoiceId,
+      invoice_number: invoiceId, 
       invoice_date: invoiceDate,
-      invoice_number: invoiceNumber,
       due_date: dueDate || this.calculateDueDate(invoiceDate, paymentTerms),
       purchase_order_id: purchaseOrderId,
       total_amount: totalAmountAmount,
@@ -93,6 +89,9 @@ class AzureInvoiceMapper {
    * @returns {string} Extracted invoice number
    */
   extractInvoiceNumber(fields) {
+    // Check if fields is null or undefined
+    if (!fields) return '';
+    
     // Check multiple possible field names
     return this.getFieldContent(fields.InvoiceId) ||
       this.getFieldContent(fields.InvoiceNumber) ||

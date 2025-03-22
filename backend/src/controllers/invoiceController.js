@@ -61,11 +61,12 @@ exports.uploadInvoice = async (req, res) => {
 exports.getInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
-    // check positive integer
-    if( !id  || isNaN(id) || parseInt(id) <= 0 ){
-      return res.status(400).json({message: "Invalid invoice ID"});
+    
+    if (!id) {
+      return res.status(400).json({message: "Invoice ID is required"});
     }
-    if(!req.user){
+    
+    if (!req.user) {
       return res.status(401).json({message: "Unauthorized"});
     }
     const invoicePartnerId = await InvoiceService.getPartnerId(id);
@@ -74,6 +75,7 @@ exports.getInvoiceById = async (req, res) => {
       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
     }
 
+    // Method getInvoiceById sudah diubah untuk menerima UUID
     const invoiceDetail = await InvoiceService.getInvoiceById(id);
 
     return res.status(200).json(invoiceDetail);

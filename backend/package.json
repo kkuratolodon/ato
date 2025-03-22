@@ -32,6 +32,7 @@
     "eslint": "^8.57.1",
     "globals": "^15.15.0",
     "jest": "^29.7.0",
+    "jest-junit": "^16.0.0",
     "jest-mock-req-res": "^1.0.2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^3.11.174",
@@ -47,8 +48,10 @@
       "/src/instrument.js"
     ],
     "coverageReporters": [
+      "json",
+      "lcov",
       "text",
-      "lcov"
+      "clover"
     ],
     "collectCoverageFrom": [
       "src/**/*.js",
