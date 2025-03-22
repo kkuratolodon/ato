@@ -6,11 +6,13 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       if (!models) return;
       
-      Invoice.belongsTo(models.Partner, { 
-        foreignKey: 'partner_id', 
-        targetKey: 'uuid',
-        as: 'partner'
-      });
+      if (models.Partner) {
+        Invoice.belongsTo(models.Partner, { 
+          foreignKey: 'partner_id', 
+          targetKey: 'uuid',
+          as: 'partner'
+        });
+      }
       
       if (models.Customer) {
         Invoice.belongsTo(models.Customer, { 
