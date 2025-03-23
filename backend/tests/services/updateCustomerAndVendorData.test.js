@@ -38,8 +38,7 @@ describe('updateCustomerAndVendorData', () => {
     const customerData = {
       name: 'Existing Customer',
       tax_id: '123456',
-      postal_code: '10001',
-      street_address: '123 Test St'
+      address: '123 Test St'
     };
     
     const mockCustomer = {
@@ -57,8 +56,7 @@ describe('updateCustomerAndVendorData', () => {
       where: {
         name: customerData.name,
         tax_id: customerData.tax_id,
-        postal_code: customerData.postal_code,
-        street_address: customerData.street_address
+        address: customerData.address
       }
     });
     expect(Customer.create).not.toHaveBeenCalled();
