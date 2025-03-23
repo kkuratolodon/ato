@@ -108,7 +108,6 @@ class AzureInvoiceMapper {
    */
   extractCustomerData(fields) {
     const addressData = this.getFieldContent(fields.CustomerAddress || fields.BillingAddress || fields.ShippingAddress);
-
     return {
       name: this.getFieldContent(fields.CustomerName) || this.getFieldContent(fields.BillingAddressRecipient),
       address: addressData, 
