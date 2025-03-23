@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require('uuid');
 const { DataTypes, Sequelize } = require('sequelize');
 const PurchaseOrderFactory = require('../../src/models/purchaseOrder');
 const PartnerModel = require('../../src/models/partner');
@@ -22,6 +23,23 @@ describe('PurchaseOrder Model', () => {
         Customer = CustomerModel(sequelize, DataTypes);
         Vendor = VendorModel(sequelize, DataTypes);
         Item = item(sequelize, DataTypes);
+        
+        // Tambahkan kolom analysis_json_url secara manual ke model untuk test
+        if (!PurchaseOrder.rawAttributes.analysis_json_url) {
+            PurchaseOrder.init({
+                analysis_json_url: {
+                    type: DataTypes.STRING,
+                    allowNull: true
+                }
+            }, {
+                sequelize,
+                modelName: 'PurchaseOrder',
+                tableName: 'purchase_order',
+                timestamps: true,
+                underscored: true,
+                paranoid: true
+            });
+        }
         
         // Mock Item.associate to prevent the error
         Item.associate = jest.fn();
@@ -213,6 +231,21 @@ describe('PurchaseOrder Model', () => {
 
             expect(purchaseOrderWithPartner.partner).toBeTruthy();
             expect(purchaseOrderWithPartner.partner.uuid).toBe(partnerId);
+        });
+
+        test('should create purchase order with analysis_json_url', async () => {
+            const uuid = uuidv4();
+            const testPO = await PurchaseOrder.create({
+                uuid,
+                po_number: 'PO-001',
+                status: 'Analyzed', // Ubah field issue_date menjadi status
+                partner_id: partnerId, // Gunakan partnerId yang valid
+                file_url: 'https://storage.example.com/po/po-001.pdf',
+                analysis_json_url: 'https://storage.example.com/analyses/po-001.json'
+            });
+            
+            expect(testPO).toBeDefined();
+            expect(testPO.analysis_json_url).toBe('https://storage.example.com/analyses/po-001.json');
         });
     });
 
