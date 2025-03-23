@@ -1544,7 +1544,7 @@ describe('mapAnalysisResult', () => {
     // Implement our own version of mapAnalysisResult for testing
     invoiceService.mapAnalysisResult = function(analysisResult, partnerId, originalname, fileSize) {
       // Implement the function logic directly in the test
-      if (!analysisResult || !analysisResult.data) {
+      if (!analysisResult?.data) {
         throw new Error("Failed to analyze invoice: No data returned");
       }
       
