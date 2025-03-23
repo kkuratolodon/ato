@@ -407,7 +407,7 @@ describe("getInvoiceById", () => {
       id: null,
       name: null,
       recipient_name: null,
-      address: {},
+      address: "",
       tax_id: null
     });
     expect(models.Customer.findByPk).toHaveBeenCalledWith("missing-customer-uuid");
@@ -438,7 +438,7 @@ describe("getInvoiceById", () => {
     expect(result.header.vendor_details).toEqual({
       name: null,
       recipient_name: null,
-      address: {},
+      address: "",
       tax_id: null
     });
     expect(models.Vendor.findByPk).toHaveBeenCalledWith("missing-vendor-uuid");
@@ -455,7 +455,7 @@ describe("getInvoiceById", () => {
     const mockCustomerData = {
       uuid: "existing-customer-uuid",
       name: "Existing Customer",
-      street_address: "123 Test St"
+      address: "123 Test St"
     };
 
     const mockInvoice = {
@@ -477,7 +477,7 @@ describe("getInvoiceById", () => {
     expect(result.header).toHaveProperty('customer_details');
     expect(result.header.customer_details).toHaveProperty('name', 'Existing Customer');
     expect(result.header.customer_details).toHaveProperty('id', 'existing-customer-uuid');
-    expect(result.header.customer_details.address).toHaveProperty('street_address', '123 Test St');
+    expect(result.header.customer_details).toHaveProperty('address', '123 Test St');
     expect(mockCustomer.get).toHaveBeenCalledWith({ plain: true });
   });
 
@@ -492,7 +492,7 @@ describe("getInvoiceById", () => {
     const mockVendorData = {
       uuid: "existing-vendor-uuid",
       name: "Existing Vendor",
-      street_address: "456 Vendor St"
+      address: "456 Vendor St"
     };
 
     const mockInvoice = {
@@ -513,7 +513,7 @@ describe("getInvoiceById", () => {
     expect(result).toHaveProperty('header');
     expect(result.header).toHaveProperty('vendor_details');
     expect(result.header.vendor_details).toHaveProperty('name', 'Existing Vendor');
-    expect(result.header.vendor_details.address).toHaveProperty('street_address', '456 Vendor St');
+    expect(result.header.vendor_details).toHaveProperty('address', '456 Vendor St');
     expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
   });
 
