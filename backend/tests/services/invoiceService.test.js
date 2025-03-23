@@ -3,6 +3,7 @@ const invoiceService = require('../../src/services/invoiceService');
 const FinancialDocumentService = require('../../src/services/financialDocumentService');
 const s3Service = require('../../src/services/s3Service');
 const { Invoice } = require('../../src/models');
+const { Invoice } = require('../../src/models');
 const fs = require("fs");
 const path = require("path");
 const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
@@ -529,11 +530,11 @@ describe("getInvoiceById", () => {
 
     const result = await invoiceService.getInvoiceById('1');
 
-    expect(result).toHaveProperty('header');
-    expect(result.header).toHaveProperty('customer_details');
-    expect(result.header.customer_details).toHaveProperty('name', 'Existing Customer');
-    expect(result.header.customer_details).toHaveProperty('id', 'existing-customer-uuid');
-    expect(result.header.customer_details).toHaveProperty('address', '123 Test St');
+    expect(result).toHaveProperty('data');
+    expect(result.data.documents[0].header).toHaveProperty('customer_details');
+    expect(result.data.documents[0].header.customer_details).toHaveProperty('name', 'Existing Customer');
+    expect(result.data.documents[0].header.customer_details).toHaveProperty('id', 'existing-customer-uuid');
+    expect(result.data.documents[0].header.customer_details).toHaveProperty('address', '123 Test St');
     expect(mockCustomer.get).toHaveBeenCalledWith({ plain: true });
   });
 
@@ -566,10 +567,10 @@ describe("getInvoiceById", () => {
 
     const result = await invoiceService.getInvoiceById('1');
 
-    expect(result).toHaveProperty('header');
-    expect(result.header).toHaveProperty('vendor_details');
-    expect(result.header.vendor_details).toHaveProperty('name', 'Existing Vendor');
-    expect(result.header.vendor_details).toHaveProperty('address', '456 Vendor St');
+    expect(result).toHaveProperty('data');
+    expect(result.data.documents[0].header).toHaveProperty('vendor_details');
+    expect(result.data.documents[0].header.vendor_details).toHaveProperty('name', 'Existing Vendor');
+    expect(result.data.documents[0].header.vendor_details).toHaveProperty('address', '456 Vendor St');
     expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
   });
 
@@ -770,7 +771,9 @@ describe("getInvoiceById", () => {
 
     const result = await invoiceService.getInvoiceById('1');
 
+
     // Only the first item should be included in the result
+    expect(result.data.documents[0].items).toEqual([
     expect(result.data.documents[0].items).toEqual([
       {
         amount: 21.00,
@@ -859,83 +862,6 @@ describe("getInvoiceById", () => {
     expect(result.data.documents[0].header).toHaveProperty('vendor_details');
     expect(result.data.documents[0].header.vendor_details).toHaveProperty('name', 'Vendor With Null Address');
     expect(result.data.documents[0].header.vendor_details).toHaveProperty('address', ''); // fallback ke string kosong
-    expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
-  });
-  test("Should handle null address for customer", async () => {
-    const mockInvoiceData = {
-      uuid: '1',
-      invoice_date: "2025-02-01",
-      customer_id: "customer-with-null-address",
-      status: "Analyzed",
-    };
-  
-    const mockCustomerData = {
-      uuid: "customer-with-null-address",
-      name: "Customer With Null Address",
-      address: null, // address adalah null
-      recipient_name: "John Doe",
-      tax_id: "123-45-6789"
-    };
-  
-    const mockInvoice = {
-      ...mockInvoiceData,
-      get: jest.fn().mockReturnValue(mockInvoiceData)
-    };
-  
-    const mockCustomer = {
-      ...mockCustomerData,
-      get: jest.fn().mockReturnValue(mockCustomerData)
-    };
-  
-    models.Invoice.findOne.mockResolvedValue(mockInvoice);
-    models.Customer.findByPk.mockResolvedValue(mockCustomer);
-    models.FinancialDocumentItem.findAll.mockResolvedValue([]);
-  
-    const result = await invoiceService.getInvoiceById('1');
-  
-    expect(result).toHaveProperty('header');
-    expect(result.header).toHaveProperty('customer_details');
-    expect(result.header.customer_details).toHaveProperty('name', 'Customer With Null Address');
-    expect(result.header.customer_details).toHaveProperty('address', ''); // fallback ke string kosong
-    expect(mockCustomer.get).toHaveBeenCalledWith({ plain: true });
-  });
-  
-  test("Should handle null address for vendor", async () => {
-    const mockInvoiceData = {
-      uuid: '1',
-      invoice_date: "2025-02-01",
-      vendor_id: "vendor-with-null-address",
-      status: "Analyzed",
-    };
-  
-    const mockVendorData = {
-      uuid: "vendor-with-null-address",
-      name: "Vendor With Null Address",
-      address: null, // address adalah null
-      recipient_name: "Jane Smith",
-      tax_id: "987-65-4321"
-    };
-  
-    const mockInvoice = {
-      ...mockInvoiceData,
-      get: jest.fn().mockReturnValue(mockInvoiceData)
-    };
-  
-    const mockVendor = {
-      ...mockVendorData,
-      get: jest.fn().mockReturnValue(mockVendorData)
-    };
-  
-    models.Invoice.findOne.mockResolvedValue(mockInvoice);
-    models.Vendor.findByPk.mockResolvedValue(mockVendor);
-    models.FinancialDocumentItem.findAll.mockResolvedValue([]);
-  
-    const result = await invoiceService.getInvoiceById('1');
-  
-    expect(result).toHaveProperty('header');
-    expect(result.header).toHaveProperty('vendor_details');
-    expect(result.header.vendor_details).toHaveProperty('name', 'Vendor With Null Address');
-    expect(result.header.vendor_details).toHaveProperty('address', ''); // fallback ke string kosong
     expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
   });
 });
