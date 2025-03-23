@@ -372,25 +372,24 @@ class AzureInvoiceMapper {
    */
   getFieldContent(field) {
     if (!field) return null;
-
+  
     // Some fields provide direct content
     if (typeof field.content === 'string') {
-      return field.content.trim();
+      return field.content.trim().replace(/\n/g, " ");
     }
-
+  
     // Some fields provide value as string
     if (field.value && typeof field.value === 'string') {
-      return field.value.trim();
+      return field.value.trim().replace(/\n/g, " ");
     }
-
+  
     // Some fields have text value inside a nested value object
     if (field?.value?.text) {
-      return field.value.text.trim();
+      return field.value.text.trim().replace(/\n/g, " ");
     }
-
+  
     return null;
   }
-
   /**
    * Process OCR result and prepare data for persistence
    * @param {Object} ocrResult - Raw OCR result
