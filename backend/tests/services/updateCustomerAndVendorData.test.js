@@ -247,4 +247,69 @@ describe('updateCustomerAndVendorData', () => {
     expect(Vendor.create).toHaveBeenCalled();
     expect(Invoice.update).not.toHaveBeenCalled();
   });
+  test('should include address in vendor where clause when address is provided', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-address';
+    const vendorData = {
+      name: 'Vendor With Address',
+      tax_id: 'V-ADDRESS-123',
+      address: '789 Vendor Boulevard, Business District'
+    };
+    
+    const mockVendor = {
+      uuid: 'vendor-uuid-with-address',
+      name: vendorData.name
+    };
+    
+    Vendor.findOne.mockResolvedValue(mockVendor);
+    
+    // Act
+    await invoiceService.updateCustomerAndVendorData(invoiceId, null, vendorData);
+    
+    // Assert
+    expect(Vendor.findOne).toHaveBeenCalledWith({
+      where: {
+        name: vendorData.name,
+        tax_id: vendorData.tax_id,
+        address: vendorData.address // address seharusnya ada di where clause
+      }
+    });
+    expect(Invoice.update).toHaveBeenCalledWith(
+      { vendor_id: mockVendor.uuid },
+      { where: { id: invoiceId } }
+    );
+  });
+  
+  test('should NOT include address in vendor where clause when address is null', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-no-address';
+    const vendorData = {
+      name: 'Vendor Without Address',
+      tax_id: 'V-NO-ADDRESS-456',
+      address: null // address adalah null
+    };
+    
+    const mockVendor = {
+      uuid: 'vendor-uuid-without-address',
+      name: vendorData.name
+    };
+    
+    Vendor.findOne.mockResolvedValue(mockVendor);
+    
+    // Act
+    await invoiceService.updateCustomerAndVendorData(invoiceId, null, vendorData);
+    
+    // Assert
+    expect(Vendor.findOne).toHaveBeenCalledWith({
+      where: {
+        name: vendorData.name,
+        tax_id: vendorData.tax_id
+        // address seharusnya TIDAK ada di where clause
+      }
+    });
+    expect(Invoice.update).toHaveBeenCalledWith(
+      { vendor_id: mockVendor.uuid },
+      { where: { id: invoiceId } }
+    );
+  });
 });
