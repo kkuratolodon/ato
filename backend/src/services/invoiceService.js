@@ -382,7 +382,12 @@ class InvoiceService extends FinancialDocumentService {
       // Format response
       const formattedResponse = this._formatInvoiceResponse(invoiceData);
 
-      return formattedResponse;
+      // Bungkus dalam format yang diminta
+      return {
+        data: {
+          documents: [formattedResponse]
+        }
+      };
 
     } catch (error) {
       console.error("Error retrieving invoice:", error);
@@ -391,9 +396,8 @@ class InvoiceService extends FinancialDocumentService {
       } else {
         throw new Error("Failed to retrieve invoice: " + error.message);
       }
-    }
+ }
   }
-
   async analyzeInvoice(documentUrl) {
     if (!documentUrl) {
       throw new Error("documentUrl is required");
