@@ -184,7 +184,6 @@ class InvoiceService extends FinancialDocumentService {
           name: customerData.name,
           ...(customerData.tax_id && { tax_id: customerData.tax_id }),
           ...(customerData.address && { address: customerData.address })
-          ...(customerData.address && { address: customerData.address })
         }
       });
       if (!customer) {
@@ -192,13 +191,12 @@ class InvoiceService extends FinancialDocumentService {
       }
       await Invoice.update({ customer_id: customer.uuid }, { where: { id: invoiceId } });
     }
-
+    
     if (vendorData?.name) {
       let vendor = await Vendor.findOne({
         where: {
           name: vendorData.name,
           ...(vendorData.tax_id && { tax_id: vendorData.tax_id }),
-          ...(vendorData.address && { address: vendorData.address })
           ...(vendorData.address && { address: vendorData.address })
         }
       });
