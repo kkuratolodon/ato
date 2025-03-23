@@ -73,14 +73,6 @@ class FinancialDocumentController {
         return safeResponse(res, 400, "Failed to determine PDF page count.");
       }
 
-        
-  
-        // Integrity check
-        const isValidPdf = await pdfValidationService.checkPdfIntegrity(buffer);
-        if (!isValidPdf) {
-          return safeResponse(res, 400, "PDF file is invalid");
-        }
-
         // File size validation
         try {
           await pdfValidationService.validateSizeFile(buffer);
