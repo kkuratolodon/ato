@@ -20,7 +20,6 @@ class AzureInvoiceMapper {
     const document = ocrResult.documents[0];
     const fields = document.fields || {};
     // Extract and validate dates
-    console.log(fields)
     const invoiceId = this.getFieldContent(fields.InvoiceId);
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);
@@ -109,7 +108,6 @@ class AzureInvoiceMapper {
    */
   extractCustomerData(fields) {
     const addressData = this.getFieldContent(fields.CustomerAddress || fields.BillingAddress || fields.ShippingAddress);
-
     return {
       name: this.getFieldContent(fields.CustomerName) || this.getFieldContent(fields.BillingAddressRecipient),
       address: addressData, 
@@ -156,7 +154,6 @@ class AzureInvoiceMapper {
       return new Date(); // Default to current date if missing
     }
     const ddmmyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
-    console.log(dateStr)
     if (ddmmyyRegex.test(dateStr)) {
       const [, day, month, year] = ddmmyyRegex.exec(dateStr);
       const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;

@@ -233,7 +233,6 @@ class InvoiceService extends FinancialDocumentService {
         
         // Generate UUID untuk item dokumen
         const documentItemId = uuidv4();
-        console.log(itemsData)
         await FinancialDocumentItem.create({
           id: documentItemId, 
           document_type: 'Invoice',
