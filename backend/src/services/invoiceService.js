@@ -262,15 +262,14 @@ class InvoiceService extends FinancialDocumentService {
 
   async getInvoiceById(id) {
     try {
-      // Ubah dari findByPk ke findOne with where clause untuk mencari berdasarkan uuid
       const invoice = await Invoice.findOne({ 
         where: { id: id } 
       });
-
+  
       if (!invoice) {
         throw new Error("Invoice not found");
       }
-
+  
       const invoiceData = invoice.get({ plain: true });
     
       const invoiceItems = await FinancialDocumentItem.findAll({
@@ -286,7 +285,7 @@ class InvoiceService extends FinancialDocumentService {
           invoiceData.customer = customer.get({ plain: true });
         }
       }
-
+  
       if (invoiceData.vendor_id) {
         const vendor = await Vendor.findByPk(invoiceData.vendor_id);
         if (vendor) {
@@ -303,9 +302,7 @@ class InvoiceService extends FinancialDocumentService {
           itemsWithDetails.push(itemData);
         }
       }
-
-      invoiceData.items = itemsWithDetails;
-      
+  
       // Transform items data to the required format
       const formattedItems = itemsWithDetails.map(item => ({
         amount: item.amount,
@@ -314,8 +311,10 @@ class InvoiceService extends FinancialDocumentService {
         unit: item.unit,
         unit_price: item.unit_price
       }));
+      
       invoiceData.items = formattedItems;
-      // Transformasi ke format yang diinginkan
+      
+      // Transformasi ke format yang diinginkan dengan address baru
       const formattedResponse = {
         header: {
           invoice_details: {
@@ -327,18 +326,12 @@ class InvoiceService extends FinancialDocumentService {
           },
           vendor_details: invoiceData.vendor ? {
             name: invoiceData.vendor.name,
-            address: {
-              street_address: invoiceData.vendor.street_address,
-              city: invoiceData.vendor.city,
-              state: invoiceData.vendor.state,
-              postal_code: invoiceData.vendor.postal_code,
-              house: invoiceData.vendor.house
-            },
+            address: invoiceData.vendor.address || "",
             recipient_name: invoiceData.vendor.recipient_name,
             tax_id: invoiceData.vendor.tax_id
           } : {
             name: null,
-            address: {},
+            address: "",
             recipient_name: null,
             tax_id: null
           },
@@ -346,19 +339,13 @@ class InvoiceService extends FinancialDocumentService {
             id: invoiceData.customer.uuid,
             name: invoiceData.customer.name,
             recipient_name: invoiceData.customer.recipient_name,
-            address: {
-              street_address: invoiceData.customer.street_address,
-              city: invoiceData.customer.city,
-              state: invoiceData.customer.state,
-              postal_code: invoiceData.customer.postal_code,
-              house: invoiceData.customer.house
-            },
+            address: invoiceData.customer.address || "",
             tax_id: invoiceData.customer.tax_id
           } : {
             id: null,
             name: null,
             recipient_name: null,
-            address: {},
+            address: "",
             tax_id: null
           },
           financial_details: {
@@ -374,9 +361,9 @@ class InvoiceService extends FinancialDocumentService {
         },
         items: invoiceData.items
       };
-
+  
       return formattedResponse;
-
+  
     } catch (error) {
       console.error("Error retrieving invoice:", error);
       if (error.message === "Invoice not found") {
