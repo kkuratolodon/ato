@@ -382,7 +382,12 @@ class InvoiceService extends FinancialDocumentService {
       // Format response
       const formattedResponse = this._formatInvoiceResponse(invoiceData);
 
-      return formattedResponse;
+      // Bungkus dalam format yang diminta
+      return {
+        data: {
+          documents: [formattedResponse]
+        }
+      };
 
     } catch (error) {
       console.error("Error retrieving invoice:", error);
