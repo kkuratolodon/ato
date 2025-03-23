@@ -39,11 +39,6 @@ describe('Vendor Model', () => {
         // Create a test vendor
         const vendor = await Vendor.create({
             name: 'Test Vendor',
-            street_address: '456 Business Ave',
-            city: 'Supplier City',
-            state: 'Supply State',
-            postal_code: '54321',
-            house: '456',
             recipient_name: 'Jane Supplier',
             tax_id: 'V-98765'
         });
@@ -61,11 +56,7 @@ describe('Vendor Model', () => {
         test('it should have required vendor attributes', () => {
             expect(Vendor.rawAttributes).toHaveProperty('uuid');
             expect(Vendor.rawAttributes).toHaveProperty('name');
-            expect(Vendor.rawAttributes).toHaveProperty('street_address');
-            expect(Vendor.rawAttributes).toHaveProperty('city');
-            expect(Vendor.rawAttributes).toHaveProperty('state');
-            expect(Vendor.rawAttributes).toHaveProperty('postal_code');
-            expect(Vendor.rawAttributes).toHaveProperty('house');
+            expect(Vendor.rawAttributes).toHaveProperty('address');
             expect(Vendor.rawAttributes).toHaveProperty('recipient_name');
             expect(Vendor.rawAttributes).toHaveProperty('tax_id');
         });

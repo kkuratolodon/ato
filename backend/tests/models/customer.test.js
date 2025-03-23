@@ -34,11 +34,6 @@ describe('Customer Model', () => {
         // Create a test customer
         const customer = await Customer.create({
             name: 'Test Customer',
-            street_address: '123 Main St',
-            city: 'Test City',
-            state: 'Test State',
-            postal_code: '12345',
-            houseAddress: 'Apt 4B',
         });
         customerId = customer.uuid;
     });
@@ -50,11 +45,8 @@ describe('Customer Model', () => {
     // Basic structure test
     test('it should have required customer attributes', () => {
         expect(Customer.rawAttributes).toHaveProperty('uuid');
+        expect(Customer.rawAttributes).toHaveProperty('address');
         expect(Customer.rawAttributes).toHaveProperty('name');
-        expect(Customer.rawAttributes).toHaveProperty('street_address');
-        expect(Customer.rawAttributes).toHaveProperty('city');
-        expect(Customer.rawAttributes).toHaveProperty('state');
-        expect(Customer.rawAttributes).toHaveProperty('postal_code');
     });
 
     // Basic CRUD tests
