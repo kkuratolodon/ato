@@ -143,10 +143,6 @@ class InvoiceService extends FinancialDocumentService {
   }
 
   mapAnalysisResult(analysisResult, partnerId, originalname, fileSize) {
-    if (!analysisResult?.data) {
-      throw new Error("Failed to analyze invoice: No data returned");
-    }
-    
     const { invoiceData, customerData, vendorData, itemsData } = 
       this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
       
@@ -237,7 +233,7 @@ class InvoiceService extends FinancialDocumentService {
         
         // Generate UUID untuk item dokumen
         const documentItemId = uuidv4();
-        
+        console.log(itemsData)
         await FinancialDocumentItem.create({
           id: documentItemId, 
           document_type: 'Invoice',
@@ -245,7 +241,7 @@ class InvoiceService extends FinancialDocumentService {
           item_id: item.uuid,
           quantity: itemData.quantity || 0,
           unit: itemData.unit || null,
-          unit_price: itemData.unit_price || 0,
+          unit_price: itemData.unitPrice || 0,
           amount: itemData.amount || 0
         });
       }
@@ -255,22 +251,6 @@ class InvoiceService extends FinancialDocumentService {
       console.error('Error saving invoice items:', error);
       throw new Error(`Failed to save invoice items: ${error.message}`);
     }
-  }
-
-  buildResponse(invoice) {
-    return {
-      message: "Invoice successfully processed and saved",
-      invoiceId: invoice.id,
-      details: {
-        id: invoice.id,
-        invoice_number: invoice.invoice_number,
-        invoice_date: invoice.invoice_date,
-        due_date: invoice.due_date,
-        total_amount: invoice.total_amount,
-        status: invoice.status,
-        created_at: invoice.created_at
-      }
-    };
   }
 
   async getPartnerId(id) {

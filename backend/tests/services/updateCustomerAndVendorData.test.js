@@ -133,7 +133,8 @@ describe('updateCustomerAndVendorData', () => {
     const invoiceId = 'test-invoice-123';
     const vendorData = {
       name: 'New Vendor',
-      postal_code: '20001'
+      postal_code: '20001',
+      street_address: '123 Test St'
     };
     
     Vendor.findOne.mockResolvedValue(null);

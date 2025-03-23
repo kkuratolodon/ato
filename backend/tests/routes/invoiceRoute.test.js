@@ -94,4 +94,3 @@ describe('Invoice Routes', () => {
     expect(response.status).toBe(500);
   });
 });
-

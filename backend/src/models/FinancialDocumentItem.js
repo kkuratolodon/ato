@@ -32,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         quantity: {
-            type: DataTypes.DECIMAL,
+            type: DataTypes.INTEGER,
             allowNull: true
         },
         unit: {
