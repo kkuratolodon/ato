@@ -451,6 +451,7 @@ describe("getInvoiceById", () => {
       name: null,
       recipient_name: null,
       address: "",
+      address: "",
       tax_id: null
     });
     expect(models.Customer.findByPk).toHaveBeenCalledWith("missing-customer-uuid");
@@ -528,11 +529,11 @@ describe("getInvoiceById", () => {
 
     const result = await invoiceService.getInvoiceById('1');
 
-    expect(result).toHaveProperty('data');
-    expect(result.data.documents[0].header).toHaveProperty('customer_details');
-    expect(result.data.documents[0].header.customer_details).toHaveProperty('name', 'Existing Customer');
-    expect(result.data.documents[0].header.customer_details).toHaveProperty('id', 'existing-customer-uuid');
-    expect(result.data.documents[0].header.customer_details).toHaveProperty('address', '123 Test St');
+    expect(result).toHaveProperty('header');
+    expect(result.header).toHaveProperty('customer_details');
+    expect(result.header.customer_details).toHaveProperty('name', 'Existing Customer');
+    expect(result.header.customer_details).toHaveProperty('id', 'existing-customer-uuid');
+    expect(result.header.customer_details).toHaveProperty('address', '123 Test St');
     expect(mockCustomer.get).toHaveBeenCalledWith({ plain: true });
   });
 
@@ -565,10 +566,10 @@ describe("getInvoiceById", () => {
 
     const result = await invoiceService.getInvoiceById('1');
 
-    expect(result).toHaveProperty('data');
-    expect(result.data.documents[0].header).toHaveProperty('vendor_details');
-    expect(result.data.documents[0].header.vendor_details).toHaveProperty('name', 'Existing Vendor');
-    expect(result.data.documents[0].header.vendor_details).toHaveProperty('address', '456 Vendor St');
+    expect(result).toHaveProperty('header');
+    expect(result.header).toHaveProperty('vendor_details');
+    expect(result.header.vendor_details).toHaveProperty('name', 'Existing Vendor');
+    expect(result.header.vendor_details).toHaveProperty('address', '456 Vendor St');
     expect(mockVendor.get).toHaveBeenCalledWith({ plain: true });
   });
 
