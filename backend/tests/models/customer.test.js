@@ -34,6 +34,7 @@ describe('Customer Model', () => {
         // Create a test customer
         const customer = await Customer.create({
             name: 'Test Customer',
+            address: 'Test City'
         });
         customerId = customer.uuid;
     });
