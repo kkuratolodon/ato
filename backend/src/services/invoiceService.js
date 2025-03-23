@@ -361,34 +361,108 @@ class InvoiceService extends FinancialDocumentService {
   // Fungsi utama dengan kompleksitas yang dikurangi
   async getInvoiceById(id) {
     try {
-      const invoice = await Invoice.findOne({
-        where: { id: id }
+      const invoice = await Invoice.findOne({ 
+        where: { id: id } 
       });
-
+  
       if (!invoice) {
         throw new Error("Invoice not found");
       }
-
-      // Get basic invoice data
-      let invoiceData = invoice.get({ plain: true });
-
-      // Get related entities (customer and vendor)
-      invoiceData = await this._getInvoiceRelatedEntities(invoiceData);
-
-      // Get items with details
-      const formattedItems = await this._getInvoiceItemsWithDetails(id);
-      invoiceData.items = formattedItems;
-
-      // Format response
-      const formattedResponse = this._formatInvoiceResponse(invoiceData);
-
-      // Bungkus dalam format yang diminta
-      return {
-        data: {
-          documents: [formattedResponse]
+  
+      const invoiceData = invoice.get({ plain: true });
+    
+      const invoiceItems = await FinancialDocumentItem.findAll({
+        where: { 
+          document_type: 'Invoice', 
+          document_id: id 
         }
+      });
+    
+      if (invoiceData.customer_id) {
+        const customer = await Customer.findByPk(invoiceData.customer_id);
+        if (customer) {
+          invoiceData.customer = customer.get({ plain: true });
+        }
+      }
+  
+      if (invoiceData.vendor_id) {
+        const vendor = await Vendor.findByPk(invoiceData.vendor_id);
+        if (vendor) {
+          invoiceData.vendor = vendor.get({ plain: true });
+        }
+      }
+      
+      const itemsWithDetails = [];
+      for (const item of invoiceItems) {
+        const itemData = item.get({ plain: true });
+        const itemDetails = await Item.findByPk(itemData.item_id);
+        if (itemDetails) {
+          itemData.item = itemDetails.get({ plain: true });
+          itemsWithDetails.push(itemData);
+        }
+      }
+  
+      // Transform items data to the required format
+      const formattedItems = itemsWithDetails.map(item => ({
+        amount: item.amount,
+        description: item.item?.description || null,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_price: item.unit_price
+      }));
+      
+      invoiceData.items = formattedItems;
+      
+      // Transformasi ke format yang diinginkan dengan address baru
+      const formattedResponse = {
+        header: {
+          invoice_details: {
+            invoice_number: invoiceData.invoice_number,
+            purchase_order_id: invoiceData.purchase_order_id,
+            invoice_date: invoiceData.invoice_date,
+            due_date: invoiceData.due_date,
+            payment_terms: invoiceData.payment_terms
+          },
+          vendor_details: invoiceData.vendor ? {
+            name: invoiceData.vendor.name,
+            address: invoiceData.vendor.address || "",
+            recipient_name: invoiceData.vendor.recipient_name,
+            tax_id: invoiceData.vendor.tax_id
+          } : {
+            name: null,
+            address: "",
+            recipient_name: null,
+            tax_id: null
+          },
+          customer_details: invoiceData.customer ? {
+            id: invoiceData.customer.uuid,
+            name: invoiceData.customer.name,
+            recipient_name: invoiceData.customer.recipient_name,
+            address: invoiceData.customer.address || "",
+            tax_id: invoiceData.customer.tax_id
+          } : {
+            id: null,
+            name: null,
+            recipient_name: null,
+            address: "",
+            tax_id: null
+          },
+          financial_details: {
+            currency: {
+              currency_symbol: invoiceData.currency_symbol,
+              currency_code: invoiceData.currency_code
+            },
+            total_amount: invoiceData.total_amount,
+            subtotal_amount: invoiceData.subtotal_amount,
+            discount_amount: invoiceData.discount_amount,
+            total_tax_amount: invoiceData.tax_amount,
+          }
+        },
+        items: invoiceData.items
       };
-
+  
+      return formattedResponse;
+  
     } catch (error) {
       console.error("Error retrieving invoice:", error);
       if (error.message === "Invoice not found") {
