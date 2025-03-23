@@ -34,6 +34,7 @@ describe('Customer Model', () => {
         // Create a test customer
         const customer = await Customer.create({
             name: 'Test Customer',
+            address: 'Test City'
         });
         customerId = customer.uuid;
     });
@@ -55,7 +56,7 @@ describe('Customer Model', () => {
 
         expect(customer).toBeTruthy();
         expect(customer.name).toBe('Test Customer');
-        expect(customer.city).toBe('Test City');
+        expect(customer.address).toBe('Test City');
     });
 
     // You can add association tests here if needed
