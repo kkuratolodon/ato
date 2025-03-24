@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
+  up: async (queryInterface) => {
     try {
       // 1. Check for correct table names (case sensitive in some databases)
       const tables = await queryInterface.showAllTables();

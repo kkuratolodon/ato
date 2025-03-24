@@ -105,7 +105,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage 
+          directory: ./backend/coverage
           fail_ci_if_error: true  
           verbose: true  
 
@@ -114,6 +114,12 @@ jobs:
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Display Codecov link
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          REPO_NAME="${{ github.repository }}"
+          echo "Code Coverage Report: https://codecov.io/gh/${REPO_NAME}/branch/${BRANCH_NAME}"
 
   deploy:
     name: Deploy to Staging
