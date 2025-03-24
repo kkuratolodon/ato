@@ -1,4 +1,4 @@
-const InvoiceService = require('../services/invoiceService');
+const InvoiceService = require('../services/invoice/invoiceService');
 const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
 
