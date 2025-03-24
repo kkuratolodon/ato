@@ -18,7 +18,6 @@ describe('Line Item Processing', () => {
       };
       
       const result1 = mapper.extractLineItems(standardItems);
-      console.log("ppp", result1)
       expect(result1[0].description).toBe('Standard Item');
       expect(result1[0].quantity).toBe(2);
       expect(result1[0].unitPrice).toBe(10);
@@ -105,4 +104,22 @@ describe('Line Item Processing', () => {
       
       expect(mapper.extractLineItems(nullContentItemsField)).toEqual([]);
     });
+
+    it('should handle negative quantities and zero prices', () => {  
+      const mapper = getMapper();  
+      const items = {  
+        values: [{  
+          properties: {  
+            Description: { content: 'Test Item' },  
+            Quantity: { content: '-2' },  
+            UnitPrice: { content: '0.00' },  
+            Amount: { content: '0.00' }  
+          }  
+        }]  
+      };  
+      
+      const result = mapper.extractLineItems(items);  
+      expect(result[0].quantity).toBe(-2);  
+      expect(result[0].unitPrice).toBe(0);  
+    });     
   });
