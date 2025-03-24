@@ -1,19 +1,26 @@
-const invoiceController = require("../../src/controllers/invoiceController");
+const { InvoiceController } = require("../../src/controllers/invoiceController");
 const pdfValidationService = require("../../src/services/pdfValidationService");
-const invoiceService = require("../../src/services/invoiceService");
+// const invoiceService = require("../../src/services/mockInvoiceService");
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");
-jest.mock("../../src/services/invoiceService");
+// jest.mock("../../src/services/invoiceService");
 
 describe("Invoice Controller", () => {
-  let req, res, controller;
+  let req, res, controller, mockInvoiceService;
 
   beforeEach(() => {
     req = mockRequest();
     res = mockResponse();
-    controller = invoiceController; 
+
+    mockInvoiceService = {
+      uploadInvoice: jest.fn(),
+      getInvoiceById: jest.fn(), 
+      getPartnerId: jest.fn()
+    }; 
+
+    controller = new InvoiceController(mockInvoiceService); 
     jest.clearAllMocks();
 
     // Set default mocks
@@ -22,7 +29,7 @@ describe("Invoice Controller", () => {
     pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
     
-    invoiceService.uploadInvoice.mockResolvedValue({
+    mockInvoiceService.uploadInvoice.mockResolvedValue({
       message: "Invoice upload success",
       invoiceId: "123"
     });
@@ -102,7 +109,7 @@ describe("Invoice Controller", () => {
       };
 
       // Simulate timeout
-      invoiceService.uploadInvoice.mockImplementation(() => 
+      mockInvoiceService.uploadInvoice.mockImplementation(() => 
         new Promise(resolve => setTimeout(resolve, 4000))
       );
 
@@ -122,7 +129,7 @@ describe("Invoice Controller", () => {
         mimetype: "application/pdf"
       };
 
-      invoiceService.uploadInvoice.mockRejectedValue(new Error("Internal server error"));
+      mockInvoiceService.uploadInvoice.mockRejectedValue(new Error("Internal server error"));
 
       await controller.uploadInvoice(req, res);
 
@@ -144,8 +151,8 @@ describe("Invoice Controller", () => {
       req.user = { uuid: "test-uuid" };
       req.params = { id: "1" };
 
-      invoiceService.getPartnerId.mockResolvedValue("test-uuid");
-      invoiceService.getInvoiceById.mockResolvedValue(mockInvoice);
+      mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
+      mockInvoiceService.getInvoiceById.mockResolvedValue(mockInvoice);
 
       await controller.getInvoiceById(req, res);
 
@@ -169,7 +176,7 @@ describe("Invoice Controller", () => {
       req.user = { uuid: "test-uuid" };
       req.params = { id: "1" };
 
-      invoiceService.getPartnerId.mockResolvedValue("other-uuid");
+      mockInvoiceService.getPartnerId.mockResolvedValue("other-uuid");
 
       await controller.getInvoiceById(req, res);
 
@@ -183,8 +190,8 @@ describe("Invoice Controller", () => {
       req.user = { uuid: "test-uuid" };
       req.params = { id: "1" };
 
-      invoiceService.getPartnerId.mockResolvedValue("test-uuid");
-      invoiceService.getInvoiceById.mockResolvedValue(null);
+      mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
+      mockInvoiceService.getInvoiceById.mockResolvedValue(null);
 
       await controller.getInvoiceById(req, res);
 
@@ -198,7 +205,7 @@ describe("Invoice Controller", () => {
       req.user = { uuid: "test-uuid" };
       req.params = { id: "1" };
 
-      invoiceService.getPartnerId.mockRejectedValue(new Error("Internal server error"));
+      mockInvoiceService.getPartnerId.mockRejectedValue(new Error("Internal server error"));
 
       await controller.getInvoiceById(req, res);
 
