@@ -1,4 +1,4 @@
-const { getMapper, partnerId } = require('./setupAzureInvoiceMapper');
+const { getMapper } = require('./setupAzureInvoiceMapper');
 
 describe('Address Processing', () => {
     it('should handle different address patterns for customer address extraction', () => {

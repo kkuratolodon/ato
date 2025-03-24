@@ -1,5 +1,4 @@
-const { getMapper, partnerId } = require('./setupAzureInvoiceMapper');
-const { mockAzureOcrResult } = require('../../mocks/azure-ocr-result');
+const { getMapper } = require('./setupAzureInvoiceMapper');
 
 describe('Line Item Processing', () => {
     it('should handle various line item formats', () => {
