@@ -38,8 +38,7 @@ describe('updateCustomerAndVendorData', () => {
     const customerData = {
       name: 'Existing Customer',
       tax_id: '123456',
-      postal_code: '10001',
-      street_address: '123 Test St'
+      address: '123 Test St'
     };
     
     const mockCustomer = {
@@ -57,8 +56,7 @@ describe('updateCustomerAndVendorData', () => {
       where: {
         name: customerData.name,
         tax_id: customerData.tax_id,
-        postal_code: customerData.postal_code,
-        street_address: customerData.street_address
+        address: customerData.address
       }
     });
     expect(Customer.create).not.toHaveBeenCalled();
@@ -248,5 +246,70 @@ describe('updateCustomerAndVendorData', () => {
     expect(Vendor.findOne).toHaveBeenCalled();
     expect(Vendor.create).toHaveBeenCalled();
     expect(Invoice.update).not.toHaveBeenCalled();
+  });
+  test('should include address in vendor where clause when address is provided', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-address';
+    const vendorData = {
+      name: 'Vendor With Address',
+      tax_id: 'V-ADDRESS-123',
+      address: '789 Vendor Boulevard, Business District'
+    };
+    
+    const mockVendor = {
+      uuid: 'vendor-uuid-with-address',
+      name: vendorData.name
+    };
+    
+    Vendor.findOne.mockResolvedValue(mockVendor);
+    
+    // Act
+    await invoiceService.updateCustomerAndVendorData(invoiceId, null, vendorData);
+    
+    // Assert
+    expect(Vendor.findOne).toHaveBeenCalledWith({
+      where: {
+        name: vendorData.name,
+        tax_id: vendorData.tax_id,
+        address: vendorData.address // address seharusnya ada di where clause
+      }
+    });
+    expect(Invoice.update).toHaveBeenCalledWith(
+      { vendor_id: mockVendor.uuid },
+      { where: { id: invoiceId } }
+    );
+  });
+  
+  test('should NOT include address in vendor where clause when address is null', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-no-address';
+    const vendorData = {
+      name: 'Vendor Without Address',
+      tax_id: 'V-NO-ADDRESS-456',
+      address: null // address adalah null
+    };
+    
+    const mockVendor = {
+      uuid: 'vendor-uuid-without-address',
+      name: vendorData.name
+    };
+    
+    Vendor.findOne.mockResolvedValue(mockVendor);
+    
+    // Act
+    await invoiceService.updateCustomerAndVendorData(invoiceId, null, vendorData);
+    
+    // Assert
+    expect(Vendor.findOne).toHaveBeenCalledWith({
+      where: {
+        name: vendorData.name,
+        tax_id: vendorData.tax_id
+        // address seharusnya TIDAK ada di where clause
+      }
+    });
+    expect(Invoice.update).toHaveBeenCalledWith(
+      { vendor_id: mockVendor.uuid },
+      { where: { id: invoiceId } }
+    );
   });
 });
