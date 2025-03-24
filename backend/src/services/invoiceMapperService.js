@@ -86,25 +86,6 @@ class AzureInvoiceMapper {
   }
 
   /**
-   * Extract invoice number from multiple possible fields
-   * @param {Object} fields - OCR result fields
-   * @returns {string} Extracted invoice number
-   */
-  extractInvoiceNumber(fields) {
-    // Check if fields is null or undefined
-    if (!fields) return '';
-    
-    // Check multiple possible field names
-    return this.fieldParser.getFieldContent(fields.InvoiceId) ||
-      this.fieldParser.getFieldContent(fields.InvoiceNumber) ||
-      this.fieldParser.getFieldContent(fields["Invoice number"]) ||
-      this.fieldParser.getFieldContent(fields["Invoice #"]) ||
-      this.fieldParser.getFieldContent(fields["Invoice No"]) ||
-      this.fieldParser.getFieldContent(fields["Invoice No."]) ||
-      '';
-  }
-
-  /**
    * Extract customer data from OCR fields into a structured object
    * @param {Object} fields - OCR fields
    * @returns {Object} Structured customer data
