@@ -16,24 +16,28 @@ module.exports = {
           {
             uuid: uuidv4(),
             description: 'Ergonomic executive chair with adjustable height',
+            sku: 'CHAIR-001', 
             createdAt: new Date(),
             updatedAt: new Date()
           },
           {
             uuid: uuidv4(),
             description: '15-inch laptop with Intel i7, 16GB RAM, 512GB SSD',
+            sku: 'LAPTOP-001',
             createdAt: new Date(),
             updatedAt: new Date()
           },
           {
             uuid: uuidv4(),
             description: 'Bundle including stapler, paper clips, pens, and notepads',
+            sku: 'OFFICE-001',
             createdAt: new Date(),
             updatedAt: new Date()
           },
           {
             uuid: uuidv4(),
             description: 'Annual subscription for office productivity software',
+            sku: 'SOFTWARE-001',
             createdAt: new Date(),
             updatedAt: new Date()
           }
@@ -75,7 +79,7 @@ module.exports = {
           quantity: Math.floor(Math.random() * 5) + 1,
           unit_price: (Math.random() * 100 + 50).toFixed(2),
           amount: (Math.random() * 500 + 100).toFixed(2),
-          // REMOVED: unit field which doesn't exist in the table!
+          unit: 'pcs',
           createdAt: new Date(),
           updatedAt: new Date()
         });
@@ -92,7 +96,7 @@ module.exports = {
           quantity: Math.floor(Math.random() * 5) + 1,
           unit_price: (Math.random() * 100 + 50).toFixed(2),
           amount: (Math.random() * 500 + 100).toFixed(2),
-          // REMOVED: unit field which doesn't exist in the table!
+          unit: 'pcs',
           createdAt: new Date(),
           updatedAt: new Date()
         });
