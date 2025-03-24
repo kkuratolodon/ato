@@ -10,14 +10,14 @@ export const options = {
   stages: [
     { duration: '30s', target: 10},
     { duration: '30s', target: 15},
+    { duration: '30s', target: 18},
     { duration: '30s', target: 20},
-    { duration: '30s', target: 25},
     { duration: '30s', target: 30},
-    // { duration: '1m', target: 40 },
-    // { duration: '1m', target: 60 },
-    // { duration: '1m', target: 80 },
-    // { duration: '1m', target: 100 },
-    // { duration: '1m', target: 300 },
+    { duration: '1m', target: 40 },
+    { duration: '1m', target: 60 },
+    { duration: '1m', target: 80 },
+    { duration: '1m', target: 100 },
+    { duration: '1m', target: 300 },
   ],
   thresholds: {
     error_rate: ['rate<0.6'], // fail test if error rate > 60%
@@ -51,25 +51,27 @@ export default function () {
   latencyP95.add(endTime - startTime);
   requests.add(1);
 
-  if (!success) {
-    console.log(`[ERROR] ${res.status} - ${res.body}`);
+  if (res.status !== 200) {
+    console.log(`Request failed: Status ${res.status}, Response: ${res.body}`);
+  } else {
+    console.log(`Request completed: ${res.status}, Duration: ${res.timings.duration}ms`);
   }
 
   sleep(0.5);
 }
 
 // Custom summary at the end
-export function handleSummary(data) {
-  const errRate = data.metrics.error_rate.rate ?? 0;
-  const errPercent = (errRate * 100).toFixed(2);
+// export function handleSummary(data) {
+//   const errRate = data.metrics.error_rate.rate ?? 0;
+//   const errPercent = (errRate * 100).toFixed(2);
 
-  console.log(`\n📊 Final error rate: ${errPercent}%`);
+//   console.log(`\n📊 Final error rate: ${errPercent}%`);
 
-  if (errRate > 0.6) {
-    console.log(`⚠️  Error rate exceeded 60%! The system can't handle that many users.`);
-  } else {
-    console.log(`✅ Error rate is within acceptable limits.`);
-  }
+//   if (errRate > 0.6) {
+//     console.log(`⚠️  Error rate exceeded 60%! The system can't handle that many users.`);
+//   } else {
+//     console.log(`✅ Error rate is within acceptable limits.`);
+//   }
 
-  return {};
-}
+//   return {};
+// }
