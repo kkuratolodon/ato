@@ -6,7 +6,7 @@ class FinancialDocumentController {
       this.service = service;
       this.documentType = documentType;
     }
-    async executeWithTimeout(fn, timeoutMs = 3000) {
+    async executeWithTimeout(fn, timeoutMs = 10000) {
       let timeoutId;
       const timeoutPromise = new Promise((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error("Timeout")), timeoutMs);

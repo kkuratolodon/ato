@@ -1,0 +1,75 @@
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Trend, Rate, Counter } from 'k6/metrics';
+
+const errorRate = new Rate('error_rate');
+const latencyP95 = new Trend('latency_p95');
+const requests = new Counter('requests');
+
+export const options = {
+  stages: [
+    { duration: '30s', target: 10},
+    { duration: '30s', target: 15},
+    { duration: '30s', target: 20},
+    { duration: '30s', target: 25},
+    { duration: '30s', target: 30},
+    // { duration: '1m', target: 40 },
+    // { duration: '1m', target: 60 },
+    // { duration: '1m', target: 80 },
+    // { duration: '1m', target: 100 },
+    // { duration: '1m', target: 300 },
+  ],
+  thresholds: {
+    error_rate: ['rate<0.6'], // fail test if error rate > 60%
+    latency_p95: ['p(95)<3000'],
+  },
+};
+
+const pdfData = open('./sample1.pdf', 'b');
+
+export default function () {
+  const url = 'http://localhost:3000/api/invoices/upload';
+
+  const payload = {
+    file: http.file(pdfData, 'sample1.pdf', 'application/pdf'),
+  };
+
+  const headers = {
+    'client_id': 'surya',
+    'client_secret': 'suryasecret',
+  };
+
+  const startTime = Date.now();
+  const res = http.post(url, payload, { headers});
+  const endTime = Date.now();
+
+  const success = check(res, {
+    'status is 200': (r) => r.status === 200,
+  });
+
+  errorRate.add(!success);
+  latencyP95.add(endTime - startTime);
+  requests.add(1);
+
+  if (!success) {
+    console.log(`[ERROR] ${res.status} - ${res.body}`);
+  }
+
+  sleep(0.5);
+}
+
+// Custom summary at the end
+export function handleSummary(data) {
+  const errRate = data.metrics.error_rate.rate ?? 0;
+  const errPercent = (errRate * 100).toFixed(2);
+
+  console.log(`\n📊 Final error rate: ${errPercent}%`);
+
+  if (errRate > 0.6) {
+    console.log(`⚠️  Error rate exceeded 60%! The system can't handle that many users.`);
+  } else {
+    console.log(`✅ Error rate is within acceptable limits.`);
+  }
+
+  return {};
+}

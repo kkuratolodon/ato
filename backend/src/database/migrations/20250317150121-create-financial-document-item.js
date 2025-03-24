@@ -3,6 +3,11 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     try {
+      // Drop the existing table first
+    await queryInterface.dropTable('FinancialDocumentItem', { cascade: true }).catch(() => {
+      console.log('Table does not exist yet, creating new one');
+    });
+
       // 1. Periksa tipe data kolom uuid di tabel Item
       const [itemColResults] = await queryInterface.sequelize.query(
         "SHOW COLUMNS FROM Item WHERE Field='uuid'"
