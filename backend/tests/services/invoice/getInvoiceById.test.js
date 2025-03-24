@@ -168,7 +168,7 @@ describe("getInvoiceById", () => {
     invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
 
     // Act
-    const result = await invoiceService.getInvoiceById('1');
+    await invoiceService.getInvoiceById('1');
 
     // Assert
     expect(invoiceService.vendorRepository.findById).toHaveBeenCalledWith("missing-vendor-uuid");
