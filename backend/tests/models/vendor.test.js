@@ -39,13 +39,9 @@ describe('Vendor Model', () => {
         // Create a test vendor
         const vendor = await Vendor.create({
             name: 'Test Vendor',
-            street_address: '456 Business Ave',
-            city: 'Supplier City',
-            state: 'Supply State',
-            postal_code: '54321',
-            house: '456',
             recipient_name: 'Jane Supplier',
-            tax_id: 'V-98765'
+            tax_id: 'V-98765',
+            address: '456 Business Ave',
         });
         vendorId = vendor.uuid;
     });
@@ -61,11 +57,7 @@ describe('Vendor Model', () => {
         test('it should have required vendor attributes', () => {
             expect(Vendor.rawAttributes).toHaveProperty('uuid');
             expect(Vendor.rawAttributes).toHaveProperty('name');
-            expect(Vendor.rawAttributes).toHaveProperty('street_address');
-            expect(Vendor.rawAttributes).toHaveProperty('city');
-            expect(Vendor.rawAttributes).toHaveProperty('state');
-            expect(Vendor.rawAttributes).toHaveProperty('postal_code');
-            expect(Vendor.rawAttributes).toHaveProperty('house');
+            expect(Vendor.rawAttributes).toHaveProperty('address');
             expect(Vendor.rawAttributes).toHaveProperty('recipient_name');
             expect(Vendor.rawAttributes).toHaveProperty('tax_id');
         });
@@ -90,12 +82,7 @@ describe('Vendor Model', () => {
             
             expect(vendor).toBeTruthy();
             expect(vendor.name).toBe('Test Vendor');
-            expect(vendor.street_address).toBe('456 Business Ave');
-            expect(vendor.city).toBe('Supplier City');
-            expect(vendor.state).toBe('Supply State');
-            expect(vendor.postal_code).toBe('54321');
-            expect(vendor.house).toBe('456');
-            expect(vendor.recipient_name).toBe('Jane Supplier');
+            expect(vendor.address).toBe('456 Business Ave');
             expect(vendor.tax_id).toBe('V-98765');
         });
         
@@ -108,8 +95,7 @@ describe('Vendor Model', () => {
             
             expect(savedVendor).toBeTruthy();
             expect(savedVendor.name).toBe('Minimal Vendor');
-            expect(savedVendor.street_address).toBeNull();
-            expect(savedVendor.city).toBeNull();
+            expect(savedVendor.address).toBeNull();
             expect(savedVendor.tax_id).toBeNull();
         });
         
@@ -124,7 +110,7 @@ describe('Vendor Model', () => {
             expect(updatedVendor.name).toBe('Updated Vendor Name');
             expect(updatedVendor.tax_id).toBe('NEW-TAX-ID');
             // Original fields unchanged
-            expect(updatedVendor.city).toBe('Supplier City');
+            expect(updatedVendor.address).toBe('456 Business Ave');
         });
     });
 
@@ -169,23 +155,19 @@ describe('Vendor Model', () => {
             
             const savedVendor = await Vendor.findByPk(vendor.uuid);
             expect(savedVendor.name).toBe(''); // Empty string preserved
-            expect(savedVendor.street_address).toBeNull(); // Null preserved
-            expect(savedVendor.city).toBe(''); // Empty string preserved
-            expect(savedVendor.state).toBeNull(); // Null preserved
+            expect(savedVendor.address).toBeNull();
         });
         
         test('should handle special characters in fields', async () => {
             const vendor = await Vendor.create({
                 name: 'Vendor with Spécial Cháracters ® © ™ ! @ #',
-                street_address: '123 Main St. (Building #2)',
-                city: 'São Paulo',
+                address: '123 Main St. (Building #2), São Paulo',
                 tax_id: '123-45@678'
             });
             
             const savedVendor = await Vendor.findByPk(vendor.uuid);
             expect(savedVendor.name).toBe('Vendor with Spécial Cháracters ® © ™ ! @ #');
-            expect(savedVendor.street_address).toBe('123 Main St. (Building #2)');
-            expect(savedVendor.city).toBe('São Paulo');
+            expect(savedVendor.address).toBe('123 Main St. (Building #2), São Paulo');
             expect(savedVendor.tax_id).toBe('123-45@678');
         });
     });
