@@ -13,7 +13,7 @@ jest.mock('../../src/services/invoiceService', () => {
   // Mock implementation of mapAnalysisResult
   const mapAnalysisResult = (analysisResult, partnerId, originalname, fileSize) => {
     // Check for null/undefined inputs (matching the real implementation)
-    if (!analysisResult || !analysisResult.data) {
+    if (!analysisResult?.data) {
       throw new Error('Failed to analyze invoice: No data returned');
     }
     
