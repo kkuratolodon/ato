@@ -41,7 +41,7 @@ describe('AzureInvoiceMapper', () => {
       const { invoiceData } = mapper.mapToInvoiceModel(ocrResult, partnerId);
 
       expect(invoiceData).toBeDefined();
-      expect(invoiceData.purchase_order_id).toBe(12345);
+      expect(invoiceData.purchase_order_id).toBe("12345");
       expect(invoiceData.invoice_date).toEqual(new Date('2023-05-15'));
       expect(invoiceData.due_date).toEqual(new Date('2023-06-15'));
       expect(invoiceData.total_amount).toBe(110);
@@ -472,14 +472,6 @@ describe('AzureInvoiceMapper', () => {
       expect(simpleResult.amount).toBe(5000);
       expect(simpleResult.currency.currencySymbol).toBe('Rp');
       expect(simpleResult.currency.currencyCode).toBe('IDR');
-    });
-    it('should handle edge cases in parsePurchaseOrderId', () => {
-      expect(mapper.parsePurchaseOrderId({ content: '12345' })).toBe(12345);
-      expect(mapper.parsePurchaseOrderId({ content: 'ABC-DEF' })).toBe(0);
-      expect(mapper.parsePurchaseOrderId({ content: '-' })).toBe(0);
-      expect(mapper.parsePurchaseOrderId({ content: '12345e678' })).toBe(12345678);
-      expect(mapper.parsePurchaseOrderId({ content: 'Infinity' })).toBe(0);
-      expect(mapper.parsePurchaseOrderId({ content: 'NaN' })).toBe(0);
     });
     
     it('should handle tax field variations', () => {

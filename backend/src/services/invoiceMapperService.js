@@ -25,7 +25,7 @@ class AzureInvoiceMapper {
     const dueDate = this.parseDate(fields.DueDate, true);
 
     // Extract purchase order ID
-    const purchaseOrderId = this.parsePurchaseOrderId(fields.PurchaseOrder);
+    const purchaseOrderId = this.getFieldContent(fields.PurchaseOrder);
     // Extract monetary values
     const totalAmount = this.parseCurrency(fields.InvoiceTotal || fields.Total);
     const subtotalAmount = this.parseCurrency(fields.SubTotal) || totalAmount;
@@ -177,30 +177,6 @@ class AzureInvoiceMapper {
     return date;
   }
 
-  /**
-   * Parse purchase order ID from OCR result
-   * @param {Object} field - Purchase order field from OCR
-   * @returns {number|string} Parsed purchase order ID or empty string if missing
-   */
-  /**
- * Parse purchase order ID from OCR result
- * @param {Object} field - Purchase order field from OCR
- * @returns {number|string} Parsed purchase order ID or empty string if missing
- */
-  parsePurchaseOrderId(field) {
-    const poStr = this.getFieldContent(field);
-    if (!poStr) return null;
-
-    // Try to convert to number first (for backward compatibility with tests)
-    const numValue = parseInt(poStr.replace(/\D/g, ''), 10);
-
-    // If it's a valid number, return it, otherwise return 0
-    if (!isNaN(numValue) && numValue !== Infinity) {
-      return numValue;
-    }
-
-    return 0; // Default to 0 for non-numeric values
-  }
 
   /**
    * Parse currency field from OCR result
