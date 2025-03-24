@@ -105,7 +105,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage/lcov.info
+          directory: ./backend/coverage
           fail_ci_if_error: true  
           verbose: true  
 
