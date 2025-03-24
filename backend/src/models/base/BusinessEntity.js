@@ -9,29 +9,6 @@ const { Model } = require('sequelize');
 class BusinessEntity extends Model {
     static init(attributes, options) {
         // Add common fields to the attributes
-        const addressFields = {
-            street_address: {
-                type: options.DataTypes.TEXT,
-                allowNull: true
-            },
-            city: {
-                type: options.DataTypes.STRING(100),
-                allowNull: true
-            },
-            state: {
-                type: options.DataTypes.STRING(100),
-                allowNull: true
-            },
-            postal_code: {
-                type: options.DataTypes.STRING(20),
-                allowNull: true
-            },
-            house: {
-                type: options.DataTypes.STRING(100),
-                allowNull: true
-            }
-        };
-
         const commonFields = {
             uuid: {
                 type: options.DataTypes.UUID,
@@ -42,15 +19,18 @@ class BusinessEntity extends Model {
                 type: options.DataTypes.STRING,
                 allowNull: true
             },
-            ...addressFields,
-            tax_id: {
-                type: options.DataTypes.STRING,
-                allowNull: true
-            },
             recipient_name: {
                 type: options.DataTypes.STRING,
                 allowNull: true
             },
+            address: {
+                type: options.DataTypes.TEXT,
+                allowNull: true
+            },
+            tax_id: {
+                type: options.DataTypes.STRING,
+                allowNull: true
+            }
         };
 
         // Merge common fields with entity-specific fields
