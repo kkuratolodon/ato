@@ -1,6 +1,9 @@
 'use strict';
-
+const FieldParser = require('./invoiceMapperService/FieldParserService');
 class AzureInvoiceMapper {
+  constructor() {
+    this.fieldParser = new FieldParser();
+  }
   /**
    * Maps Azure OCR result to Invoice model format
    * @param {Object} ocrResult - Raw Azure OCR result
@@ -20,17 +23,17 @@ class AzureInvoiceMapper {
     const document = ocrResult.documents[0];
     const fields = document.fields || {};
     // Extract and validate dates
-    const invoiceId = this.getFieldContent(fields.InvoiceId);
-    const invoiceDate = this.parseDate(fields.InvoiceDate);
-    const dueDate = this.parseDate(fields.DueDate, true);
+    const invoiceId = this.fieldParser.getFieldContent(fields.InvoiceId);
+    const invoiceDate = this.fieldParser.parseDate(fields.InvoiceDate);
+    const dueDate = this.fieldParser.parseDate(fields.DueDate, true);
 
     // Extract purchase order ID
-    const purchaseOrderId = this.getFieldContent(fields.PurchaseOrder);
+    const purchaseOrderId = this.fieldParser.getFieldContent(fields.PurchaseOrder);
     // Extract monetary values
-    const totalAmount = this.parseCurrency(fields.InvoiceTotal || fields.Total);
-    const subtotalAmount = this.parseCurrency(fields.SubTotal) || totalAmount;
-    const discountAmount = this.parseCurrency(fields.TotalDiscount || fields.Discount);
-    const taxAmount = this.parseCurrency(fields.TotalTax || fields.Tax);
+    const totalAmount = this.fieldParser.parseCurrency(fields.InvoiceTotal || fields.Total);
+    const subtotalAmount = this.fieldParser.parseCurrency(fields.SubTotal) || totalAmount;
+    const discountAmount = this.fieldParser.parseCurrency(fields.TotalDiscount || fields.Discount);
+    const taxAmount = this.fieldParser.parseCurrency(fields.TotalTax || fields.Tax);
 
     const totalAmountAmount = totalAmount.amount;
     const subtotalAmountAmount = subtotalAmount.amount || totalAmountAmount;
@@ -45,7 +48,7 @@ class AzureInvoiceMapper {
     const currency = totalAmountCurrency || subtotalAmountCurrency || discountAmountCurrency || taxAmountCurrency || { currencySymbol: null, currencyCode: null };
 
     // Extract payment terms
-    const paymentTerms = this.getFieldContent(fields.PaymentTerm);
+    const paymentTerms = this.fieldParser.getFieldContent(fields.PaymentTerm);
 
     // Extract line items
     const itemsData = this.extractLineItems(fields.Items);
@@ -59,7 +62,7 @@ class AzureInvoiceMapper {
     const invoiceData = {
       invoice_number: invoiceId, 
       invoice_date: invoiceDate,
-      due_date: dueDate || this.calculateDueDate(invoiceDate, paymentTerms),
+      due_date: dueDate || this.fieldParser.calculateDueDate(invoiceDate, paymentTerms),
       purchase_order_id: purchaseOrderId,
       total_amount: totalAmountAmount,
       subtotal_amount: subtotalAmountAmount,
@@ -92,12 +95,12 @@ class AzureInvoiceMapper {
     if (!fields) return '';
     
     // Check multiple possible field names
-    return this.getFieldContent(fields.InvoiceId) ||
-      this.getFieldContent(fields.InvoiceNumber) ||
-      this.getFieldContent(fields["Invoice number"]) ||
-      this.getFieldContent(fields["Invoice #"]) ||
-      this.getFieldContent(fields["Invoice No"]) ||
-      this.getFieldContent(fields["Invoice No."]) ||
+    return this.fieldParser.getFieldContent(fields.InvoiceId) ||
+      this.fieldParser.getFieldContent(fields.InvoiceNumber) ||
+      this.fieldParser.getFieldContent(fields["Invoice number"]) ||
+      this.fieldParser.getFieldContent(fields["Invoice #"]) ||
+      this.fieldParser.getFieldContent(fields["Invoice No"]) ||
+      this.fieldParser.getFieldContent(fields["Invoice No."]) ||
       '';
   }
 
@@ -107,15 +110,15 @@ class AzureInvoiceMapper {
    * @returns {Object} Structured customer data
    */
   extractCustomerData(fields) {
-    const addressData = this.getFieldContent(fields.CustomerAddress || fields.BillingAddress || fields.ShippingAddress);
+    const addressData = this.fieldParser.getFieldContent(fields.CustomerAddress || fields.BillingAddress || fields.ShippingAddress);
     return {
-      name: this.getFieldContent(fields.CustomerName) || this.getFieldContent(fields.BillingAddressRecipient),
+      name: this.fieldParser.getFieldContent(fields.CustomerName) || this.fieldParser.getFieldContent(fields.BillingAddressRecipient),
       address: addressData, 
-      recipient_name: this.getFieldContent(fields.CustomerAddressRecipient) ||
-        this.getFieldContent(fields.CustomerName),
-      tax_id: this.getFieldContent(fields.CustomerTaxId) ||
-        this.getFieldContent(fields.VatNumber) ||
-        this.getFieldContent(fields.TaxId)
+      recipient_name: this.fieldParser.getFieldContent(fields.CustomerAddressRecipient) ||
+        this.fieldParser.getFieldContent(fields.CustomerName),
+      tax_id: this.fieldParser.getFieldContent(fields.CustomerTaxId) ||
+        this.fieldParser.getFieldContent(fields.VatNumber) ||
+        this.fieldParser.getFieldContent(fields.TaxId)
     };
   }
   /**
@@ -124,163 +127,19 @@ class AzureInvoiceMapper {
  * @returns {Object} Structured vendor data
  */
   extractVendorData(fields) {
-    const addressData = this.getFieldContent(fields.VendorAddress);
+    const addressData = this.fieldParser.getFieldContent(fields.VendorAddress);
 
     return {
-      name: this.getFieldContent(fields.VendorName),
+      name: this.fieldParser.getFieldContent(fields.VendorName),
       address: addressData,
-      recipient_name: this.getFieldContent(fields.VendorAddressRecipient) ||
-        this.getFieldContent(fields.VendorName),
-      tax_id: this.getFieldContent(fields.VendorTaxId) ||
-        this.getFieldContent(fields.VendorVatNumber) ||
-        this.getFieldContent(fields.SupplierTaxId)
+      recipient_name: this.fieldParser.getFieldContent(fields.VendorAddressRecipient) ||
+        this.fieldParser.getFieldContent(fields.VendorName),
+      tax_id: this.fieldParser.getFieldContent(fields.VendorTaxId) ||
+        this.fieldParser.getFieldContent(fields.VendorVatNumber) ||
+        this.fieldParser.getFieldContent(fields.SupplierTaxId)
     };
   }
 
-  /**
-   * Parse date field from OCR result
-   * @param {Object} field - Date field from OCR
-   * @param {boolean} optional - Whether the field is optional
-   * @returns {Date|null} Parsed date or null if optional and missing
-   */
-  parseDate(field, optional = false) {
-    const dateStr = this.getFieldContent(field);
-
-    if (!dateStr) {
-      if (optional) {
-        return null;
-      }
-      console.warn('Date field missing, using current date as fallback');
-      return new Date(); // Default to current date if missing
-    }
-    const ddmmyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
-    if (ddmmyyRegex.test(dateStr)) {
-      const [, day, month, year] = ddmmyyRegex.exec(dateStr);
-      const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
-      const formattedDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      return new Date(formattedDate);
-    }
-    
-    const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-    if (ddmmyyyyRegex.test(dateStr)) {
-      const [, day, month, year] = ddmmyyyyRegex.exec(dateStr);
-      const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      return new Date(formattedDate);
-    }
-
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      console.warn(`Invalid date format: ${dateStr}, using current date`);
-      return new Date();
-    }
-
-    return date;
-  }
-
-
-  /**
-   * Parse currency field from OCR result
-   * @param {Object} field - Currency field from OCR
-   * @returns {number|null} Parsed amount or null if missing
-   */
-  parseCurrency(field) {
-    // Default result for empty field
-    if (!field) {
-      return {
-        amount: null,
-        currency: { currencySymbol: null, currencyCode: null }
-      };
-    }
-
-    // Initialize result object
-    const result = {
-      amount: null,
-      currency: {
-        currencySymbol: null,
-        currencyCode: null
-      }
-    };
-
-    if (field?.value && typeof field.value === 'number') {
-      result.amount = field.value;
-      return result;
-    }
-
-    if (field?.value?.amount && typeof field.value.amount === 'number') {
-        const currencyContent = this.getFieldContent(field);
-        
-        if (currencyContent?.includes('Rp')) {
-          const numericStr = currencyContent.replace(/Rp/i, '')
-                                            .replace(/\./g, '')
-                                            .replace(/,/g, '.')
-                                            .trim();
-          const amount = parseFloat(numericStr);
-          
-          result.amount = amount;
-          result.currency.currencySymbol = 'Rp';
-          result.currency.currencyCode = 'IDR';
-        } else {
-          result.amount = field.value.amount;
-          result.currency.currencySymbol = field.value.currencySymbol || null;
-          result.currency.currencyCode = field.value.currencyCode || null;
-        }
-      return result;
-    }
-
-    // String content case
-    const amountStr = this.getFieldContent(field);
-    if (!amountStr) return result;
-
-    // Parse amount value first to check if it's a valid number
-    const numericStr = amountStr.replace(/[^\d.-]/g, '');
-    const amount = parseFloat(numericStr);
-    result.amount = isNaN(amount) ? null : amount;
-
-    // Only extract currency symbol if we have a valid number
-    if (!isNaN(amount)) {
-      const currencyMatch = /^([^\d]+)/.exec(amountStr);
-      if (currencyMatch?.[1]) {
-        result.currency.currencySymbol = currencyMatch[1].trim();
-      }
-    }
-
-    return result;
-  }
-  /**
-   * Calculate due date based on invoice date and payment terms
-   * @param {Date} invoiceDate - Invoice date
-   * @param {string} paymentTerms - Payment terms string 
-   * @returns {Date} Calculated due date
-   */
-  calculateDueDate(invoiceDate, paymentTerms) {
-    const dueDate = new Date(invoiceDate);
-
-    // Extract days from payment terms (default to 30 if not found)
-    let termDays = 30;
-
-    // Add null check for paymentTerms
-    if (paymentTerms) {
-      // Try to parse term days from different formats
-      const netMatch = /net\s+(\d{1,4})/i.exec(paymentTerms);
-      const daysMatch = /\b(\d{1,4})\s*(?:days?\b|d\b)/i.exec(paymentTerms);
-      const numericMatch = /^\s*(\d{1,4})\s*$/.exec(paymentTerms);
-
-      if (netMatch) {
-        termDays = parseInt(netMatch[1], 10);
-      } else if (daysMatch) {
-        termDays = parseInt(daysMatch[1], 10);
-      } else if (numericMatch) {
-        termDays = parseInt(numericMatch[1], 10);
-      }
-    }
-
-    if (isNaN(termDays) || termDays <= 0) {
-      termDays = 30; // Fallback to 30 days
-    }
-
-    dueDate.setDate(dueDate.getDate() + termDays);
-    return dueDate;
-  }
 
   /**
    * Extract line items from OCR result with improved handling
@@ -297,17 +156,17 @@ class AzureInvoiceMapper {
       return itemsField.values.map(item => {
         const fields = item.properties || {};
         return {
-          description: this.getFieldContent(fields.Description) || this.getFieldContent(fields.ProductCode),
-          quantity: this.parseNumeric(fields.Quantity),
-          unit: this.getFieldContent(fields.Unit),
-          unitPrice: this.parseCurrency(fields.UnitPrice).amount,
-          amount: this.parseCurrency(fields.Amount).amount,
+          description: this.fieldParser.getFieldContent(fields.Description) || this.fieldParser.getFieldContent(fields.ProductCode),
+          quantity: this.fieldParser.parseNumeric(fields.Quantity),
+          unit: this.fieldParser.getFieldContent(fields.Unit),
+          unitPrice: this.fieldParser.parseCurrency(fields.UnitPrice).amount,
+          amount: this.fieldParser.parseCurrency(fields.Amount).amount,
         };
       });
     }
 
     // Sometimes the items field itself has content but not in valueArray format
-    const content = this.getFieldContent(itemsField);
+    const content = this.fieldParser.getFieldContent(itemsField);
     if (content) {
       return [{
         description: content,
@@ -321,51 +180,7 @@ class AzureInvoiceMapper {
     return [];
   }
 
-  /**
-   * Parse numeric field from OCR result
-   * @param {Object} field - Numeric field from OCR
-   * @returns {number|null} Parsed number or null if missing/invalid
-   */
-  parseNumeric(field) {
-    // If field has direct numeric value
-    if (field?.value && typeof field.value === 'number') {
-      return field.value;
-    }
 
-    const numStr = this.getFieldContent(field);
-    if (!numStr) return null;
-
-    // Remove any non-numeric characters except decimal point
-    const cleaned = numStr.replace(/[^\d.-]/g, '');
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? null : num;
-  }
-
-  /**
-   * Get content safely from OCR field
-   * @param {Object} field - Field from OCR
-   * @returns {string|null} Field content or null if missing
-   */
-  getFieldContent(field) {
-    if (!field) return null;
-  
-    // Some fields provide direct content
-    if (typeof field.content === 'string') {
-      return field.content.trim().replace(/\n/g, " ");
-    }
-  
-    // Some fields provide value as string
-    if (field.value && typeof field.value === 'string') {
-      return field.value.trim().replace(/\n/g, " ");
-    }
-  
-    // Some fields have text value inside a nested value object
-    if (field?.value?.text) {
-      return field.value.text.trim().replace(/\n/g, " ");
-    }
-  
-    return null;
-  }
   /**
    * Process OCR result and prepare data for persistence
    * @param {Object} ocrResult - Raw OCR result

@@ -55,8 +55,8 @@ describe('Core Mapping Functionality', () => {
     it('should use totalAmount as fallback when parseCurrency returns falsy for SubTotal', () => {
       const mapper = getMapper();
       // Override parseCurrency just for this test
-      const originalParseCurrency = mapper.parseCurrency;
-      mapper.parseCurrency = jest.fn((field) => {
+      const originalParseCurrency = mapper.fieldParser.parseCurrency;
+      mapper.fieldParser.parseCurrency = jest.fn((field) => {
         if (field === 'SubTotal') {
           return null; // Return falsy value specifically for SubTotal
         } else {
@@ -77,18 +77,18 @@ describe('Core Mapping Functionality', () => {
       const { invoiceData } = mapper.mapToInvoiceModel(ocrWithForcedFallback, partnerId);
       
       // Verify our mock was called correctly
-      expect(mapper.parseCurrency).toHaveBeenCalledWith('SubTotal');
+      expect(mapper.fieldParser.parseCurrency).toHaveBeenCalledWith('SubTotal');
       expect(invoiceData.subtotal_amount).toBe(850); // Should use total_amount via direct fallback
 
       // Restore original method
-      mapper.parseCurrency = originalParseCurrency;
+      mapper.fieldParser.parseCurrency = originalParseCurrency;
     });
 
     it('should use totalAmountCurrency as fallback when subtotalAmount has null currency', () => {
       const mapper = getMapper();
       // Override parseCurrency just for this test
-      const originalParseCurrency = mapper.parseCurrency;
-      mapper.parseCurrency = jest.fn((field) => {
+      const originalParseCurrency = mapper.fieldParser.parseCurrency;
+      mapper.fieldParser.parseCurrency = jest.fn((field) => {
         if (field === 'SubTotal') {
           // Return amount but with null currency
           return { amount: 750, currency: null };
@@ -117,7 +117,7 @@ describe('Core Mapping Functionality', () => {
       expect(invoiceData.currency_code).toBe(null);
       
       // Restore original method
-      mapper.parseCurrency = originalParseCurrency;
+      mapper.fieldParser.parseCurrency = originalParseCurrency;
     });
     it('should default to null for missing currencySymbol and currencyCode', () => {
       const mapper = getMapper();
@@ -130,7 +130,7 @@ describe('Core Mapping Functionality', () => {
       };
       
       // Parse the currency field
-      const result = mapper.parseCurrency(fieldWithAmountOnly);
+      const result = mapper.fieldParser.parseCurrency(fieldWithAmountOnly);
       
       // Verify amount was parsed correctly
       expect(result.amount).toBe(500);
@@ -148,7 +148,7 @@ describe('Core Mapping Functionality', () => {
       };
       
       // Parse the currency field
-      const result = mapper.parseCurrency(fieldWithEmptyContent);
+      const result = mapper.fieldParser.parseCurrency(fieldWithEmptyContent);
       
       // Verify the early return result structure is correct
       expect(result.amount).toBeNull();
