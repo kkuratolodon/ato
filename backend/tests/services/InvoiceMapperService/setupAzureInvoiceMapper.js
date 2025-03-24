@@ -1,27 +1,34 @@
 const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService');
 
-const mapper = new AzureInvoiceMapper();
+/**  
+ * @typedef {Object} MapperConfig  
+ * @property {string} partnerId  
+ * @property {Object} options  
+ */  
 
-// Add generatePartnerId method for partner ID tests
-mapper.generatePartnerId = function (vendorName) {
-  if (!vendorName) return 'unknown-vendor';
+/**  
+ * Creates a configured mapper instance for testing  
+ * @param {Partial<MapperConfig>} config  
+ * @returns {AzureInvoiceMapper}  
+ */  
+const createTestMapper = (config = {}) => {  
+  const mapper = new AzureInvoiceMapper();  
+  mapper.generatePartnerId = function (vendorName) {  
+    if (!vendorName) return 'unknown-vendor';  
+    let partnerId = vendorName  
+      .toLowerCase()  
+      .trim()  
+      .replace(/\s+/g, '-')  
+      .replace(/[^a-z0-9-]/g, '');  
+    return partnerId.substring(0, 44);  
+  };  
+  return mapper;  
+};  
 
-  let partnerId = vendorName
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+const defaultPartnerId = 'contoso-partner';  
 
-  if (partnerId.length > 44) {
-    partnerId = partnerId.substring(0, 44);
-  }
-
-  return partnerId;
-};
-
-const partnerId = "contoso-partner";
-
-module.exports = {
-  getMapper: () => mapper,
-  partnerId,
-};
+module.exports = {  
+  getMapper: () => createTestMapper(),  
+  partnerId: defaultPartnerId,  
+  createTestMapper  
+};  
