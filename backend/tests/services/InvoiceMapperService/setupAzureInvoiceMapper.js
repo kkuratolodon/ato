@@ -8,10 +8,9 @@ const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperServi
 
 /**  
  * Creates a configured mapper instance for testing  
- * @param {Partial<MapperConfig>} config  
  * @returns {AzureInvoiceMapper}  
  */  
-const createTestMapper = (config = {}) => {  
+const createTestMapper = () => {  
   const mapper = new AzureInvoiceMapper();  
   mapper.generatePartnerId = function (vendorName) {  
     if (!vendorName) return 'unknown-vendor';  
@@ -31,4 +30,4 @@ module.exports = {
   getMapper: () => createTestMapper(),  
   partnerId: defaultPartnerId,  
   createTestMapper  
-};  
+};
