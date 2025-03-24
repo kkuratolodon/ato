@@ -20,7 +20,6 @@ class AzureInvoiceMapper {
     const document = ocrResult.documents[0];
     const fields = document.fields || {};
     // Extract and validate dates
-    console.log(fields)
     const invoiceId = this.getFieldContent(fields.InvoiceId);
     const invoiceDate = this.parseDate(fields.InvoiceDate);
     const dueDate = this.parseDate(fields.DueDate, true);
@@ -108,15 +107,10 @@ class AzureInvoiceMapper {
    * @returns {Object} Structured customer data
    */
   extractCustomerData(fields) {
-    const addressData = this.extractCustomerAddress(fields.CustomerAddress || fields.BillingAddress);
-
+    const addressData = this.getFieldContent(fields.CustomerAddress || fields.BillingAddress || fields.ShippingAddress);
     return {
       name: this.getFieldContent(fields.CustomerName) || this.getFieldContent(fields.BillingAddressRecipient),
-      street_address: addressData.street_address,
-      city: addressData.city,
-      state: addressData.state,
-      postal_code: addressData.postal_code,
-      house: addressData.house,
+      address: addressData, 
       recipient_name: this.getFieldContent(fields.CustomerAddressRecipient) ||
         this.getFieldContent(fields.CustomerName),
       tax_id: this.getFieldContent(fields.CustomerTaxId) ||
@@ -130,15 +124,11 @@ class AzureInvoiceMapper {
  * @returns {Object} Structured vendor data
  */
   extractVendorData(fields) {
-    const addressData = this.extractCustomerAddress(fields.VendorAddress);
+    const addressData = this.getFieldContent(fields.VendorAddress);
 
     return {
       name: this.getFieldContent(fields.VendorName),
-      street_address: addressData.street_address,
-      city: addressData.city,
-      state: addressData.state,
-      postal_code: addressData.postal_code,
-      house: addressData.house,
+      address: addressData,
       recipient_name: this.getFieldContent(fields.VendorAddressRecipient) ||
         this.getFieldContent(fields.VendorName),
       tax_id: this.getFieldContent(fields.VendorTaxId) ||
@@ -164,7 +154,6 @@ class AzureInvoiceMapper {
       return new Date(); // Default to current date if missing
     }
     const ddmmyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
-    console.log(dateStr)
     if (ddmmyyRegex.test(dateStr)) {
       const [, day, month, year] = ddmmyyRegex.exec(dateStr);
       const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
@@ -357,90 +346,6 @@ class AzureInvoiceMapper {
   }
 
   /**
-   * Extract customer address details from OCR result with improved parsing
-   * @param {Object} addressField - Customer address field from OCR
-   * @returns {Object} Extracted address components
-   */
-  extractCustomerAddress(addressField) {
-    const addressObj = this.initializeAddressObject();
-
-    if (!addressField) {
-      return addressObj;
-    }
-
-    if (addressField.value) {
-      this.populateStructuredAddress(addressField.value, addressObj);
-    }
-
-    const content = this.getFieldContent(addressField);
-    if (content) {
-      this.populateAddressFromContent(content, addressObj);
-    }
-
-    return addressObj;
-  }
-
-  initializeAddressObject() {
-    return {
-      street_address: null,
-      city: null,
-      state: null,
-      postal_code: null,
-      house: null
-    };
-  }
-
-  populateStructuredAddress(value, addressObj) {
-    addressObj.street_address = value.streetAddress || value.road || value.street || null;
-    addressObj.city = value.city || value.locality || null;
-    addressObj.state = value.state || value.region || value.province || null;
-    addressObj.postal_code = value.postalCode || value.zipCode || null;
-    addressObj.house = value.houseNumber || value.house || value.building || null;
-  }
-
-  populateAddressFromContent(content, addressObj) {
-    const lines = content.split('\n');
-
-    if (!addressObj.street_address && lines.length > 0) {
-      addressObj.street_address = lines[0].trim();
-    }
-
-    if (!addressObj.city || !addressObj.state || !addressObj.postal_code) {
-      this.extractCityStatePostalCode(lines, content, addressObj);
-    }
-
-    if (!addressObj.house) {
-      this.extractHouseNumber(addressObj);
-    }
-  }
-
-  extractCityStatePostalCode(lines, content, addressObj) {
-    const cityStateZipPattern1 = /([a-z][\sa-z]{0,48}),\s*([A-Z]{2,4})\s+(\d{5}(-\d{4})?)/i;
-    const cityStateZipPattern2 = /([a-z][\sa-z]{0,48})\s+([A-Z]{2,8})\s+(\d{5}(-\d{4})?)/i;
-    const internationalPattern = /([a-z][\sa-z]{0,48}),\s*([a-z][\sa-z]{0,48})\s+([A-Z\d][\sA-Z\d]{2,9})/i;
-    let match = null;
-    for (const line of [...lines, content]) {
-      match = line.match(cityStateZipPattern1) ||
-        line.match(cityStateZipPattern2) ||
-        line.match(internationalPattern);
-      if (match) break;
-    }
-
-    if (match) {
-      if (!addressObj.city) addressObj.city = match[1].trim();
-      if (!addressObj.state) addressObj.state = match[2].trim();
-      if (!addressObj.postal_code) addressObj.postal_code = match[3].trim();
-    }
-  }
-
-  extractHouseNumber(addressObj) {
-    const streetLine = addressObj.street_address;
-    const houseMatch = streetLine.match(/^(?:No\.\s*)?(\d+[a-z]?)\s+/i);
-
-    addressObj.house = houseMatch[1];
-  }
-
-  /**
    * Parse numeric field from OCR result
    * @param {Object} field - Numeric field from OCR
    * @returns {number|null} Parsed number or null if missing/invalid
@@ -467,25 +372,24 @@ class AzureInvoiceMapper {
    */
   getFieldContent(field) {
     if (!field) return null;
-
+  
     // Some fields provide direct content
     if (typeof field.content === 'string') {
-      return field.content.trim();
+      return field.content.trim().replace(/\n/g, " ");
     }
-
+  
     // Some fields provide value as string
     if (field.value && typeof field.value === 'string') {
-      return field.value.trim();
+      return field.value.trim().replace(/\n/g, " ");
     }
-
+  
     // Some fields have text value inside a nested value object
     if (field?.value?.text) {
-      return field.value.text.trim();
+      return field.value.text.trim().replace(/\n/g, " ");
     }
-
+  
     return null;
   }
-
   /**
    * Process OCR result and prepare data for persistence
    * @param {Object} ocrResult - Raw OCR result
