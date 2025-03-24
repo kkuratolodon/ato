@@ -17,7 +17,7 @@ describe('Line Item Processing', () => {
         ]
       };
       
-      const result1 = mapper.extractLineItems(standardItems);
+      const result1 = mapper.EntityExtractor.extractLineItems(standardItems);
       console.log("ppp", result1)
       expect(result1[0].description).toBe('Standard Item');
       expect(result1[0].quantity).toBe(2);
@@ -38,7 +38,7 @@ describe('Line Item Processing', () => {
         ]
       };
       
-      const result2 = mapper.extractLineItems(alternativeItems);
+      const result2 = mapper.EntityExtractor.extractLineItems(alternativeItems);
       expect(result2[0].description).toBe('Alternative field name');
       expect(result2[0].quantity).toBe(2);
       expect(result2[0].unitPrice).toBe(45);
@@ -57,7 +57,7 @@ describe('Line Item Processing', () => {
         ]
       };
       
-      const result3 = mapper.extractLineItems(partialItems);
+      const result3 = mapper.EntityExtractor.extractLineItems(partialItems);
       expect(result3[0].description).toBeNull();
       expect(result3[0].quantity).toBe(3);
       expect(result3[0].unitPrice).toBeNull();
@@ -68,7 +68,7 @@ describe('Line Item Processing', () => {
         values: [{ someOtherProperty: 'test' }]
       };
       
-      const result4 = mapper.extractLineItems(itemsWithMissingproperties);
+      const result4 = mapper.EntityExtractor.extractLineItems(itemsWithMissingproperties);
       expect(result4).toHaveLength(1);
       expect(result4[0].description).toBeNull();
       expect(result4[0].quantity).toBeNull();
@@ -80,7 +80,7 @@ describe('Line Item Processing', () => {
         content: 'Single line item description without structured data'
       };
       
-      const result = mapper.extractLineItems(itemsWithContent);
+      const result = mapper.EntityExtractor.extractLineItems(itemsWithContent);
       expect(result).toHaveLength(1);
       expect(result[0].description).toBe('Single line item description without structured data');
       expect(result[0].quantity).toBeNull();
@@ -95,7 +95,7 @@ describe('Line Item Processing', () => {
         someOtherProperty: 'value'
       };
       
-      expect(mapper.extractLineItems(emptyContentItemsField)).toEqual([]);
+      expect(mapper.EntityExtractor.extractLineItems(emptyContentItemsField)).toEqual([]);
       
       const nullContentItemsField = {
         someProperty: 'test',
@@ -103,6 +103,6 @@ describe('Line Item Processing', () => {
       };
       
       
-      expect(mapper.extractLineItems(nullContentItemsField)).toEqual([]);
+      expect(mapper.EntityExtractor.extractLineItems(nullContentItemsField)).toEqual([]);
     });
   });
