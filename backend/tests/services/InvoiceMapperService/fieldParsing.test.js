@@ -158,3 +158,22 @@ describe('Field Parsing', () => {
       expect(invoiceData.tax_amount).toBe(15); // Should use TotalTax first
     });
   });
+
+describe('Field Parsing Functionality', () => {
+  it('should handle empty content but non-null field in parseCurrency', () => {
+    const mapper = getMapper();
+    // Create a field that has a structure but getFieldContent would return falsy value
+    const fieldWithEmptyContent = {
+      content: '',  // Empty content
+      someProperty: 'test'  // The field itself isn't null
+    };
+    
+    // Parse the currency field
+    const result = mapper.parseCurrency(fieldWithEmptyContent);
+    
+    // Verify the early return result structure is correct
+    expect(result.amount).toBeNull();
+    expect(result.currency.currencySymbol).toBeNull();
+    expect(result.currency.currencyCode).toBeNull();
+  });
+});
