@@ -138,6 +138,20 @@ class PdfValidationService {
             throw new Error("Failed to read PDF page count.");
         }
     }
+
+    async allValidations(fileBuffer, mimeType, fileName) {
+        await this.validatePDF(fileBuffer, mimeType, fileName);
+        await this.validateSizeFile(fileBuffer);
+        await this.validatePdfPageCount(fileBuffer);
+        const isEncrypted = await this.isPdfEncrypted(fileBuffer);
+        if (isEncrypted) {
+            throw new Error("PDF is encrypted");
+        }
+        const isValidPdf = await this.checkPdfIntegrity(fileBuffer);
+        if (!isValidPdf) {
+            throw new Error("PDF file is invalid");
+        }
+    }
 }
 
 module.exports = new PdfValidationService();

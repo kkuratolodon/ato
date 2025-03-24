@@ -1,11 +1,13 @@
 const InvoiceService = require('../services/invoiceService');
 const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
+const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
 
 const upload = multer({
   storage: multer.memoryStorage()
 });
 exports.uploadMiddleware = upload.single('file');
+
 /**
  * Handles the upload and validation of invoice PDF files with an automatic 3-second timeout.
  *
@@ -38,89 +40,142 @@ exports.uploadMiddleware = upload.single('file');
  */
 
 class InvoiceController extends FinancialDocumentController{
-  constructor(){
-    super(InvoiceService, "Invoice");
+  constructor(invoiceService){
+    super(invoiceService, "Invoice");
   }
-}
 
-const invoiceController = new InvoiceController();
-exports.uploadInvoice = async (req, res) => {
-  return invoiceController.uploadFile(req, res);
-  
-};
+  async uploadInvoice(req, res) {
+    return this.uploadFile(req, res) 
+  }
 
-/**
- * @description Retrieves an invoice by ID with authorization check.
- *
- * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
- * @throws {401} Unauthorized if req.user is missing
- * @throws {403} Forbidden if invoice does not belong to the authenticated user
- * @throws {404} Not Found if invoice is not found
- * @throws {500} Internal Server Error 
- */
-exports.getInvoiceById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({message: "Invoice ID is required"});
+  async processUpload(req) {
+    const { buffer, originalname, mimetype } = req.file;
+    const partnerId = req.user.uuid;
+
+    return await this.service.uploadInvoice({
+      buffer,
+      originalname,
+      mimetype,
+      partnerId
+    })
+  }
+
+  async getInvoiceById(req, res) {
+    try {
+      const { id } = req.params;
+      await this.validateInvoiceRequest(req, id);
+      const invoiceDetail = await this.service.getInvoiceById(id);
+      if (!invoiceDetail) {
+        return res.status(404).json({ message: "Invoice not found" });
+      } else if (invoiceDetail.partnerId !== req.user.uuid) {
+        return res.status(403).json({ message: "Forbidden: You do not have access to this invoice" });
+      } else {
+        return res.status(200).json(invoiceDetail);
+      }
+        } catch (error) {
+      return this.handleError(res, error);
+    }    
+  }
+
+  async validateInvoiceRequest(req, id) {
+    if (!id || isNaN(id) || parseInt(id) <= 0) {
+      throw new ValidationError("Invalid invoice ID");
     }
-    
     if (!req.user) {
-      return res.status(401).json({message: "Unauthorized"});
+      throw new AuthError("Unauthorized");
     }
-    const invoicePartnerId = await InvoiceService.getPartnerId(id);
-    
-    if(invoicePartnerId !== req.user.uuid){
-      return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
+    const invoicePartnerId = await this.service.getPartnerId(id);
+    if (invoicePartnerId !== req.user.uuid) {
+      throw new ForbiddenError("You do not have access to this invoice");
     }
-
-    // Method getInvoiceById sudah diubah untuk menerima UUID
-    const invoiceDetail = await InvoiceService.getInvoiceById(id);
-
-    return res.status(200).json(invoiceDetail);
-  } catch (error) {
-    if (error.message === "Invoice not found") {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-    return res.status(500).json({ message: "Internal server error" });
   }
 }
 
-/**
- * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database
- */
-exports.analyzeInvoice = async (req, res) => {
-  const { documentUrl } = req.body;
-  const partnerId = req.user?.uuid; 
-  if (!documentUrl) {
-    return res.status(400).json({ message: "documentUrl is required" });
-  }
-  if (!partnerId) {
-    return res.status(401).json({ message: "Unauthorized. User information not available." });
-  }
+// Create instance for route handlers
+const invoiceController = new InvoiceController(InvoiceService);
 
-  try {
-    // Analisis dokumen, mapping, dan simpan ke database
-    const result = await InvoiceService.analyzeInvoice(documentUrl, partnerId);
-    
-    if (!result?.savedInvoice) {
-      return res.status(500).json({ message: "Failed to analyze invoice: no saved invoice returned" });
-    }
-    
-    return res.status(200).json({
-      message: "Invoice analyzed and saved to database",
-      rawData: result.rawData,
-      invoiceData: result.invoiceData,
-      savedInvoice: result.savedInvoice
-    });
-  } catch (error) {
-    if (error.message.includes("Invalid date format") || error.message === "Invoice contains invalid date format") {
-      return res.status(400).json({ message: error.message });
-    } else if (error.message === "Failed to process the document") {
-      return res.status(400).json({ message: error.message });
-    } else {
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
-  }
+// Export both class and instance
+module.exports = {
+  InvoiceController,
+  invoiceController
 };
+
+// const invoiceController = new InvoiceController();
+// exports.uploadInvoice = async (req, res) => {
+//   return invoiceController.uploadFile(req, res);
+  
+// };
+
+// /**
+//  * @description Retrieves an invoice by ID with authorization check.
+//  *
+//  * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
+//  * @throws {401} Unauthorized if req.user is missing
+//  * @throws {403} Forbidden if invoice does not belong to the authenticated user
+//  * @throws {404} Not Found if invoice is not found
+//  * @throws {500} Internal Server Error 
+//  */
+// exports.getInvoiceById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     // check positive integer
+//     if( !id  || isNaN(id) || parseInt(id) <= 0 ){
+//       return res.status(400).json({message: "Invalid invoice ID"});
+//     }
+//     if(!req.user){
+//       return res.status(401).json({message: "Unauthorized"});
+//     }
+//     const invoicePartnerId = await InvoiceService.getPartnerId(id);
+    
+//     if(invoicePartnerId !== req.user.uuid){
+//       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
+//     }
+
+//     const invoiceDetail = await InvoiceService.getInvoiceById(id);
+
+//     return res.status(200).json(invoiceDetail);
+//   } catch (error) {
+//     if (error.message === "Invoice not found") {
+//       return res.status(404).json({ message: "Invoice not found" });
+//     }
+//     return res.status(500).json({ message: "Internal server error" });
+//   }
+// }
+
+// /**
+//  * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database
+//  */
+// exports.analyzeInvoice = async (req, res) => {
+//   const { documentUrl } = req.body;
+//   const partnerId = req.user?.uuid; 
+//   if (!documentUrl) {
+//     return res.status(400).json({ message: "documentUrl is required" });
+//   }
+//   if (!partnerId) {
+//     return res.status(401).json({ message: "Unauthorized. User information not available." });
+//   }
+
+//   try {
+//     // Analisis dokumen, mapping, dan simpan ke database
+//     const result = await InvoiceService.analyzeInvoice(documentUrl, partnerId);
+    
+//     if (!result?.savedInvoice) {
+//       return res.status(500).json({ message: "Failed to analyze invoice: no saved invoice returned" });
+//     }
+    
+//     return res.status(200).json({
+//       message: "Invoice analyzed and saved to database",
+//       rawData: result.rawData,
+//       invoiceData: result.invoiceData,
+//       savedInvoice: result.savedInvoice
+//     });
+//   } catch (error) {
+//     if (error.message.includes("Invalid date format") || error.message === "Invoice contains invalid date format") {
+//       return res.status(400).json({ message: error.message });
+//     } else if (error.message === "Failed to process the document") {
+//       return res.status(400).json({ message: error.message });
+//     } else {
+//       return res.status(500).json({ message: "Internal Server Error" });
+//     }
+//   }
+// };
