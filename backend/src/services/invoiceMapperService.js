@@ -160,30 +160,6 @@ class AzureInvoiceMapper {
 
     return [];
   }
-
-
-  /**
-   * Process OCR result and prepare data for persistence
-   * @param {Object} ocrResult - Raw OCR result
-   * @param {string} partnerId - Partner ID
-   * @param {string} fileUrl - Optional URL to the stored invoice file
-   * @returns {Object} Processed customer and invoice data
-   */
-  async processInvoiceData(ocrResult, partnerId, fileUrl = null) {
-    const { customerData, invoiceData, vendorData } = this.mapToInvoiceModel(ocrResult, partnerId);
-
-    if (fileUrl) {
-      invoiceData.file_url = fileUrl;
-    }
-    else {
-      invoiceData.file_url = null;
-    }
-    return {
-      customerData,
-      invoiceData,
-      vendorData
-    };
-  }
 }
 
 module.exports = { AzureInvoiceMapper };

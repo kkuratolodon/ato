@@ -155,34 +155,4 @@ describe('Core Mapping Functionality', () => {
       expect(result.currency.currencySymbol).toBeNull();
       expect(result.currency.currencyCode).toBeNull();
     });
-    it('should handle fileUrl in processInvoiceData method', async () => {
-      const mapper = getMapper();
-      const ocrResult = mockAzureOcrResult();
-      const fileUrl = 'https://example.com/invoices/test.pdf';
-
-      const { invoiceData } = await mapper.processInvoiceData(ocrResult, partnerId, fileUrl);
-      expect(invoiceData.file_url).toBe(fileUrl);
-    });
-
-    it('should handle null fileUrl in processInvoiceData method', async () => {
-      const mapper = getMapper();
-      const ocrResult = {
-        documents: [{
-          fields: {
-            InvoiceId: { content: 'INV-TEST-NULL-URL' },
-            InvoiceDate: { content: '2023-06-01' },
-            InvoiceTotal: { content: '100.00' }
-          }
-        }]
-      };
-      
-      const { invoiceData } = await mapper.processInvoiceData(ocrResult, partnerId, null);
-      expect(invoiceData.file_url).toBeNull();
-      expect(invoiceData.invoice_number).toBe('INV-TEST-NULL-URL');
-      expect(invoiceData.partner_id).toBe(partnerId);
-      
-      // Test omitting fileUrl parameter
-      const { invoiceData: invoiceData2 } = await mapper.processInvoiceData(ocrResult, partnerId);
-      expect(invoiceData2.file_url).toBeNull();
-    });
   });
