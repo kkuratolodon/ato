@@ -7,7 +7,7 @@ const bodyParser = require("body-parser");
 const invoiceController = require("../../src/controllers/invoiceController");
 const { uploadInvoice,getInvoiceById } = require("../../src/controllers/invoiceController");
 const pdfValidationService = require("../../src/services/pdfValidationService");
-const invoiceService = require("../../src/services/invoiceService");
+const invoiceService = require("../../src/services/invoice/invoiceService");
 const authService = require("../../src/services/authService");
 
 
@@ -16,7 +16,7 @@ const { mockRequest, mockResponse } = require("jest-mock-req-res");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");
-jest.mock("../../src/services/invoiceService");
+jest.mock("../../src/services/invoice/invoiceService");
 jest.mock("../../src/services/authService");
 
 jest.mock('../../src/models', () => {
