@@ -1,4 +1,4 @@
-const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService');
+const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 describe("Date Format Parsing", () => {
     it('should correctly handle DD/MM/YY date format', () => {

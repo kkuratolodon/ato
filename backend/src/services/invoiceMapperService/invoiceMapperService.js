@@ -1,6 +1,6 @@
 'use strict';
-const FieldParser = require('./invoiceMapperService/FieldParserService');
-const EntityExtractor = require('./invoiceMapperService/entityExtractorService');
+const FieldParser = require('./FieldParserService');
+const EntityExtractor = require('./entityExtractorService');
 
 class AzureInvoiceMapper {
   constructor() {

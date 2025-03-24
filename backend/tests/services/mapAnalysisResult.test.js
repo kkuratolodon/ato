@@ -35,7 +35,7 @@ jest.mock('../../src/services/invoiceService', () => {
 });
 
 // The existing mock for invoiceMapperService can be kept
-jest.mock('../../src/services/invoiceMapperService', () => {
+jest.mock('../../src/services/invoiceMapperService/invoiceMapperService', () => {
   return {
     AzureInvoiceMapper: jest.fn().mockImplementation(() => {
       return {

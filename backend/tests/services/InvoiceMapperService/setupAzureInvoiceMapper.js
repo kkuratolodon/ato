@@ -1,4 +1,4 @@
-const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService');
+const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 const mapper = new AzureInvoiceMapper();
 
