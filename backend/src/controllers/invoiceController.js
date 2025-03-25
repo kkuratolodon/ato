@@ -61,7 +61,7 @@ class InvoiceController extends FinancialDocumentController{
   async getInvoiceById(req, res) {
     try {
       const { id } = req.params;
-      await this.validateInvoiceRequest(req, id);
+      await this.validateGetRequest(req, id);
       const invoiceDetail = await this.service.getInvoiceById(id);
       if (!invoiceDetail) {
         return res.status(404).json({ message: "Invoice not found" });
@@ -72,7 +72,7 @@ class InvoiceController extends FinancialDocumentController{
     }    
   }
 
-  async validateInvoiceRequest(req, id) {
+  async validateGetRequest(req, id) {
     if (!id || isNaN(id) || parseInt(id) <= 0) {
       throw new ValidationError("Invalid invoice ID");
     }

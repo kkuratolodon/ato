@@ -36,7 +36,3 @@ module.exports = {
   purchaseOrderController, 
   uploadMiddleware: upload.single("file")
 }
-
-// exports.uploadPurchaseOrder = async(req,res) => {
-//     return purchaseOrderController.uploadFile(req,res);
-// }

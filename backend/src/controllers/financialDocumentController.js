@@ -28,8 +28,8 @@ class FinancialDocumentController {
   async uploadFile(req, res) {
     try {
       await this.executeWithTimeout(async () => {
-        await this.validateRequest(req);
-        await this.validateFile(req.file);
+        await this.validateUploadRequest(req);
+        await this.validateUploadFile(req.file);
         const result = await this.processUpload(req);
         return safeResponse(res, 200, result);
       });
@@ -38,7 +38,7 @@ class FinancialDocumentController {
     }
   }
 
-  async validateRequest(req) {
+  async validateUploadRequest(req) {
     if (!req.user) {
       throw new AuthError("Unauthorized");
     }
@@ -47,7 +47,7 @@ class FinancialDocumentController {
     }
   }
 
-  async validateFile(file) {
+  async validateUploadFile(file) {
     const { buffer, mimetype, originalname } = file;
     try {
       await pdfValidationService.validatePDF(buffer, mimetype, originalname);
@@ -57,8 +57,8 @@ class FinancialDocumentController {
   }
 
   // make sure to implement this method in child
+  // eslint-disable-next-line no-unused-vars
   async processUpload(_req) {
-    _req; 
     throw new Error('processUpload must be implemented by child classes');
   }
 
