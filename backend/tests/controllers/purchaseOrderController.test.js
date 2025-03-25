@@ -29,7 +29,7 @@ describe("Purchase Order Controller", () => {
     });
   });
 
-  describe("uploadFile", () => {
+  describe("uploadPurchaseOrder", () => {
     test("should successfully upload when all validations pass", async () => {
       req.user = { uuid: "test-uuid" };
       req.file = {
@@ -38,7 +38,7 @@ describe("Purchase Order Controller", () => {
         mimetype: "application/pdf"
       };
 
-      await controller.uploadFile(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
       expect(purchaseOrderService.uploadPurchaseOrder).toHaveBeenCalledWith({
         buffer: expect.any(Buffer),
@@ -63,7 +63,7 @@ describe("Purchase Order Controller", () => {
         mimetype: "application/pdf"
       };
 
-      await controller.uploadFile(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
@@ -76,7 +76,7 @@ describe("Purchase Order Controller", () => {
       req.user = { uuid: "test-uuid" };
       req.file = undefined;
 
-      await controller.uploadFile(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
@@ -96,7 +96,7 @@ describe("Purchase Order Controller", () => {
         new Promise(resolve => setTimeout(resolve, 4000))
       );
 
-      await controller.uploadFile(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
       expect(res.status).toHaveBeenCalledWith(504);
       expect(res.json).toHaveBeenCalledWith({
@@ -116,7 +116,7 @@ describe("Purchase Order Controller", () => {
         new Error("PDF validation failed")
       );
 
-      await controller.uploadFile(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
@@ -136,7 +136,7 @@ describe("Purchase Order Controller", () => {
         new Error("Service error")
       );
 
-      await controller.uploadFile(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({

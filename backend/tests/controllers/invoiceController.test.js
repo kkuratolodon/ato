@@ -176,7 +176,7 @@ describe("Invoice Controller", () => {
       req.user = { uuid: "test-uuid" };
       req.params = { id: "1" };
 
-      mockInvoiceService.getPartnerId.mockResolvedValue("other-uuid");
+      mockInvoiceService.getInvoiceById.mockResolvedValue({partnerId: "other-uuid"})
 
       await controller.getInvoiceById(req, res);
 

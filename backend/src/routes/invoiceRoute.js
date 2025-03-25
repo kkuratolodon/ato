@@ -16,6 +16,4 @@ router.post(
 
 router.get('/:id', authMiddleware, invoiceController.getInvoiceById);
 
-router.post('/analyze', invoiceController.analyzeInvoice);
-
 module.exports = router;

@@ -1,4 +1,3 @@
-const InvoiceService = require('../services/invoiceService');
 const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
 const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
@@ -88,44 +87,6 @@ class InvoiceController extends FinancialDocumentController{
       throw new ForbiddenError("You do not have access to this invoice");
     }
   }
-
-  /**
- * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database
- */
-  analyzeInvoice = async (req, res) => {
-    const { documentUrl } = req.body;
-    const partnerId = req.user?.uuid; 
-    if (!documentUrl) {
-      return res.status(400).json({ message: "documentUrl is required" });
-    }
-    if (!partnerId) {
-      return res.status(401).json({ message: "Unauthorized. User information not available." });
-    }
-
-    try {
-      // Analisis dokumen, mapping, dan simpan ke database
-      const result = await InvoiceService.analyzeInvoice(documentUrl, partnerId);
-      
-      if (!result?.savedInvoice) {
-        return res.status(500).json({ message: "Failed to analyze invoice: no saved invoice returned" });
-      }
-      
-      return res.status(200).json({
-        message: "Invoice analyzed and saved to database",
-        rawData: result.rawData,
-        invoiceData: result.invoiceData,
-        savedInvoice: result.savedInvoice
-      });
-    } catch (error) {
-      if (error.message.includes("Invalid date format") || error.message === "Invoice contains invalid date format") {
-        return res.status(400).json({ message: error.message });
-      } else if (error.message === "Failed to process the document") {
-        return res.status(400).json({ message: error.message });
-      } else {
-        return res.status(500).json({ message: "Internal Server Error" });
-      }
-    }
-  };
 }
 
 const controller = new InvoiceController(require('../services/invoiceService'));
