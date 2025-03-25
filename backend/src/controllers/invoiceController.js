@@ -65,12 +65,9 @@ class InvoiceController extends FinancialDocumentController{
       const invoiceDetail = await this.service.getInvoiceById(id);
       if (!invoiceDetail) {
         return res.status(404).json({ message: "Invoice not found" });
-      } else if (invoiceDetail.partnerId !== req.user.uuid) {
-        return res.status(403).json({ message: "You do not have access to this invoice" });
-      } else {
-        return res.status(200).json(invoiceDetail);
       }
-        } catch (error) {
+      return res.status(200).json(invoiceDetail);
+    } catch (error) {
       return this.handleError(res, error);
     }    
   }
