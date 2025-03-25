@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const InvoiceController = require('../controllers/invoiceController');
+const { controller: invoiceController, uploadMiddleware } = require('../controllers/invoiceController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 router.get('/debug-sentry', () => {
@@ -10,12 +10,12 @@ router.get('/debug-sentry', () => {
 router.post(
     '/upload',
     authMiddleware,               
-    InvoiceController.uploadMiddleware,
-    InvoiceController.uploadInvoice
+    uploadMiddleware,
+    invoiceController.uploadInvoice
 );
 
-router.get('/:id',authMiddleware, InvoiceController.getInvoiceById);
+router.get('/:id', authMiddleware, invoiceController.getInvoiceById);
 
-router.post('/analyze', InvoiceController.analyzeInvoice);
+router.post('/analyze', invoiceController.analyzeInvoice);
 
 module.exports = router;
