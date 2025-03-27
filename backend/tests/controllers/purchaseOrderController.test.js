@@ -17,11 +17,7 @@ describe("Purchase Order Controller", () => {
     jest.clearAllMocks();
 
     // Default mocks
-    pdfValidationService.validatePDF.mockResolvedValue(true);
-    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
-    pdfValidationService.validateSizeFile.mockResolvedValue(true);
-    pdfValidationService.validatePdfPageCount.mockResolvedValue(1);
+    pdfValidationService.allValidations.mockResolvedValue(true);    
 
     purchaseOrderService.uploadPurchaseOrder.mockResolvedValue({
       message: "Purchase order uploaded successfully",
@@ -112,7 +108,7 @@ describe("Purchase Order Controller", () => {
         mimetype: "application/pdf"
       };
 
-      pdfValidationService.validatePDF.mockRejectedValue(
+      pdfValidationService.allValidations.mockRejectedValue(
         new Error("PDF validation failed")
       );
 

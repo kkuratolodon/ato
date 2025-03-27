@@ -24,10 +24,7 @@ describe("Invoice Controller", () => {
     jest.clearAllMocks();
 
     // Set default mocks
-    pdfValidationService.validatePDF.mockResolvedValue(true);
-    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
-    pdfValidationService.validateSizeFile.mockResolvedValue(true);
+    pdfValidationService.allValidations.mockResolvedValue(true);
     
     mockInvoiceService.uploadInvoice.mockResolvedValue({
       message: "Invoice upload success",
@@ -90,7 +87,7 @@ describe("Invoice Controller", () => {
         mimetype: "application/pdf"
       };
 
-      pdfValidationService.validatePDF.mockRejectedValue(new Error("Invalid PDF"));
+      pdfValidationService.allValidations.mockRejectedValue(new Error("Invalid PDF"));
 
       await controller.uploadInvoice(req, res);
 

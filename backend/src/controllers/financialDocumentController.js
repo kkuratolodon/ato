@@ -50,7 +50,7 @@ class FinancialDocumentController {
   async validateUploadFile(file) {
     const { buffer, mimetype, originalname } = file;
     try {
-      await pdfValidationService.validatePDF(buffer, mimetype, originalname);
+      await pdfValidationService.allValidations(buffer, mimetype, originalname);
     } catch (error) {
       throw new ValidationError(error.message); 
     }
