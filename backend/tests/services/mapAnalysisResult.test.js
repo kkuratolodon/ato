@@ -13,7 +13,7 @@ jest.mock('../../src/services/invoiceService', () => {
   // Mock implementation of mapAnalysisResult
   const mapAnalysisResult = (analysisResult, partnerId, originalname, fileSize) => {
     // Check for null/undefined inputs (matching the real implementation)
-    if (!analysisResult || !analysisResult.data) {
+    if (!analysisResult?.data) {
       throw new Error('Failed to analyze invoice: No data returned');
     }
     
@@ -35,7 +35,7 @@ jest.mock('../../src/services/invoiceService', () => {
 });
 
 // The existing mock for invoiceMapperService can be kept
-jest.mock('../../src/services/invoiceMapperService', () => {
+jest.mock('../../src/services/invoiceMapperService/invoiceMapperService', () => {
   return {
     AzureInvoiceMapper: jest.fn().mockImplementation(() => {
       return {

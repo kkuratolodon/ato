@@ -1,7 +1,7 @@
 const { Invoice } = require("../models");
 const FinancialDocumentService = require("./financialDocumentService")
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
-const { AzureInvoiceMapper } = require("./invoiceMapperService");
+const { AzureInvoiceMapper } = require("./invoiceMapperService/invoiceMapperService");
 const dotenv = require("dotenv");
 const { Customer } = require("../models");
 const { Vendor } = require("../models");
