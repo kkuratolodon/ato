@@ -81,6 +81,11 @@ class FinancialDocument extends Model {
         allowNull: true,
         defaultValue: null
       },
+      analysis_json_url: {
+        type: options.DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null
+      },
       status: {
         type: options.DataTypes.STRING,
         allowNull: false,

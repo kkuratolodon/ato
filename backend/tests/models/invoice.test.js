@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require('uuid');
 const { Sequelize, DataTypes } = require("sequelize");
 const InvoiceModel = require("../../src/models/invoice");
 const PartnerModel = require("../../src/models/partner");
@@ -308,6 +309,66 @@ describe("Invoice Model", () => {
       status: "Processing",
       partner_id: "partner-uuid-123",
     })).rejects.toThrow();
+  });
+
+  test('should create invoice with analysis_json_url', async () => {
+    const uuid = uuidv4();
+    const testInvoice = await Invoice.create({
+      uuid,
+      invoice_number: 'INV-001',
+      invoice_date: new Date(),
+      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
+      total_amount: 1000,
+      subtotal_amount: 900,
+      tax_amount: 100,
+      payment_terms: 'Net 30',
+      file_url: 'https://storage.example.com/invoices/invoice-001.pdf',
+      analysis_json_url: 'https://storage.example.com/analyses/invoice-001.json',
+      status: 'Analyzed',
+      partner_id: 'partner-uuid-123'
+    });
+    
+    expect(testInvoice).toBeDefined();
+    expect(testInvoice.analysis_json_url).toBe('https://storage.example.com/analyses/invoice-001.json');
+  });
+
+  test('should update analysis_json_url field separately', async () => {
+    const uuid = uuidv4();
+    const testInvoice = await Invoice.create({
+      uuid,
+      invoice_number: 'INV-002',
+      invoice_date: new Date(),
+      status: 'Processing',
+      partner_id: 'partner-uuid-123'
+    });
+    
+    // Initially analysis_json_url should be null
+    expect(testInvoice.analysis_json_url).toBeNull();
+    
+    // Update only the analysis_json_url field
+    await testInvoice.update({
+      analysis_json_url: 'https://storage.example.com/analyses/invoice-002.json'
+    });
+    
+    // Reload from database to ensure updates are persisted
+    await testInvoice.reload();
+    
+    expect(testInvoice.analysis_json_url).toBe('https://storage.example.com/analyses/invoice-002.json');
+    expect(testInvoice.status).toBe('Processing'); // Other fields should remain unchanged
+  });
+
+  test('should accept null for analysis_json_url', async () => {
+    const uuid = uuidv4();
+    const testInvoice = await Invoice.create({
+      uuid,
+      invoice_number: 'INV-003',
+      invoice_date: new Date(),
+      status: 'Failed',
+      partner_id: 'partner-uuid-123',
+      analysis_json_url: null
+    });
+    
+    expect(testInvoice.analysis_json_url).toBeNull();
   });
   
 });
