@@ -1,24 +1,30 @@
-// Mock the invoiceService module instead of requiring the real one
-jest.mock('../../src/services/invoiceService', () => ({
-  buildResponse: (invoice) => ({
-    message: 'Invoice successfully processed and saved',
-    invoiceId: invoice.id,
-    details: {
-      id: invoice.id,
-      invoice_number: invoice.invoice_number,
-      invoice_date: invoice.invoice_date,
-      due_date: invoice.due_date,
-      total_amount: invoice.total_amount,
-      status: invoice.status,
-      created_at: invoice.created_at
-    }
-  })
-}));
+// Mock the InvoiceService module instead of requiring the real one
+// Note: Correct casing to match your actual file (InvoiceService.js vs invoiceService.js)
+jest.mock('../../src/services/invoice/invoiceService', () => {
+  // Return a mock of the instance that's exported from the module
+  return {
+    // The mock implementation of buildResponse
+    buildResponse: (invoice) => ({
+      message: 'Invoice successfully processed and saved',
+      invoiceId: invoice.id,
+      details: {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        invoice_date: invoice.invoice_date,
+        due_date: invoice.due_date,
+        total_amount: invoice.total_amount,
+        status: invoice.status,
+        created_at: invoice.created_at
+      }
+    })
+  };
+});
 
-// Now require the mocked module
-const invoiceService = require('../../src/services/invoiceService');
+// Now require the mocked module with correct path and casing
+const invoiceService = require('../../src/services/invoice/invoiceService');
 
 describe('buildResponse method', () => {
+  // Rest of the test file remains unchanged
   test('should correctly format response with complete invoice data', () => {
     // Arrange
     const mockInvoice = {
