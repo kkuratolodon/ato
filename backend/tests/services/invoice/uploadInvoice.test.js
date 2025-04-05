@@ -51,7 +51,7 @@ jest.mock('../../../src/repositories/itemRepository', () => {
 jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
 jest.mock('../../../src/services/invoice/invoiceValidator');
 jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService', () => ({
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService', () => ({
   AzureInvoiceMapper: jest.fn().mockImplementation(() => ({
     mapToInvoiceModel: jest.fn().mockReturnValue({
       invoiceData: {

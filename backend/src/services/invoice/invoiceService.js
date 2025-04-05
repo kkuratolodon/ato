@@ -8,7 +8,7 @@ const ItemRepository = require('../../repositories/itemRepository.js');
 const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
 const InvoiceValidator = require('./invoiceValidator');
 const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
-const { AzureInvoiceMapper } = require('../invoiceMapperService');
+const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {

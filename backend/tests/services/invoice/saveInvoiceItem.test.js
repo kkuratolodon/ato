@@ -19,7 +19,7 @@ jest.mock('../../../src/services/s3Service', () => ({ uploadFile: jest.fn() }));
 jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
 jest.mock('../../../src/services/invoice/invoiceValidator');
 jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Mock uuid
 jest.mock('uuid', () => ({

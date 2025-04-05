@@ -10,7 +10,7 @@ jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
 // Other mocks needed for invoiceService to initialize properly
 jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
 jest.mock('../../../src/services/invoice/invoiceValidator');
-jest.mock('../../../src/services/invoiceMapperService');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Sentry mock
 jest.mock('../../../src/instrument', () => ({

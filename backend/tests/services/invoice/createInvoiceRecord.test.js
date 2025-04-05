@@ -23,7 +23,7 @@ jest.mock('../../../src/services/s3Service', () => ({
 jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
 jest.mock('../../../src/services/invoice/invoiceValidator');
 jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Mock UUID
 jest.mock('uuid', () => ({

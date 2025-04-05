@@ -16,7 +16,7 @@ jest.mock('../../../src/repositories/itemRepository');
 jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
 jest.mock('../../../src/services/invoice/invoiceValidator');
 jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Mock console methods to verify they are called
 global.console = {

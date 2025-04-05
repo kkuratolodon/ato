@@ -16,7 +16,7 @@ jest.mock('../../../src/repositories/customerRepository');
 jest.mock('../../../src/repositories/vendorRepository');
 jest.mock('../../../src/repositories/itemRepository');
 jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/invoiceMapperService');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 describe('InvoiceService.processInvoiceAsync direct implementation', () => {
   beforeEach(() => {
