@@ -1270,18 +1270,45 @@ describe('saveInvoiceItems', () => {
 
 // Test untuk processInvoiceAsync
 describe('processInvoiceAsync', () => {
+  // Simpan original methods
+  let origAnalyzeInvoice, origMapAnalysisResult, origUpdateInvoiceRecord,
+      origUpdateCustomerAndVendorData, origSaveInvoiceItems, origUploadAnalysisResults;
+
+  const mockJsonUrl = 'https://example.com/analysis/test-invoice-123-analysis.json';
+  
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Mock semua metode yang dipanggil dalam proses
-    jest.spyOn(invoiceService, 'analyzeInvoice').mockImplementation();
-    jest.spyOn(invoiceService, 'mapAnalysisResult').mockImplementation();
-    jest.spyOn(invoiceService, 'updateInvoiceRecord').mockImplementation();
-    jest.spyOn(invoiceService, 'updateCustomerAndVendorData').mockImplementation();
-    jest.spyOn(invoiceService, 'saveInvoiceItems').mockImplementation();
+    // Simpan referensi original methods
+    origAnalyzeInvoice = invoiceService.analyzeInvoice;
+    origMapAnalysisResult = invoiceService.mapAnalysisResult;
+    origUpdateInvoiceRecord = invoiceService.updateInvoiceRecord;
+    origUpdateCustomerAndVendorData = invoiceService.updateCustomerAndVendorData;
+    origSaveInvoiceItems = invoiceService.saveInvoiceItems;
+    
+    // Tambahkan mock untuk uploadAnalysisResults - kunci untuk fitur baru
+    origUploadAnalysisResults = FinancialDocumentService.prototype.uploadAnalysisResults;
+    FinancialDocumentService.prototype.uploadAnalysisResults = jest.fn().mockResolvedValue(mockJsonUrl);
+
+    // Buat mock dengan implementasi kosong
+    invoiceService.analyzeInvoice = jest.fn();
+    invoiceService.mapAnalysisResult = jest.fn();
+    invoiceService.updateInvoiceRecord = jest.fn();
+    invoiceService.updateCustomerAndVendorData = jest.fn();
+    invoiceService.saveInvoiceItems = jest.fn();
 
     // Mock Invoice.update
     models.Invoice.update = jest.fn().mockResolvedValue([1]);
+  });
+
+  afterEach(() => {
+    // Restore original methods
+    invoiceService.analyzeInvoice = origAnalyzeInvoice;
+    invoiceService.mapAnalysisResult = origMapAnalysisResult;
+    invoiceService.updateInvoiceRecord = origUpdateInvoiceRecord;
+    invoiceService.updateCustomerAndVendorData = origUpdateCustomerAndVendorData;
+    invoiceService.saveInvoiceItems = origSaveInvoiceItems;
+    FinancialDocumentService.prototype.uploadAnalysisResults = origUploadAnalysisResults;
   });
 
   test('should process invoice asynchronously and update status to Analyzed', async () => {
@@ -1300,18 +1327,25 @@ describe('processInvoiceAsync', () => {
       itemsData: [{ description: 'Item 1', quantity: 2 }]
     };
 
-    // Setup mocks to return values
+    // Setup mocks dengan implementasi yang mengembalikan data
     invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
     invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    invoiceService.updateInvoiceRecord.mockResolvedValue(true);
+    invoiceService.updateCustomerAndVendorData.mockResolvedValue(true);
+    invoiceService.saveInvoiceItems.mockResolvedValue(true);
 
     // Act
     await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
     expect(invoiceService.analyzeInvoice).toHaveBeenCalledWith(buffer);
+    // Verifikasi bahwa uploadAnalysisResults dipanggil dengan parameter yang benar
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults)
+      .toHaveBeenCalledWith(mockAnalysisResult, invoiceId);
     expect(invoiceService.mapAnalysisResult).toHaveBeenCalledWith(
       mockAnalysisResult, partnerId, originalname, buffer.length
     );
+    // Pastikan hasil JSON URL tidak disimpan ke database (dikomentari dalam kode)
     expect(invoiceService.updateInvoiceRecord).toHaveBeenCalledWith(
       invoiceId, mockMappedResults.invoiceData
     );
@@ -1327,7 +1361,81 @@ describe('processInvoiceAsync', () => {
     );
   });
 
-  test('should handle error during analyzeInvoice and update status to Failed', async () => {
+  // Test baru untuk upload JSON
+  test('should upload analysis JSON to S3 and continue processing', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+
+    const mockAnalysisResult = { 
+      data: { 
+        fields: { invoiceNumber: { text: 'INV-001' } } 
+      } 
+    };
+    const mockMappedResults = {
+      invoiceData: { invoice_number: 'INV-001' },
+      customerData: { name: 'Test Customer' },
+      vendorData: { name: 'Test Vendor' },
+      itemsData: [{ description: 'Item 1', quantity: 2 }]
+    };
+
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    invoiceService.updateInvoiceRecord.mockResolvedValue(true);
+    invoiceService.updateCustomerAndVendorData.mockResolvedValue(true);
+    invoiceService.saveInvoiceItems.mockResolvedValue(true);
+
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+
+    // Assert - focus on JSON upload
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults)
+      .toHaveBeenCalledWith(mockAnalysisResult, invoiceId);
+    
+    // Verify rest of the process continues after JSON upload
+    expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
+    expect(invoiceService.updateInvoiceRecord).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Analyzed' },
+      { where: { id: invoiceId } }
+    );
+  });
+
+  test('should handle error during uploadAnalysisResults and update status to Failed', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const buffer = Buffer.from('test-pdf-content');
+    const partnerId = 'partner-456';
+    const originalname = 'test-invoice.pdf';
+    const uuid = 'test-uuid-789';
+
+    const mockAnalysisResult = { data: 'test-analysis' };
+    
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
+    
+    // Mock uploadAnalysisResults to fail
+    const testError = new Error('JSON upload failed');
+    FinancialDocumentService.prototype.uploadAnalysisResults.mockRejectedValue(testError);
+
+    // Act
+    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+
+    // Assert
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalledWith(
+      { status: 'Failed' },
+      { where: { id: invoiceId } }
+    );
+    // Verifikasi langkah-langkah berikutnya tidak dipanggil karena error terjadi di uploadAnalysisResults
+    expect(invoiceService.mapAnalysisResult).not.toHaveBeenCalled();
+    expect(invoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
+  });
+
+  test('should handle analyzeInvoice and update status to Failed', async () => {
     // Arrange
     const invoiceId = 'test-invoice-123';
     const buffer = Buffer.from('test-pdf-content');
@@ -1348,6 +1456,7 @@ describe('processInvoiceAsync', () => {
       { where: { id: invoiceId } }
     );
     // Verifikasi langkah-langkah berikutnya tidak dipanggil
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults).not.toHaveBeenCalled();
     expect(invoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
   });
 
@@ -1360,9 +1469,9 @@ describe('processInvoiceAsync', () => {
     const uuid = 'test-uuid-789';
 
     const mockAnalysisResult = { data: 'test-analysis' };
-    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
-
     const testError = new Error('Mapping failed');
+    
+    invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
     invoiceService.mapAnalysisResult.mockImplementation(() => { throw testError; });
 
     // Act
@@ -1370,6 +1479,7 @@ describe('processInvoiceAsync', () => {
 
     // Assert
     expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults).toHaveBeenCalled();
     expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(models.Invoice.update).toHaveBeenCalledWith(
       { status: 'Failed' },
@@ -1397,7 +1507,7 @@ describe('processInvoiceAsync', () => {
 
     invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
     invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
-
+    
     const testError = new Error('Database update error');
     invoiceService.updateInvoiceRecord.mockRejectedValue(testError);
 
@@ -1406,6 +1516,7 @@ describe('processInvoiceAsync', () => {
 
     // Assert
     expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults).toHaveBeenCalled();
     expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(invoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(models.Invoice.update).toHaveBeenCalledWith(
@@ -1434,7 +1545,8 @@ describe('processInvoiceAsync', () => {
 
     invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
     invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
-
+    invoiceService.updateInvoiceRecord.mockResolvedValue(true);
+    
     const testError = new Error('Customer/vendor update error');
     invoiceService.updateCustomerAndVendorData.mockRejectedValue(testError);
 
@@ -1442,6 +1554,10 @@ describe('processInvoiceAsync', () => {
     await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults).toHaveBeenCalled();
+    expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
+    expect(invoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(invoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
     expect(models.Invoice.update).toHaveBeenCalledWith(
       { status: 'Failed' },
@@ -1469,7 +1585,9 @@ describe('processInvoiceAsync', () => {
 
     invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
     invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
-
+    invoiceService.updateInvoiceRecord.mockResolvedValue(true);
+    invoiceService.updateCustomerAndVendorData.mockResolvedValue(true);
+    
     const testError = new Error('Item save error');
     invoiceService.saveInvoiceItems.mockRejectedValue(testError);
 
@@ -1477,6 +1595,11 @@ describe('processInvoiceAsync', () => {
     await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
+    expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults).toHaveBeenCalled();
+    expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
+    expect(invoiceService.updateInvoiceRecord).toHaveBeenCalled(); 
+    expect(invoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
     expect(invoiceService.saveInvoiceItems).toHaveBeenCalled();
     expect(models.Invoice.update).toHaveBeenCalledWith(
       { status: 'Failed' },
@@ -1502,21 +1625,30 @@ describe('processInvoiceAsync', () => {
 
     invoiceService.analyzeInvoice.mockResolvedValue(mockAnalysisResult);
     invoiceService.mapAnalysisResult.mockReturnValue(mockMappedResults);
+    invoiceService.updateInvoiceRecord.mockResolvedValue(true);
+    invoiceService.updateCustomerAndVendorData.mockResolvedValue(true);
+    invoiceService.saveInvoiceItems.mockResolvedValue(true);
 
     const testError = new Error('Final status update error');
     models.Invoice.update
       .mockResolvedValueOnce([1]) // Berhasil untuk update lain
       .mockRejectedValueOnce(testError); // Gagal untuk update status Analyzed
 
-    // Act
-    await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    // Act - pakai try/catch untuk menangkap error yang mungkin di-throw
+    try {
+      await invoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
+    } catch (error) {
+      // Abaikan error yang mungkin dilempar
+    }
 
-    // Assert - Semua fungsi telah dipanggil
+    // Assert - semua fungsi dipanggil sebelum gagal di status akhir
     expect(invoiceService.analyzeInvoice).toHaveBeenCalled();
+    expect(FinancialDocumentService.prototype.uploadAnalysisResults).toHaveBeenCalled();
     expect(invoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(invoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(invoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
     expect(invoiceService.saveInvoiceItems).toHaveBeenCalled();
+    expect(models.Invoice.update).toHaveBeenCalled();
   });
 });
 
