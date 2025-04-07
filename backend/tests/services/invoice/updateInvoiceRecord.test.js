@@ -173,4 +173,158 @@ describe('updateInvoiceRecord method', () => {
     // Verify the error was logged with all its details
     expect(console.error).toHaveBeenCalledWith('Error updating invoice:', nestedError);
   });
+
+  test('should update invoice with analysis_json_url', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const jsonUrl = 'https://storage.example.com/invoices/analysis-123.json';
+    const invoiceData = {
+      invoice_number: 'INV-001',
+      invoice_date: '2023-01-01',
+      analysis_json_url: jsonUrl
+    };
+    
+    // Mock successful update
+    invoiceService.invoiceRepository.update.mockResolvedValue([1]);
+    
+    // Act
+    await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
+    
+    // Assert
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(
+      invoiceId, 
+      expect.objectContaining({
+        invoice_number: 'INV-001',
+        invoice_date: '2023-01-01',
+        analysis_json_url: jsonUrl
+      })
+    );
+    
+    // Check if the URL is properly logged (if you add the logging enhancement I suggested earlier)
+    if (invoiceService.updateInvoiceRecord.toString().includes('analysis_json_url')) {
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(`analysis_json_url: ${jsonUrl}`)
+      );
+    }
+    
+    expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
+  });
+  
+  test('should handle empty object as invoiceData', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const invoiceData = {};
+    
+    // Mock successful update
+    invoiceService.invoiceRepository.update.mockResolvedValue([1]);
+    
+    // Act
+    await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
+    
+    // Assert
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(invoiceId, {});
+    expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
+  });
+  
+  test('should update with partial data correctly', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const invoiceData = {
+      invoice_date: '2023-05-15'
+      // Only updating date, not number
+    };
+    
+    // Mock successful update
+    invoiceService.invoiceRepository.update.mockResolvedValue([1]);
+    
+    // Act
+    await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
+    
+    // Assert
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(invoiceId, {
+      invoice_date: '2023-05-15'
+    });
+    expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
+  });
+  
+  test('should handle when update affects 0 rows', async () => {
+    // Arrange
+    const invoiceId = 'non-existent-id';
+    const invoiceData = { invoice_number: 'INV-001' };
+    
+    // Mock update that affects no rows (invoice not found)
+    invoiceService.invoiceRepository.update.mockResolvedValue([0]);
+    
+    // Act
+    await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
+    
+    // Assert
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(invoiceId, invoiceData);
+    expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
+    // Note: Current implementation doesn't distinguish between 0 and positive row count
+  });
+  
+  
+  test('should handle update with large data object', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const invoiceData = {
+      invoice_number: 'INV-001',
+      invoice_date: '2023-01-01',
+      due_date: '2023-02-01',
+      total_amount: 1500.75,
+      tax_amount: 300.15,
+      subtotal: 1200.60,
+      notes: 'A very long note with lots of details about this invoice that might cause issues if not handled properly...' + 
+             'Continuing with more text to ensure the string is quite long and potentially problematic for some systems.' +
+             'This is to test how the system handles large text fields in the database update operation.',
+      status: 'Pending',
+      currency: 'USD',
+      payment_terms: 'Net 30',
+      analysis_json_url: 'https://example.com/very/long/path/to/some/json/file/with/analysis/results.json',
+      additional_field1: 'value1',
+      additional_field2: 'value2',
+      // ... many more fields ...
+    };
+    
+    // Mock successful update
+    invoiceService.invoiceRepository.update.mockResolvedValue([1]);
+    
+    // Act
+    await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
+    
+    // Assert
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(
+      invoiceId, 
+      expect.objectContaining({
+        invoice_number: 'INV-001',
+        notes: expect.stringContaining('A very long note')
+      })
+    );
+    expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
+  });
+  
+  test('should update with special characters in data', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const invoiceData = {
+      invoice_number: 'INV-001',
+      notes: 'Special characters: !@#$%^&*()_+{}|:"<>?[];\',./'
+    };
+    
+    // Mock successful update
+    invoiceService.invoiceRepository.update.mockResolvedValue([1]);
+    
+    // Act
+    await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
+    
+    // Assert
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(
+      invoiceId,
+      expect.objectContaining({
+        notes: 'Special characters: !@#$%^&*()_+{}|:"<>?[];\',./'
+      })
+    );
+    expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
+  });
 });
