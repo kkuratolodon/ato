@@ -7,18 +7,18 @@ on:
   workflow_dispatch:
     inputs:
       test_type:
-        description: 'Test type to run'
+        description: "Test type to run"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
           - upload
           - get-by-id
       load_pattern:
-        description: 'Load pattern'
+        description: "Load pattern"
         required: true
-        default: 'both'
+        default: "both"
         type: choice
         options:
           - both
@@ -37,7 +37,7 @@ jobs:
           echo "Installing required dependencies..."
           sudo apt-get update
           sudo apt-get install -y gnupg2 dirmngr
-          
+
           echo "Adding k6 repository and installing k6..."
           curl -s https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
@@ -62,23 +62,23 @@ jobs:
           echo "Starting Upload Ramping Load Test..."
           k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} backend/tests/load/upload-inv-ramping-load.mjs | tee backend/tests/load/upload-ramping-load-test.log || echo "Upload Ramping Load Test failed!"
           echo "Upload Ramping Load Test completed."
-          
+
       - name: Run Get-By-ID Fixed Load Test
         if: github.event_name == 'push' || github.event.inputs.test_type == 'all' || (github.event.inputs.test_type == 'get-by-id' && (github.event.inputs.load_pattern == 'both' || github.event.inputs.load_pattern == 'fixed'))
         run: |
           echo "Starting Get-By-ID Fixed Load Test..."
           k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} backend/tests/load/get-invoice-fixed-load.mjs | tee backend/tests/load/get-fixed-load-test.log || echo "Get-By-ID Fixed Load Test failed!"
           echo "Get-By-ID Fixed Load Test completed."
-          
+
       - name: Run Get-By-ID Ramping Load Test
         if: github.event_name == 'push' || github.event.inputs.test_type == 'all' || (github.event.inputs.test_type == 'get-by-id' && (github.event.inputs.load_pattern == 'both' || github.event.inputs.load_pattern == 'ramping'))
         run: |
           echo "Starting Get-By-ID Ramping Load Test..."
           k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} backend/tests/load/get-invoice-ramping-load.mjs | tee backend/tests/load/get-ramping-load-test.log || echo "Get-By-ID Ramping Load Test failed!"
           echo "Get-By-ID Ramping Load Test completed."
-          
+
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: load-test-results
           path: backend/tests/load/*.log
