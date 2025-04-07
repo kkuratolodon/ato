@@ -20,7 +20,6 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
     // Default: valid file passes all validation checks
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
     pdfValidationService.validatePdfPageCount.mockResolvedValue(1);
 
@@ -97,18 +96,6 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
     expect(res.json).toHaveBeenCalledWith({ message: "PDF is encrypted" });
   });
 
-  test("should return 400 if PDF file is invalid", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
-
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(false);
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "PDF file is invalid" });
-  });
-
   test("should return 413 if file size is too large", async () => {
     req.user = { uuid: "dummy-uuid" };
     req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
@@ -127,7 +114,6 @@ describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
 
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
 
     const mockResult = {

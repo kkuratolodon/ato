@@ -1,20 +1,41 @@
-const invoiceService = require('../../src/services/invoiceService');
-const { Invoice } = require('../../src/models');
+const invoiceService = require('../../../src/services/invoice/invoiceService');
 
-// Mock the Invoice model
-jest.mock('../../src/models', () => {
-  return {
-    Invoice: {
-      update: jest.fn()
-    }
-  };
+// Mock the repository instead of the model
+jest.mock('../../../src/repositories/invoiceRepository', () => {
+  return jest.fn().mockImplementation(() => ({
+    update: jest.fn()
+  }));
 });
+
+// Mock other repositories that InvoiceService might need
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('../../../src/repositories/itemRepository');
+
+// Mock other dependencies
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('../../../src/services/invoice/invoiceValidator');
+jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Mock console methods to verify they are called
 global.console = {
   log: jest.fn(),
   error: jest.fn()
 };
+
+// Mock Sentry
+jest.mock('../../../src/instrument', () => ({
+  init: jest.fn(),
+  startSpan: jest.fn((_, callback) => callback({
+    setAttribute: jest.fn(),
+    setStatus: jest.fn(),
+    end: jest.fn()
+  })),
+  captureMessage: jest.fn(),
+  captureException: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 
 describe('updateInvoiceRecord method', () => {
   beforeEach(() => {
@@ -32,7 +53,7 @@ describe('updateInvoiceRecord method', () => {
     
     // Assert
     expect(console.error).toHaveBeenCalledWith('Invoice data is undefined!');
-    expect(Invoice.update).not.toHaveBeenCalled();
+    expect(invoiceService.invoiceRepository.update).not.toHaveBeenCalled();
   });
   
   test('should return early when invoiceData is null', async () => {
@@ -45,7 +66,7 @@ describe('updateInvoiceRecord method', () => {
     
     // Assert
     expect(console.error).toHaveBeenCalledWith('Invoice data is undefined!');
-    expect(Invoice.update).not.toHaveBeenCalled();
+    expect(invoiceService.invoiceRepository.update).not.toHaveBeenCalled();
   });
   
   test('should update invoice when invoiceData is provided', async () => {
@@ -57,15 +78,15 @@ describe('updateInvoiceRecord method', () => {
     };
     
     // Mock successful update
-    Invoice.update.mockResolvedValue([1]);
+    invoiceService.invoiceRepository.update.mockResolvedValue([1]);
     
     // Act
     await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
     
     // Assert
-    expect(Invoice.update).toHaveBeenCalledWith(
-      invoiceData, 
-      { where: { id: invoiceId } }
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(
+      invoiceId, 
+      invoiceData
     );
     expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
   });
@@ -77,7 +98,7 @@ describe('updateInvoiceRecord method', () => {
     const error = new Error('Database connection error');
     
     // Mock failed update
-    Invoice.update.mockRejectedValue(error);
+    invoiceService.invoiceRepository.update.mockRejectedValue(error);
     
     // Act & Assert
     await expect(
@@ -98,7 +119,7 @@ describe('updateInvoiceRecord method', () => {
     customError.parent = { code: 'ER_NO_REFERENCED_ROW_2' };
     
     // Mock failed update with specific error
-    Invoice.update.mockRejectedValue(customError);
+    invoiceService.invoiceRepository.update.mockRejectedValue(customError);
     
     // Act & Assert
     await expect(
@@ -121,7 +142,7 @@ describe('updateInvoiceRecord method', () => {
     };
     
     // Mock failed update with unusual error
-    Invoice.update.mockRejectedValue(unusualError);
+    invoiceService.invoiceRepository.update.mockRejectedValue(unusualError);
     
     // Act & Assert
     await expect(
@@ -142,7 +163,7 @@ describe('updateInvoiceRecord method', () => {
     nestedError.cause = new Error('Connection timeout');
     
     // Mock failed update with nested error
-    Invoice.update.mockRejectedValue(nestedError);
+    invoiceService.invoiceRepository.update.mockRejectedValue(nestedError);
     
     // Act & Assert
     await expect(
