@@ -32,4 +32,35 @@ const uploadFile = async (fileBuffer) => {
     }
 };
 
-module.exports = { uploadFile };
+/**
+ * Upload a JSON result from OCR analysis to S3
+ * @param {Object} jsonData - JSON object containing OCR analysis results
+ * @param {string} documentId - Optional identifier to link JSON with original document
+ * @returns {Promise} - Resolves to the uploaded JSON file URL
+ */
+const uploadJsonResult = async (jsonData, documentId = null) => {
+    // Create a unique filename with optional reference to original document
+    const prefix = documentId ? `${documentId}-analysis-` : 'analysis-';
+    const fileName = `${prefix}${uuidv4()}.json`;
+    
+    // Convert JSON object to string
+    const jsonString = JSON.stringify(jsonData, null, 2);
+    
+    const params = {
+        Bucket: bucketName,
+        Key: `analysis/${fileName}`, // Store in 'analysis' folder for organization
+        Body: jsonString,
+        ContentType: 'application/json' // Set proper content type
+    };
+
+    try {
+        const data = await s3.upload(params).promise();
+        const jsonURL = data.Location;
+        return jsonURL;
+    } catch (error) {
+        console.error("S3 JSON Upload Error:", error);
+        throw error;
+    }
+};
+
+module.exports = { uploadFile, uploadJsonResult };
