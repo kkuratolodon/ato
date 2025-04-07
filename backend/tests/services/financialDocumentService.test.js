@@ -4,7 +4,7 @@ const s3Service = require('../../src/services/s3Service');
 // Mock the s3Service with a more sophisticated implementation
 jest.mock('../../src/services/s3Service', () => ({
   uploadFile: jest.fn(),
-  uploadJsonResult: jest.fn().mockImplementation((jsonData, documentId) => {
+  uploadJsonResult: jest.fn().mockImplementation((jsonData) => {
     // Handle null/undefined cases for analysis results
     if (jsonData === null || jsonData === undefined) {
       return Promise.reject(new Error('JSON data cannot be null or undefined'));

@@ -96,21 +96,33 @@ class InvoiceService extends FinancialDocumentService {
 
       // 1. Analisis invoice menggunakan Azure
       const analysisResult = await this.analyzeInvoice(buffer);
+      
+      // 2. Upload hasil OCR ke S3 sebagai JSON dan dapatkan URL-nya
+      const jsonUrl = await super.uploadAnalysisResults(analysisResult, invoiceId);
+      
+      // Print URL JSON yang berhasil diupload
+      console.log("=============================================");
+      console.log(`JSON Analysis URL: ${jsonUrl}`);
+      console.log("=============================================");
 
-      // 2. Map hasil analisis ke model data
+      // 3. Map hasil analisis ke model data
       const { invoiceData, customerData, vendorData, itemsData } =
         this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
 
-      // 3. Update record invoice dengan data hasil analisis
-      await this.updateInvoiceRecord(invoiceId, invoiceData);
+      // 4. Update record invoice dengan data hasil analisis dan URL JSON
+      await this.updateInvoiceRecord(invoiceId, {
+        ...invoiceData,
+        // Uncomment baris di bawah ini untuk menyimpan URL JSON ke database (untuk task berikutnya)
+        // analysis_json_url: jsonUrl
+      });
 
-      // 4. Update data customer dan vendor
+      // 5. Update data customer dan vendor
       await this.updateCustomerAndVendorData(invoiceId, customerData, vendorData);
 
-      // 5. Simpan item invoice
+      // 6. Simpan item invoice
       await this.saveInvoiceItems(invoiceId, itemsData);
 
-      // 6. Update status menjadi "Analyzed"
+      // 7. Update status menjadi "Analyzed"
       await Invoice.update({ status: "Analyzed" }, { where: { id: invoiceId } });
 
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
@@ -482,6 +494,40 @@ class InvoiceService extends FinancialDocumentService {
         }
       }
     );
+  }
+
+  async processOcrResults(invoiceId, ocrResults) {
+    try {
+      // Pastikan invoice ada
+      const invoice = await Invoice.findByPk(invoiceId);
+      if (!invoice) {
+        throw new Error(`Invoice with ID ${invoiceId} not found`);
+      }
+      
+      // Upload hasil OCR ke S3 sebagai JSON
+      const jsonUrl = await this.uploadAnalysisResults(ocrResults, invoiceId);
+      
+      // Di sini bisa menambahkan logika lain untuk memproses hasil OCR
+      // ...
+      
+      // Mengembalikan URL JSON tanpa menyimpan ke database
+      return {
+        success: true,
+        analysis_json_url: jsonUrl,
+        // Data lain yang mungkin diperlukan
+      };
+      
+      /* 
+      Untuk task berikutnya, Anda bisa menambahkan kode untuk menyimpan URL:
+      await invoice.update({ 
+        analysis_json_url: jsonUrl,
+        status: 'Analyzed'
+      });
+      */
+    } catch (error) {
+      console.error("Error processing OCR results:", error);
+      throw error;
+    }
   }
 }
 

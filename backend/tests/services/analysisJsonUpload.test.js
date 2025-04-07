@@ -191,7 +191,7 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
     invoiceService.saveInvoiceItems = jest.fn().mockResolvedValue(true);
     
     // Mock the processInvoiceAsync method
-    invoiceService.processInvoiceAsync = jest.fn().mockImplementation(async (invoiceId, buffer, partnerId, originalname, uuid) => {
+    invoiceService.processInvoiceAsync = jest.fn().mockImplementation(async (invoiceId, buffer) => {
       // Call the mocked methods to simulate the original implementation
       const analysisResult = await invoiceService.analyzeInvoice(buffer);
       const jsonUrl = await FinancialDocumentService.prototype.uploadAnalysisResults(analysisResult, invoiceId);
