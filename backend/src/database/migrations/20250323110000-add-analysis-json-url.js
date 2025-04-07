@@ -3,18 +3,18 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     try {
-      // Cek keberadaan kolom pada tabel invoice
-      const invoiceColumns = await queryInterface.describeTable('invoice');
+      // Cek keberadaan kolom pada tabel Invoice
+      const invoiceColumns = await queryInterface.describeTable('Invoice');
       if (!invoiceColumns.analysis_json_url) {
-        // Tambahkan kolom ke invoice hanya jika belum ada
-        await queryInterface.addColumn('invoice', 'analysis_json_url', {
+        // Tambahkan kolom ke Invoice hanya jika belum ada
+        await queryInterface.addColumn('Invoice', 'analysis_json_url', {
           type: Sequelize.STRING,
           allowNull: true,
           defaultValue: null
         });
-        console.log('Added analysis_json_url column to invoice table');
+        console.log('Added analysis_json_url column to Invoice table');
       } else {
-        console.log('Column analysis_json_url already exists in invoice table');
+        console.log('Column analysis_json_url already exists in Invoice table');
       }
       
       // Cek apakah tabel purchase_order ada
@@ -53,12 +53,12 @@ module.exports = {
 
   down: async (queryInterface) => {
     try {
-      // Cek keberadaan kolom pada tabel invoice
-      const invoiceColumns = await queryInterface.describeTable('invoice');
+      // Cek keberadaan kolom pada tabel Invoice
+      const invoiceColumns = await queryInterface.describeTable('Invoice');
       if (invoiceColumns.analysis_json_url) {
-        // Hapus kolom dari invoice hanya jika ada
-        await queryInterface.removeColumn('invoice', 'analysis_json_url');
-        console.log('Removed analysis_json_url column from invoice table');
+        // Hapus kolom dari Invoice hanya jika ada
+        await queryInterface.removeColumn('Invoice', 'analysis_json_url');
+        console.log('Removed analysis_json_url column from Invoice table');
       }
       
       // Cek apakah tabel purchase_order ada
