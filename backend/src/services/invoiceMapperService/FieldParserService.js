@@ -87,7 +87,7 @@ class FieldParser {
             }
         };
 
-        if (field?.value && typeof field.value === 'number') {
+        if (field?.value !== undefined && typeof field.value === 'number') {
             result.amount = field.value;
             return result;
         }

@@ -83,6 +83,12 @@ describe('Field Parsing', () => {
       // Test case for direct number value
       expect(mapper.fieldParser.parseCurrency({ value: 42 })).toEqual({ amount: 42, currency: { currencySymbol: null, currencyCode: null } });
     
+      // Test case for direct zero value - to cover line 118
+      expect(mapper.fieldParser.parseCurrency({ value: 0 })).toEqual({ amount: 0, currency: { currencySymbol: null, currencyCode: null } });
+    
+      // Test case for field with empty content - to cover the early return at line 118
+      expect(mapper.fieldParser.parseCurrency({ someProperty: 'value' })).toEqual({ amount: null, currency: { currencySymbol: null, currencyCode: null } });
+    
       // Test case for null field
       expect(mapper.fieldParser.parseCurrency(null)).toEqual({ amount: null, currency: { currencySymbol: null, currencyCode: null } });
     });
