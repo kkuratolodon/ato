@@ -9,7 +9,7 @@ const { uploadInvoice,getInvoiceById } = require("../../src/controllers/invoiceC
 const pdfValidationService = require("../../src/services/pdfValidationService");
 const invoiceService = require("../../src/services/invoiceService");
 const authService = require("../../src/services/authService");
-
+const DocumentStatus = require('../../src/models/enums/documentStatus');
 
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
@@ -254,7 +254,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     // Mock format hasil yang sesuai dengan implementasi baru
     const mockResult = {
       id: "mocked-uuid-123",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       message: "Invoice upload service called"
     };
     
@@ -320,7 +320,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     // Update format hasil sesuai yang baru
     const mockResult = {
       id: "mocked-uuid-123",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       message: "Invoice upload service called"
     };
     
@@ -410,7 +410,7 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     // Gunakan format yang sama seperti test berhasil lainnya
     const mockResult = {
       id: "mocked-uuid-123",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       message: "Success"
     };
     
@@ -601,7 +601,7 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     
     const mockResult = {
       id: "mocked-uuid-123",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       message: "Invoice upload service called"
     };
     
@@ -669,7 +669,7 @@ describe("getInvoiceById", () => {
         discount_amount: 50.0,
         payment_terms: "Net 30",
         file_url: "https://example.com/invoice.pdf",
-        status: "Analyzed",
+        status: DocumentStatus.ANALYZED,
         partner_id: "uuid",
         customer_id: "cust123",
         vendor_id: "vend456",

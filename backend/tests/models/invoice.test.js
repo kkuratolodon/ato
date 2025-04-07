@@ -6,6 +6,7 @@ const CustomerModel = require("../../src/models/customer");
 const VendorModel = require("../../src/models/vendor");
 const ItemModel = require("../../src/models/item");
 const FinancialDocument = require('../../src/models/base/financialDocument');
+const DocumentStatus = require('../../src/models/enums/documentStatus'); 
 
 describe("Invoice Model", () => {
   let sequelize, Invoice, Partner, Vendor, Customer, Item;
@@ -65,7 +66,7 @@ describe("Invoice Model", () => {
       discount_amount: 100.00,
       payment_terms: "Net 15",
       file_url: "http://example.com/invoice.pdf",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: partner.uuid,
     };
     const invoice = await Invoice.create(invoiceData);
@@ -222,7 +223,7 @@ describe("Invoice Model", () => {
       discount_amount: 100.00,
       payment_terms: "Net 15",
       file_url: "http://example.com/invoice.pdf",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: "partner-uuid-123",
     };
     const invoice = await Invoice.create(invoiceData);
@@ -230,7 +231,7 @@ describe("Invoice Model", () => {
     expect(invoice.due_date).toEqual(invoiceData.due_date);
     expect(invoice.discount_amount).toBeCloseTo(100.00);
     expect(invoice.file_url).toBe("http://example.com/invoice.pdf");
-    expect(invoice.status).toBe("Processing");
+    expect(invoice.status).toBe(DocumentStatus.PROCESSING);
   });
 
   test("should update invoice status correctly", async () => {
@@ -241,13 +242,13 @@ describe("Invoice Model", () => {
       total_amount: 2000.00,
       subtotal_amount: 1900.00,
       payment_terms: "Net 30",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: "partner-uuid-123",
     });
-    invoice.status = "Processing";
+    invoice.status = DocumentStatus.PROCESSING;
     await invoice.save();
     const updatedInvoice = await Invoice.findByPk(invoice.id);
-    expect(updatedInvoice.status).toBe("Processing");
+    expect(updatedInvoice.status).toBe(DocumentStatus.PROCESSING);
   });
 
   // ===== NEGATIVE CASES =====
@@ -276,7 +277,7 @@ describe("Invoice Model", () => {
       total_amount: extremeAmount,
       subtotal_amount: extremeAmount - 1000,
       payment_terms: "Net 60",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: "partner-uuid-123",
     });
     expect(invoice.total_amount).toBeCloseTo(extremeAmount);
@@ -290,7 +291,7 @@ describe("Invoice Model", () => {
       total_amount: 500.00,
       subtotal_amount: 450.00,
       payment_terms: "Net 15",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: "partner-uuid-123",
       extra_field: "this should be ignored",
     };
@@ -306,7 +307,7 @@ describe("Invoice Model", () => {
       total_amount: 1000.00,
       subtotal_amount: 900.00,
       payment_terms: "Net 30",
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: "partner-uuid-123",
     })).rejects.toThrow();
   });

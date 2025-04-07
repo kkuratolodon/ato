@@ -3,6 +3,7 @@ const fs = require('fs');
 const s3Service = require('../../src/services/s3Service');
 const purchaseOrderService = require('../../src/services/purchaseOrderService');
 const { PurchaseOrder } = require('../../src/models');
+const DocumentStatus = require('../../src/models/enums/documentStatus');
 
 jest.mock('../../src/services/s3Service', () => ({
     uploadFile: jest.fn()
@@ -39,7 +40,7 @@ describe('uploadPurchaseOrder', () => {
       id: 1,
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       created_at: new Date()
     };
 
@@ -51,7 +52,7 @@ describe('uploadPurchaseOrder', () => {
     expect(PurchaseOrder.create).toHaveBeenCalledWith({
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
-      status: "Processing"
+      status: DocumentStatus.PROCESSING
     });
     expect(result).toHaveProperty('message', 'Purchase Order successfully uploaded');
   });

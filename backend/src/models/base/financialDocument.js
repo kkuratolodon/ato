@@ -93,7 +93,10 @@ class FinancialDocument extends Model {
         allowNull: false,
         defaultValue: DocumentStatus.PROCESSING,
         validate: {
-          isIn: [Object.values(DocumentStatus)]
+          isIn: {
+            args: [Object.values(DocumentStatus)],
+            msg: "status must be one of 'Processing', 'Analyzed', or 'Failed'"
+          }
         }
       },
       partner_id: {

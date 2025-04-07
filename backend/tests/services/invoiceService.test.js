@@ -6,6 +6,7 @@ const { Invoice } = require('../../src/models');
 const fs = require("fs");
 const path = require("path");
 const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
+const DocumentStatus = require('../../src/models/enums/documentStatus');
 
 jest.mock("@azure/ai-form-recognizer");
 
@@ -144,7 +145,7 @@ describe('uploadInvoice', () => {
       id: 'mocked-uuid-123',
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       invoice_number: 'INV-001',
       invoice_date: '2023-01-01',
       due_date: '2023-02-01',
@@ -165,12 +166,12 @@ describe('uploadInvoice', () => {
     expect(Invoice.create).toHaveBeenCalledWith(expect.objectContaining({
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
-      status: "Processing"
+      status: DocumentStatus.PROCESSING
     }));
 
     expect(result).toHaveProperty('message');
     expect(result).toHaveProperty('id');
-    expect(result).toHaveProperty('status', 'Processing');
+    expect(result).toHaveProperty('status', DocumentStatus.PROCESSING);
   });
 
   test('should raise error when S3 upload fails', async () => {
@@ -239,7 +240,7 @@ describe('uploadInvoice - Corner Cases', () => {
       id: 1,
       invoice_date: "2025-02-01",
       vendor_id: "missing-vendor-uuid",
-      status: "Analyzed",
+      status: DocumentStatus.ANALYZED,
     };
 
     const mockInvoice = {
@@ -368,7 +369,7 @@ describe("getInvoiceById", () => {
     const mockInvoiceData = {
       uuid: '1',
       invoice_number: "INV-001",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     models.Invoice.findOne.mockResolvedValue({
@@ -418,7 +419,7 @@ describe("getInvoiceById", () => {
       uuid: '1',
       invoice_date: "2025-02-01",
       customer_id: "missing-customer-uuid",
-      status: "Analyzed",
+      status: DocumentStatus.ANALYZED,
     };
 
     const mockInvoice = {
@@ -461,7 +462,7 @@ describe("getInvoiceById", () => {
       uuid: '1',
       invoice_date: "2025-02-01",
       vendor_id: "missing-vendor-uuid",
-      status: "Analyzed",
+      status: DocumentStatus.ANALYZED,
     };
 
     const mockInvoice = {
@@ -504,7 +505,7 @@ describe("getInvoiceById", () => {
       uuid: '1',
       invoice_date: "2025-02-01",
       customer_id: "existing-customer-uuid",
-      status: "Analyzed",
+      status: DocumentStatus.ANALYZED,
     };
 
     const mockCustomerData = {
@@ -541,7 +542,7 @@ describe("getInvoiceById", () => {
       uuid: '1',
       invoice_date: "2025-02-01",
       vendor_id: "existing-vendor-uuid",
-      status: "Analyzed",
+      status: DocumentStatus.ANALYZED,
     };
 
     const mockVendorData = {
@@ -575,7 +576,7 @@ describe("getInvoiceById", () => {
   test("Should correctly transform items data to the required format", async () => {
     const mockInvoiceData = {
       uuid: '1',
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockInvoice = {
@@ -632,7 +633,7 @@ describe("getInvoiceById", () => {
   test("Should handle items with missing description by setting it to null", async () => {
     const mockInvoiceData = {
       uuid: '1',
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockInvoice = {
@@ -689,7 +690,7 @@ describe("getInvoiceById", () => {
   test("Should return empty items array when no items exist", async () => {
     const mockInvoiceData = {
       uuid: '1',
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockInvoice = {
@@ -711,7 +712,7 @@ describe("getInvoiceById", () => {
   test("Should filter out items when their item details cannot be found", async () => {
     const mockInvoiceData = {
       uuid: '1',
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockInvoice = {
@@ -788,7 +789,7 @@ describe("getInvoiceById", () => {
       uuid: '1',
       invoice_date: "2025-02-01",
       customer_id: "customer-with-null-address",
-      status: "Analyzed",
+      status: DocumentStatus.ANALYZED,
     };
 
     const mockCustomerData = {
@@ -827,7 +828,7 @@ describe("getInvoiceById", () => {
       uuid: '1',
       invoice_date: "2025-02-01",
       vendor_id: "vendor-with-null-address",
-      status: "Analyzed",
+      status: DocumentStatus.ANALYZED,
     };
 
     const mockVendorData = {
@@ -1531,7 +1532,7 @@ describe('createInvoiceRecord', () => {
     const s3Url = 'https://example.com/test.pdf';
     const mockCreatedInvoice = {
       id: 'invoice-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url
     };
@@ -1543,7 +1544,7 @@ describe('createInvoiceRecord', () => {
 
     // Assert
     expect(models.Invoice.create).toHaveBeenCalledWith({
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url
     });
@@ -1567,7 +1568,7 @@ describe('createInvoiceRecord', () => {
     // Arrange
     const mockCreatedInvoice = {
       id: 'invoice-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: null,
       file_url: null
     };
@@ -1579,7 +1580,7 @@ describe('createInvoiceRecord', () => {
 
     // Assert
     expect(models.Invoice.create).toHaveBeenCalledWith({
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: null,
       file_url: null
     });

@@ -7,6 +7,7 @@ const { Customer } = require("../models");
 const { Vendor } = require("../models");
 const { Item, FinancialDocumentItem } = require('../models');
 const { v4: uuidv4 } = require('uuid');
+const DocumentStatus = require('../models//enums/documentStatus');
 
 const Sentry = require("../instrument");
 dotenv.config();
@@ -60,7 +61,7 @@ class InvoiceService extends FinancialDocumentService {
       // Explisit set id dengan UUID yang digenerate
       const invoice = await Invoice.create({
         id: invoiceUuid,
-        status: "Processing",
+        status: DocumentStatus.PROCESSING,
         partner_id: partnerId,
         file_url: s3Result.file_url,
         original_filename: originalname,
@@ -74,7 +75,7 @@ class InvoiceService extends FinancialDocumentService {
       return {
         message: "Invoice upload initiated",
         id: invoiceUuid,
-        status: "Processing"
+        status: DocumentStatus.PROCESSING
       };
     } catch (error) {
       console.error("Error in uploadInvoice:", error);
@@ -111,7 +112,7 @@ class InvoiceService extends FinancialDocumentService {
       await this.saveInvoiceItems(invoiceId, itemsData);
 
       // 6. Update status menjadi "Analyzed"
-      await Invoice.update({ status: "Analyzed" }, { where: { id: invoiceId } });
+      await Invoice.update({ status: DocumentStatus.ANALYZED }, { where: { id: invoiceId } });
 
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
     } catch (error) {
@@ -119,7 +120,7 @@ class InvoiceService extends FinancialDocumentService {
       Sentry.captureException(error);
 
       // Update status menjadi "Failed" jika processing gagal
-      await Invoice.update({ status: "Failed" }, { where: { id: invoiceId } });
+      await Invoice.update({ status: DocumentStatus.FAILED }, { where: { id: invoiceId } });
     }
   }
 
@@ -135,7 +136,7 @@ class InvoiceService extends FinancialDocumentService {
 
   async createInvoiceRecord(partnerId, s3Url) {
     const invoiceData = {
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url,
     };

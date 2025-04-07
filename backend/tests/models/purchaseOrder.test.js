@@ -5,6 +5,7 @@ const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require("../../src/models/customer");
 const VendorModel = require("../../src/models/vendor");
 const item = require("../../src/models/item");
+const DocumentStatus = require('../../src/models/enums/documentStatus');
 
 describe('PurchaseOrder Model', () => {
     let sequelize;
@@ -162,7 +163,7 @@ describe('PurchaseOrder Model', () => {
             // Create a purchase order associated with the vendor
             const purchaseOrder = await PurchaseOrder.create({
                 po_number: "PO-2024-002",
-                status: "Processing",
+                status: DocumentStatus.PROCESSING,
                 partner_id: partnerId,
                 vendor_id: vendor.uuid
             });
