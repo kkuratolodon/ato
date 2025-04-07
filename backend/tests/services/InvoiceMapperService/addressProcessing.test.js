@@ -84,20 +84,59 @@ describe('Address Processing', () => {
         CustomerName: { content: 'Test Customer' }
       };
       
-      const result1 = mapper.extractCustomerData(fields1);
-      expect(result1.address).toBeNull();
+      const result1 = mapper.EntityExtractor.extractCustomerData(fields);
+      expect(result1.address).toBe('123 Main St Austin, TX 78701');
+      expect(result1.name).toBe('Test Customer');
       
       const fields2 = {
         CustomerAddress: { content: undefined },
         CustomerName: { content: 'Test Customer' }
       };
       
-      const result2 = mapper.extractCustomerData(fields2);
-      expect(result2.address).toBeNull();
+      const result2 = mapper.EntityExtractor.extractCustomerData(fields2);
+      expect(result2.address).toBe('456 Oak Ave Seattle WA 98101');
+      
+      // International format
+      const fields3 = {
+        CustomerAddress: {
+          content: '789 High Street\nLondon, England EC1A 1BB'
+        },
+        CustomerName: { content: 'Test Customer 3' }
+      };
+      
+      const result3 = mapper.EntityExtractor.extractCustomerData(fields3);
+      expect(result3.address).toBe('789 High Street London, England EC1A 1BB');
     });
-  });
+    
+    it('should handle structured address data in customer fields', () => {
+      const mapper = getMapper();
+      
+      const fields = {
+        BillingAddress: {
+          value: {
+            text: '123 Main Avenue\nBoston, MA 02108'
+          }
+        },
+        BillingAddressRecipient: { content: 'John Doe' }
+      };
+      
+      const result = mapper.EntityExtractor.extractCustomerData(fields);
+      expect(result.address).toBe('123 Main Avenue Boston, MA 02108');
+    });
+    
+    it('should handle missing address components', () => {
+      const mapper = getMapper();
+      
+      const fields = {
+        CustomerName: { content: 'Test Customer' }
+        // No address provided
+      };
+      
+      const result = mapper.EntityExtractor.extractCustomerData(fields);
+      expect(result.address).toBeNull();
+      expect(result.name).toBe('Test Customer');
+    });
 
-  describe('Vendor Address Processing', () => {
     it('should handle vendor address data', () => {
       const fields = {
         VendorAddress: {
@@ -107,7 +146,7 @@ describe('Address Processing', () => {
         VendorTaxId: { content: '123-45-6789' }
       };
       
-      const result = mapper.extractVendorData(fields);
+      const result = mapper.EntityExtractor.extractVendorData(fields);
       expect(result.address).toBe('123 Business St Chicago, IL 60601');
       expect(result.name).toBe('Test Vendor');
       expect(result.tax_id).toBe('123-45-6789');
