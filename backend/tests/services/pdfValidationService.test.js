@@ -1,8 +1,7 @@
 const pdfValidationService = require("../../src/services/pdfValidationService");
 const fs = require("fs");
 const path = require("path");
-// Hapus mock-fs import
-// const mockFs = require("mock-fs");
+const pdfjsLib = require("pdfjs-dist");
 
 describe("PDF Validation Format", () => {
   const validPdfBuffer = Buffer.from("%PDF-1.4 Valid PDF File");
@@ -150,103 +149,48 @@ describe("PDF Encryption Check with Real Implementation", () => {
   });
 });
 
-describe("PDF Integrity Check", () => {
-  const validPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
-    "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
-    "xref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\n" +
-    "trailer\n<</Size 4/Root 1 0 R>>\n" +
-    "startxref\n178\n%%EOF"
-  );
+jest.mock("pdfjs-dist", () => ({
+  getDocument: jest.fn()
+}));
 
-  const corruptedPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n" +
-    "3 0 obj\n<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>\nendobj\n" +
-    "trailer\n<</Size 4/Root 1 0 R>>\n" +
-    "startxref\n" +
-    "%%EOF"
-  );
-
-  const truncatedPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "2 0 obj\n<</Type/Pages/Kids[3"
-  );
-
-  const malformedPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n" +
-    "trailer\n<</Size 4/Root 1 0 R>>\n" +
-    "startxref\nABC\n" +
-    "%%EOF"
-  );
-
-  const noObjectsPdfBuffer = Buffer.from(
-    "%PDF-1.3\n" +
-    "trailer\n<</Size 4/Root 1 0 R>>\n" +
-    "startxref\n123\n" +
-    "%%EOF"
-  );
-
+describe("PDF Page Count Validation", () => {
   beforeEach(() => {
-    jest.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
-      if (filePath.includes('valid.pdf')) {
-        return validPdfBuffer;
-      }
-      if (filePath.includes('corrupted.pdf')) {
-        return corruptedPdfBuffer;
-      }
-      if (filePath.includes('truncated.pdf')) {
-        return truncatedPdfBuffer;
-      }
-      if (filePath.includes('malformed.pdf')) {
-        return malformedPdfBuffer;
-      }
-      if (filePath.includes('noObjects.pdf')) {
-        return noObjectsPdfBuffer;
-      }
-      throw new Error(`Unexpected file path: ${filePath}`);
-    });
-
-    jest.spyOn(path, 'resolve').mockImplementation((filePath) => filePath);
+      jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
+  test("Valid PDF with 100 pages", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.resolve({ numPages: 100 })
+      });
+
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).resolves.toBe(true);
   });
 
-  test("Should confirm integrity of a valid PDF file", async () => {
-    const result = await pdfValidationService.checkPdfIntegrity(validPdfBuffer);
-    expect(result).toBe(true);
+  test("PDF with 101 pages", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.resolve({ numPages: 101 })
+      });
+
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).rejects.toThrow("PDF exceeds the maximum allowed pages (100).");
   });
 
-  test("Should return false for a corrupted PDF with missing xref table", async () => {
-    const result = await pdfValidationService.checkPdfIntegrity(corruptedPdfBuffer);
-    expect(result).toBe(false);
+  test("Empty PDF with 0 pages", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.resolve({ numPages: 0 })
+      });
+
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).rejects.toThrow("PDF has no pages.");
   });
 
-  test("Should return false for a truncated PDF file", async () => {
-    const result = await pdfValidationService.checkPdfIntegrity(truncatedPdfBuffer);
-    expect(result).toBe(false);
-  });
+  test("Error reading PDF", async () => {
+      pdfjsLib.getDocument.mockReturnValue({
+          promise: Promise.reject(new Error("Failed to parse PDF"))
+      });
 
-  test("Should handle empty buffer correctly", async () => {
-    const emptyBuffer = Buffer.alloc(0);
-    const result = await pdfValidationService.checkPdfIntegrity(emptyBuffer);
-    expect(result).toBe(false);
-  });
-
-  test("should handle PDF with malformed startxref in checkPdfIntegrity", async () => {
-    const result = await pdfValidationService.checkPdfIntegrity(malformedPdfBuffer);
-    expect(result).toBe(false);
-  });
-
-  test("should handle PDF without objects in checkPdfIntegrity", async () => {
-    const result = await pdfValidationService.checkPdfIntegrity(noObjectsPdfBuffer);
-    expect(result).toBe(false);
+      const mockBuffer = Buffer.from("mock pdf data");
+      await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).rejects.toThrow("Failed to read PDF page count.");
   });
 });

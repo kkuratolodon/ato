@@ -81,9 +81,9 @@ jobs:
         working-directory: backend
         run: npm run lint
 
-      - name: Run Tests
+      - name: Run Tests with Coverage
         working-directory: backend
-        run: npm test
+        run: npm test -- --coverage 
         env:
           NODE_ENV: ${{ secrets.NODE_ENV }}
           DB_HOST: ${{ secrets.DB_HOST }}
@@ -100,6 +100,26 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./backend/coverage
+          fail_ci_if_error: true  
+          verbose: true  
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Display Codecov link
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          REPO_NAME="${{ github.repository }}"
+          echo "Code Coverage Report: https://codecov.io/gh/${REPO_NAME}/branch/${BRANCH_NAME}"
 
   deploy:
     name: Deploy to Staging
@@ -151,3 +171,37 @@ jobs:
             pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend &&
             pm2 save
           "
+
+  functional-test:
+    name: Run Functional Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+
+      - name: Install Newman and htmlextra
+        run: |
+          npm install -g newman
+          npm install -g newman-reporter-htmlextra
+
+      - name: Create dev-environment.json from secret
+        run: echo '${{ secrets.DEV_ENVIRONMENT_JSON }}' > tests/dev-environment.json
+        working-directory: backend
+
+      - name: Run Functional Tests with htmlextra
+        working-directory: backend
+        run: |
+          mkdir -p reports
+          newman run tests/functional-test-1.json -e tests/dev-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html
+
+      - name: Upload Functional Test Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: functional-test-report
+          path: backend/reports/functional-test-report.html

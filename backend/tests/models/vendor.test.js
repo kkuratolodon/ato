@@ -2,46 +2,33 @@ const { DataTypes, Sequelize } = require('sequelize');
 const { fail } = require('@jest/globals');
 
 const VendorModel = require('../../src/models/vendor');
-const FinancialDocumentModel = require('../../src/models/financialDocument');
+const InvoiceModel = require('../../src/models/invoice');
+const PurchaseOrderModel = require('../../src/models/purchaseOrder');
 
 describe('Vendor Model', () => {
     let sequelize;
     let Vendor;
     let vendorId;
-    let FinancialDocument;
-    let partnerId = 'test-partner-id';
+    let Invoice;  // Replace FinancialDocument with concrete models
+    let PurchaseOrder;
 
     beforeEach(async () => {
         // Create in-memory database
         sequelize = new Sequelize('sqlite::memory:', { logging: false });
         Vendor = VendorModel(sequelize, DataTypes);
-        FinancialDocument = FinancialDocumentModel(sequelize, DataTypes);
-        
-        // Define required columns in FinancialDocument based on your schema
-        FinancialDocument.init({
-            uuid: {
-                type: DataTypes.UUID,
-                defaultValue: DataTypes.UUIDV4,
-                primaryKey: true
-            },
-            invoice_number: DataTypes.STRING,
-            vendor_id: DataTypes.UUID,
-            partner_id: {
-                type: DataTypes.UUID,
-                allowNull: false,
-                defaultValue: partnerId
-            },
-            status: {
-                type: DataTypes.STRING,
-                allowNull: false,
-                defaultValue: 'PENDING'
-            },
-            total_amount: DataTypes.FLOAT
-        }, { sequelize, tableName: 'FinancialDocument' });
+        Invoice = InvoiceModel(sequelize, DataTypes);
+        PurchaseOrder = PurchaseOrderModel(sequelize, DataTypes);
         
         // Setup associations
-        Vendor.associate({ FinancialDocument });
-        FinancialDocument.belongsTo(Vendor, {
+        Vendor.associate({ Invoice, PurchaseOrder });
+        
+        // Set up reverse associations
+        Invoice.belongsTo(Vendor, {
+            foreignKey: 'vendor_id',
+            as: 'vendor'
+        });
+        
+        PurchaseOrder.belongsTo(Vendor, {
             foreignKey: 'vendor_id',
             as: 'vendor'
         });
@@ -52,13 +39,9 @@ describe('Vendor Model', () => {
         // Create a test vendor
         const vendor = await Vendor.create({
             name: 'Test Vendor',
-            street_address: '456 Business Ave',
-            city: 'Supplier City',
-            state: 'Supply State',
-            postal_code: '54321',
-            house: '456',
             recipient_name: 'Jane Supplier',
-            tax_id: 'V-98765'
+            tax_id: 'V-98765',
+            address: '456 Business Ave',
         });
         vendorId = vendor.uuid;
     });
@@ -74,11 +57,7 @@ describe('Vendor Model', () => {
         test('it should have required vendor attributes', () => {
             expect(Vendor.rawAttributes).toHaveProperty('uuid');
             expect(Vendor.rawAttributes).toHaveProperty('name');
-            expect(Vendor.rawAttributes).toHaveProperty('street_address');
-            expect(Vendor.rawAttributes).toHaveProperty('city');
-            expect(Vendor.rawAttributes).toHaveProperty('state');
-            expect(Vendor.rawAttributes).toHaveProperty('postal_code');
-            expect(Vendor.rawAttributes).toHaveProperty('house');
+            expect(Vendor.rawAttributes).toHaveProperty('address');
             expect(Vendor.rawAttributes).toHaveProperty('recipient_name');
             expect(Vendor.rawAttributes).toHaveProperty('tax_id');
         });
@@ -103,12 +82,7 @@ describe('Vendor Model', () => {
             
             expect(vendor).toBeTruthy();
             expect(vendor.name).toBe('Test Vendor');
-            expect(vendor.street_address).toBe('456 Business Ave');
-            expect(vendor.city).toBe('Supplier City');
-            expect(vendor.state).toBe('Supply State');
-            expect(vendor.postal_code).toBe('54321');
-            expect(vendor.house).toBe('456');
-            expect(vendor.recipient_name).toBe('Jane Supplier');
+            expect(vendor.address).toBe('456 Business Ave');
             expect(vendor.tax_id).toBe('V-98765');
         });
         
@@ -121,8 +95,7 @@ describe('Vendor Model', () => {
             
             expect(savedVendor).toBeTruthy();
             expect(savedVendor.name).toBe('Minimal Vendor');
-            expect(savedVendor.street_address).toBeNull();
-            expect(savedVendor.city).toBeNull();
+            expect(savedVendor.address).toBeNull();
             expect(savedVendor.tax_id).toBeNull();
         });
         
@@ -137,7 +110,7 @@ describe('Vendor Model', () => {
             expect(updatedVendor.name).toBe('Updated Vendor Name');
             expect(updatedVendor.tax_id).toBe('NEW-TAX-ID');
             // Original fields unchanged
-            expect(updatedVendor.city).toBe('Supplier City');
+            expect(updatedVendor.address).toBe('456 Business Ave');
         });
     });
 
@@ -182,49 +155,20 @@ describe('Vendor Model', () => {
             
             const savedVendor = await Vendor.findByPk(vendor.uuid);
             expect(savedVendor.name).toBe(''); // Empty string preserved
-            expect(savedVendor.street_address).toBeNull(); // Null preserved
-            expect(savedVendor.city).toBe(''); // Empty string preserved
-            expect(savedVendor.state).toBeNull(); // Null preserved
+            expect(savedVendor.address).toBeNull();
         });
         
         test('should handle special characters in fields', async () => {
             const vendor = await Vendor.create({
                 name: 'Vendor with Spécial Cháracters ® © ™ ! @ #',
-                street_address: '123 Main St. (Building #2)',
-                city: 'São Paulo',
+                address: '123 Main St. (Building #2), São Paulo',
                 tax_id: '123-45@678'
             });
             
             const savedVendor = await Vendor.findByPk(vendor.uuid);
             expect(savedVendor.name).toBe('Vendor with Spécial Cháracters ® © ™ ! @ #');
-            expect(savedVendor.street_address).toBe('123 Main St. (Building #2)');
-            expect(savedVendor.city).toBe('São Paulo');
+            expect(savedVendor.address).toBe('123 Main St. (Building #2), São Paulo');
             expect(savedVendor.tax_id).toBe('123-45@678');
-        });
-        
-        test('should handle deletion of vendor with associated records', async () => {
-            // Create a financial document linked to this vendor with required fields
-            await FinancialDocument.create({
-                invoice_number: 'INV-2023-002',
-                vendor_id: vendorId,
-                partner_id: partnerId,  // Add required field
-                status: 'PENDING',      // Add required field 
-                total_amount: 500.00
-            });
-            
-            // Delete the vendor
-            const vendor = await Vendor.findByPk(vendorId);
-            await vendor.destroy();
-            
-            // Verify vendor is gone
-            const deletedVendor = await Vendor.findByPk(vendorId);
-            expect(deletedVendor).toBeNull();
-            
-            // Check if document still exists but with a null vendor_id
-            const doc = await FinancialDocument.findOne({
-                where: { invoice_number: 'INV-2023-002' }
-            });
-            expect(doc).toBeDefined();
         });
     });
     

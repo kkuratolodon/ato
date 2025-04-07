@@ -1,9 +1,7 @@
 'use strict';
-const FinancialDocumentFactory = require('./financialDocument');
+const FinancialDocument = require('./base/financialDocument');
 
 module.exports = (sequelize, DataTypes) => {
-    const FinancialDocument = FinancialDocumentFactory(sequelize, DataTypes);
-    
     class PurchaseOrder extends FinancialDocument {
         static associate(models) {
             if (!models) return;
@@ -39,14 +37,8 @@ module.exports = (sequelize, DataTypes) => {
                     as: 'items'
                 });
             }
-        
         }
     }
-
-    const financialDocAttributes = { ...FinancialDocument.getAttributes() };
-    delete financialDocAttributes.id;
-    delete financialDocAttributes.createdAt;
-    delete financialDocAttributes.updatedAt;
 
     PurchaseOrder.init({
         po_date: { 
@@ -67,16 +59,13 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }
             }
-        },
-        ...Object.fromEntries(
-            Object.entries(financialDocAttributes)
-            .filter(([key]) => !['due_date'].includes(key))
-        )
+        }
     }, {
         sequelize,
         modelName: 'PurchaseOrder',
         tableName: 'PurchaseOrder',
-        freezeTableName: true
+        freezeTableName: true,
+        DataTypes
     });
 
     return PurchaseOrder;

@@ -1,7 +1,8 @@
-const InvoiceService = require('../services/invoiceService');
+const InvoiceService = require('../services/invoice/invoiceService');
 const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
-const { Invoice } = require('../models');
+const validateDeletion = require('../services/validateDeletion');
+const s3Service = require('../services/s3Service');
 
 const upload = multer({
   storage: multer.memoryStorage()
@@ -62,20 +63,21 @@ exports.uploadInvoice = async (req, res) => {
 exports.getInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
-    // check positive integer
-    if( !id  || isNaN(id) || parseInt(id) <= 0 ){
-      return res.status(400).json({message: "Invalid invoice ID"});
+    
+    if (!id) {
+      return res.status(400).json({message: "Invoice ID is required"});
     }
-    if(!req.user){
+    
+    if (!req.user) {
       return res.status(401).json({message: "Unauthorized"});
     }
-
-    const invoice = await Invoice.findByPk(id);
-
-    if(invoice.partner_id !== req.user.uuid){
+    const invoicePartnerId = await InvoiceService.getPartnerId(id);
+    
+    if(invoicePartnerId !== req.user.uuid){
       return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
     }
 
+    // Method getInvoiceById sudah diubah untuk menerima UUID
     const invoiceDetail = await InvoiceService.getInvoiceById(id);
 
     return res.status(200).json(invoiceDetail);
@@ -86,6 +88,57 @@ exports.getInvoiceById = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 }
+
+/**
+ * Deletes an invoice by its ID.
+ *
+ * @param {Object} req - The request object containing parameters and user info.
+ * @param {Object} res - The response object used to send status and messages.
+ * @returns {Promise<Response>} The response indicating success or failure.
+ */
+exports.deleteInvoiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(id) || parseInt(id) <= 0) {
+      return res.status(400).json({ message: "Invalid invoice ID" });
+    }
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    let invoice;
+    try {
+      invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, parseInt(id));
+    } catch (error) {
+      if (error.message === "Invoice not found") {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === "Unauthorized: You do not own this invoice") {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message === "Invoice cannot be deleted unless it is Analyzed") {
+        return res.status(409).json({ message: error.message });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    if (invoice.file_url) {
+      const fileKey = invoice.file_url.split('/').pop();
+      const deleteResult = await s3Service.deleteFile(fileKey);
+      if (!deleteResult.success) {
+        return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
+      }
+    }
+
+    await InvoiceService.deleteInvoiceById(id);
+
+    return res.status(200).json({ message: "Invoice successfully deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 /**
  * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database

@@ -1,18 +1,18 @@
 'use strict';
-const FinancialDocumentFactory = require('./financialDocument');
+const FinancialDocument = require('./base/financialDocument');
 
 module.exports = (sequelize, DataTypes) => {
-  const FinancialDocument = FinancialDocumentFactory(sequelize, DataTypes);
-  
   class Invoice extends FinancialDocument {
     static associate(models) {
       if (!models) return;
       
-      Invoice.belongsTo(models.Partner, { 
-        foreignKey: 'partner_id', 
-        targetKey: 'uuid',
-        as: 'partner'
-      });
+      if (models.Partner) {
+        Invoice.belongsTo(models.Partner, { 
+          foreignKey: 'partner_id', 
+          targetKey: 'uuid',
+          as: 'partner'
+        });
+      }
       
       if (models.Customer) {
         Invoice.belongsTo(models.Customer, { 
@@ -41,13 +41,8 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
 
-  const financialDocAttributes = { ...FinancialDocument.getAttributes() };
-  delete financialDocAttributes.id;
-  delete financialDocAttributes.createdAt;
-  delete financialDocAttributes.updatedAt;
-
   Invoice.init({
-    invoice_id: {
+    invoice_number: {
       type: DataTypes.STRING(100),
       allowNull: true
     },
@@ -69,16 +64,13 @@ module.exports = (sequelize, DataTypes) => {
     purchase_order_id: { 
       type: DataTypes.STRING(100), 
       allowNull: true,
-    },
-    ...Object.fromEntries(
-      Object.entries(financialDocAttributes)
-        .filter(([key]) => !['due_date'].includes(key))
-    )
+    }
   }, {
     sequelize,
     modelName: 'Invoice',
     tableName: 'Invoice',
-    freezeTableName: true
+    freezeTableName: true,
+    DataTypes // Pass DataTypes to the parent class
   });
 
   return Invoice;
