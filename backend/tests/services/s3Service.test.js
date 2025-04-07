@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-const { uploadFile, uploadJsonResult } = require('../../src/services/s3Service');
+const s3Service = require('../../src/services/s3Service');
 
 // Define constants for expected locations
 const FILE_UPLOAD_LOCATION = "https://s3-bucket-url.com/file.pdf";
@@ -24,9 +24,21 @@ jest.mock('aws-sdk', () => {
     promise: () => mockUploadPromise(params)
   }));
 
+  const mockDeleteObjectPromise = jest.fn().mockResolvedValue({});
+  
+  const mockDeleteObject = jest.fn().mockImplementation(() => ({
+    promise: mockDeleteObjectPromise
+  }));
+
   return {
     S3: jest.fn().mockImplementation(() => ({
-      upload: mockUpload
+      upload: mockUpload,
+      deleteObject: mockDeleteObject,
+      listObjectsV2: jest.fn().mockImplementation(() => ({
+        promise: jest.fn().mockResolvedValue({
+          Contents: [{ Key: "test-file.pdf" }] 
+        }),
+      }))
     }))
   };
 });
@@ -37,11 +49,12 @@ describe("S3 Service", () => {
     
     beforeEach(() => {
         s3 = new AWS.S3();
+        jest.clearAllMocks();
     });
 
     test("Upload a file to S3 success", async () => {
         const fileContent = Buffer.from("test file content");   
-        const result = await uploadFile(fileContent);
+        const result = await s3Service.uploadFile(fileContent);
 
         expect(s3.upload).toHaveBeenCalledWith({
             Bucket: bucketName,
@@ -60,7 +73,39 @@ describe("S3 Service", () => {
             promise: () => Promise.reject(new Error("Upload failed"))
         }));
 
-        await expect(uploadFile(fileContent)).rejects.toThrow("Upload failed");
+        await expect(s3Service.uploadFile(fileContent)).rejects.toThrow("Upload failed");
+    });
+
+    test("Delete a file from S3 success", async () => {
+        const fileKey = "test-file.pdf";
+
+        const response = await s3Service.deleteFile(fileKey);
+
+        expect(s3.deleteObject).toHaveBeenCalledWith({
+            Bucket: bucketName,
+            Key: fileKey,
+        });
+
+        expect(response).toEqual({
+            success: true,
+            message: `Successfully deleted file: ${fileKey} from bucket: ${bucketName}`
+        });
+    });
+
+    test("Delete a file from S3 failure", async () => {
+        const fileKey = "test-file.pdf";
+        
+        s3.deleteObject.mockImplementationOnce(() => ({
+            promise: () => Promise.reject(new Error("Delete failed"))
+        }));
+
+        const response = await s3Service.deleteFile(fileKey);
+        expect(s3.deleteObject).toHaveBeenCalledWith({
+            Bucket: bucketName,
+            Key: fileKey,
+        });
+        expect(response.success).toBe(false);
+        expect(response.error).toBe("Delete failed");
     });
 });
 
@@ -78,7 +123,7 @@ describe('S3Service - uploadJsonResult', () => {
 
   // Positive Cases
   test('should upload JSON data and return a valid URL', async () => {
-    const result = await uploadJsonResult(mockJsonData, '12345');
+    const result = await s3Service.uploadJsonResult(mockJsonData, '12345');
     
     // Assert S3 upload was called with correct params
     expect(mockS3Instance.upload).toHaveBeenCalledTimes(1);
@@ -94,21 +139,21 @@ describe('S3Service - uploadJsonResult', () => {
 
   test('should include documentId in the filename when provided', async () => {
     const docId = 'invoice-xyz';
-    await uploadJsonResult(mockJsonData, docId);
+    await s3Service.uploadJsonResult(mockJsonData, docId);
     
     const uploadParams = mockS3Instance.upload.mock.calls[0][0];
     expect(uploadParams.Key).toMatch(new RegExp(`^analysis\\/${docId}-analysis-.+\\.json$`));
   });
 
   test('should create generic filename when documentId is not provided', async () => {
-    await uploadJsonResult(mockJsonData);
+    await s3Service.uploadJsonResult(mockJsonData);
     
     const uploadParams = mockS3Instance.upload.mock.calls[0][0];
     expect(uploadParams.Key).toMatch(/^analysis\/analysis-.+\.json$/);
   });
 
   test('should stringify JSON properly', async () => {
-    await uploadJsonResult(mockJsonData);
+    await s3Service.uploadJsonResult(mockJsonData);
     
     const uploadParams = mockS3Instance.upload.mock.calls[0][0];
     expect(typeof uploadParams.Body).toBe('string');
@@ -125,13 +170,13 @@ describe('S3Service - uploadJsonResult', () => {
       promise: jest.fn().mockRejectedValue(new Error('S3 upload failed'))
     });
 
-    await expect(uploadJsonResult(mockJsonData)).rejects.toThrow('S3 upload failed');
+    await expect(s3Service.uploadJsonResult(mockJsonData)).rejects.toThrow('S3 upload failed');
   });
 
   // Corner Cases
   test('should handle empty JSON object', async () => {
     const emptyJson = {};
-    await uploadJsonResult(emptyJson);
+    await s3Service.uploadJsonResult(emptyJson);
     
     const uploadParams = mockS3Instance.upload.mock.calls[0][0];
     expect(uploadParams.Body).toBe('{}');
@@ -149,7 +194,7 @@ describe('S3Service - uploadJsonResult', () => {
       undefinedValue: undefined
     };
     
-    await uploadJsonResult(complexJson);
+    await s3Service.uploadJsonResult(complexJson);
     
     const uploadParams = mockS3Instance.upload.mock.calls[0][0];
     const parsedBody = JSON.parse(uploadParams.Body);
