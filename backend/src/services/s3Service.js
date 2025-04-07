@@ -34,6 +34,36 @@ class s3Service {
     }
 
     /**
+     * Upload a JSON result from OCR analysis to S3
+     * @param {Object} jsonData - JSON object containing OCR analysis results
+     * @param {string} documentId - Optional identifier to link JSON with original document
+     * @returns {Promise<string>} - Resolves to the uploaded JSON file URL
+     */
+    async uploadJsonResult(jsonData, documentId = null) {
+        // Create a unique filename with optional reference to original document
+        const prefix = documentId ? `${documentId}-analysis-` : 'analysis-';
+        const fileName = `${prefix}${uuidv4()}.json`;
+        
+        // Convert JSON object to string
+        const jsonString = JSON.stringify(jsonData, null, 2);
+        
+        const params = {
+            Bucket: this.bucketName,
+            Key: `analysis/${fileName}`, // Store in 'analysis' folder for organization
+            Body: jsonString,
+            ContentType: 'application/json' // Set proper content type
+        };
+
+        try {
+            const data = await this.s3.upload(params).promise();
+            return data.Location;
+        } catch (error) {
+            console.error("S3 JSON Upload Error:", error);
+            throw error;
+        }
+    }
+
+    /**
    * Delete a file from S3
    * @param {string} fileKey - The key (path) of the file to delete
    * @returns {Promise<object>} - Object with success status and message or error
