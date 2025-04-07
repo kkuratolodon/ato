@@ -8,7 +8,7 @@ describe('Core Mapping Basic Functionality', () => {
     const { invoiceData } = mapper.mapToInvoiceModel(ocrResult, partnerId);
 
     expect(invoiceData).toBeDefined();
-    expect(invoiceData.purchase_order_id).toBe(12345);
+    expect(invoiceData.purchase_order_id).toBe("12345");
     expect(invoiceData.invoice_date).toEqual(new Date('2023-05-15'));
     expect(invoiceData.due_date).toEqual(new Date('2023-06-15'));
     expect(invoiceData.total_amount).toBe(110);

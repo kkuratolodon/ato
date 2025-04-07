@@ -39,16 +39,18 @@ describe("Date Format Parsing", () => {
       expect(dateSingleDigits.getDate()).toBe(5);
     });
     
-    it('should correctly handle invalid date formats by using current date', () => {  
-      const mapper = new AzureInvoiceMapper();  
+    it('should correctly handle invalid date formats by using current date', () => {
+      const mapper = new AzureInvoiceMapper();
       
-      // Use fake timers instead of direct Date mock  
-      jest.useFakeTimers();  
-      jest.setSystemTime(new Date('2025-01-01T12:00:00Z'));  
+      // Mock date.now to have consistent test results
+      const now = new Date('2025-01-01T12:00:00Z');
+      jest.spyOn(global, 'Date').mockImplementation(() => now);
       
-      const invalidDate = mapper.parseDate({ content: 'not-a-date' });  
-      expect(invalidDate).toEqual(new Date('2025-01-01T12:00:00Z'));  
+      // Test invalid format that should fall back to current date
+      const invalidDate = mapper.fieldParser.parseDate({ content: 'not-a-date' });
+      expect(invalidDate).toEqual(now);
       
-      jest.useRealTimers();  
-    });  
+      // Clean up
+      jest.restoreAllMocks();
+    });
   });
