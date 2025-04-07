@@ -1,20 +1,18 @@
-const PurchaseOrderService = require("../services/purchaseOrderService");
+const PurchaseOrderService = require("../services/purchaseOrder/purchaseOrderService");
 const FinancialDocumentController = require('./financialDocumentController');
+const { validatePdfPageCount } = require('../services/pdfValidationService');
 
 const multer = require("multer");
 
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 20 * 1024 * 1024,
-  },
+  storage: multer.memoryStorage()
 });
 exports.uploadMiddleware = upload.single('file');
 class PurchaseOrderController extends FinancialDocumentController {
   constructor() {
     super(PurchaseOrderService, "Purchase Order");
   }
-}
+  }
 
 const purchaseOrderController = new PurchaseOrderController();
 
