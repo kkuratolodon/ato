@@ -25,6 +25,11 @@ class InvoiceRepository {
   async updateVendorId(id, vendorId) {
     await Invoice.update({ vendor_id: vendorId }, { where: { id } });
   }
+
+  async delete(id) {  
+    await Invoice.destroy({ where: { id } });
+  }
+
 }
 
 module.exports = InvoiceRepository;
