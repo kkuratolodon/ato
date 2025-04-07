@@ -1,4 +1,3 @@
-
 const { deleteInvoiceById } = require('../../src/controllers/invoiceController');
 const InvoiceService = require('../../src/services/invoice/invoiceService');
 const validateDeletion = require('../../src/services/validateDeletion');
@@ -137,4 +136,21 @@ describe('Delete Invoice Controller Tests', () => {
         expect(mockResponse.status).toHaveBeenCalledWith(500);
         expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Internal server error' });
     });
+
+    test('should return 500 when invoice deletion fails', async () => {
+        // Setup: Valid invoice that passes validation
+        mockRequest.params = { id: '1' };
+        const mockInvoice = { file_url: null };
+        
+        validateDeletion.validateInvoiceDeletion.mockResolvedValue(mockInvoice);
+        // Simulate error during deletion process
+        InvoiceService.deleteInvoiceById.mockRejectedValue(new Error('Database connection error'));
+        
+        await deleteInvoiceById(mockRequest, mockResponse);
+        
+        // Verify the catch block at line 139 returns 500
+        expect(mockResponse.status).toHaveBeenCalledWith(500);
+        expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Internal server error' });
+    });
+
 });
