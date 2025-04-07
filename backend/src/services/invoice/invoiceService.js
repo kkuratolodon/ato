@@ -46,9 +46,9 @@ class InvoiceService extends FinancialDocumentService {
         original_filename: originalname,
         file_size: buffer.length,
       });
-      
+
       this.processInvoiceAsync(invoiceUuid, buffer, partnerId, originalname, invoiceUuid);
-      
+
       return {
         message: "Invoice upload initiated",
         id: invoiceUuid,
@@ -60,6 +60,10 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
+  /**
+     * Process invoice asynchronously in background
+     * @private
+     */
   async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid) {
     try {
       Sentry.addBreadcrumb({
@@ -68,22 +72,42 @@ class InvoiceService extends FinancialDocumentService {
         level: "info"
       });
 
-      const analysisResult = await this.documentAnalyzer.analyzeDocument(buffer);
-      
+      // 1. Analisis invoice menggunakan Azure
+      const analysisResult = await this.analyzeInvoice(buffer);
+
+      // 2. Upload hasil OCR ke S3 sebagai JSON dan dapatkan URL-nya
+      const jsonUrl = await this.uploadAnalysisResults(analysisResult, invoiceId);
+
+      // Print URL JSON yang berhasil diupload
+      console.log("=============================================");
+      console.log(`JSON Analysis URL: ${jsonUrl}`);
+      console.log("=============================================");
+
+      // 3. Map hasil analisis ke model data
       const { invoiceData, customerData, vendorData, itemsData } =
         this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
 
-      await this.updateInvoiceRecord(invoiceId, invoiceData);
+      // 4. Update record invoice dengan data hasil analisis dan URL JSON
+      await this.updateInvoiceRecord(invoiceId, {
+        ...invoiceData,
+        analysis_json_url: jsonUrl // Store the JSON URL in the database
+      });
+
+      // 5. Update data customer dan vendor
       await this.updateCustomerAndVendorData(invoiceId, customerData, vendorData);
+
+      // 6. Simpan item invoice
       await this.saveInvoiceItems(invoiceId, itemsData);
 
-      await this.invoiceRepository.updateStatus(invoiceId, "Analyzed");
+      // 7. Update status menjadi "Analyzed"
+      await this.invoiceRepository.update(invoiceId, { status: "Analyzed" });
 
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
     } catch (error) {
       console.error(`Error in async processing for invoice ${uuid}:`, error);
       Sentry.captureException(error);
 
+      // Update status menjadi "Failed" jika processing gagal
       await this.invoiceRepository.updateStatus(invoiceId, "Failed");
     }
   }
@@ -91,12 +115,12 @@ class InvoiceService extends FinancialDocumentService {
   mapAnalysisResult(analysisResult, partnerId, originalname, fileSize) {
     const { invoiceData, customerData, vendorData, itemsData } =
       this.azureMapper.mapToInvoiceModel(analysisResult.data, partnerId);
-      
+
     invoiceData.original_filename = originalname;
     invoiceData.file_size = fileSize;
-    
+
     console.log("Invoice data mapped:", JSON.stringify(invoiceData, null, 2));
-    
+
     return { invoiceData, customerData, vendorData, itemsData };
   }
 
@@ -122,11 +146,11 @@ class InvoiceService extends FinancialDocumentService {
         ...(customerData.tax_id && { tax_id: customerData.tax_id }),
         ...(customerData.address && { address: customerData.address })
       });
-      
+
       if (!customer) {
         customer = await this.customerRepository.create(customerData);
       }
-      
+
       await this.invoiceRepository.updateCustomerId(invoiceId, customer.uuid);
     }
 
@@ -136,11 +160,11 @@ class InvoiceService extends FinancialDocumentService {
         ...(vendorData.tax_id && { tax_id: vendorData.tax_id }),
         ...(vendorData.address && { address: vendorData.address })
       });
-      
+
       if (!vendor) {
         vendor = await this.vendorRepository.create(vendorData);
       }
-      
+
       await this.invoiceRepository.updateVendorId(invoiceId, vendor.uuid);
     }
   }
@@ -154,11 +178,11 @@ class InvoiceService extends FinancialDocumentService {
     try {
       for (const itemData of itemsData) {
         const item = await this.itemRepository.findOrCreateItem(itemData.description);
-        
+
         await this.itemRepository.createDocumentItem(
-          'Invoice', 
-          invoiceId, 
-          item.uuid, 
+          'Invoice',
+          invoiceId,
+          item.uuid,
           {
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
@@ -177,7 +201,7 @@ class InvoiceService extends FinancialDocumentService {
 
   async getPartnerId(id) {
     const invoice = await this.invoiceRepository.findById(id);
-    
+
     if (!invoice) {
       throw new Error("Invoice not found");
     }
@@ -187,23 +211,23 @@ class InvoiceService extends FinancialDocumentService {
   async getInvoiceById(id) {
     try {
       const invoice = await this.invoiceRepository.findById(id);
-      
+
       if (!invoice) {
         throw new Error("Invoice not found");
       }
-      
+
       const items = await this.itemRepository.findItemsByDocumentId(id, 'Invoice');
-      
+
       let customer = null;
       if (invoice.customer_id) {
         customer = await this.customerRepository.findById(invoice.customer_id);
       }
-      
+
       let vendor = null;
       if (invoice.vendor_id) {
         vendor = await this.vendorRepository.findById(invoice.vendor_id);
       }
-      
+
       return this.responseFormatter.formatInvoiceResponse(invoice, items, customer, vendor);
     } catch (error) {
       console.error("Error retrieving invoice:", error);

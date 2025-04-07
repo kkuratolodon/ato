@@ -1,6 +1,6 @@
 const FinancialDocumentService = require('../../src/services/financialDocumentService');
 const s3Service = require('../../src/services/s3Service');
-const invoiceService = require('../../src/services/invoiceService'); // Import as singleton instance
+const invoiceService = require('../../src/services/invoice/invoiceService'); // Import as singleton instance
 const { Invoice } = require('../../src/models');
 
 // Mock dependencies

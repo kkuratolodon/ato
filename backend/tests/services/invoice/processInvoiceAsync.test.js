@@ -1,9 +1,6 @@
 const Sentry = require('../../../src/instrument');
 const InvoiceService = require('../../../src/services/invoice/invoiceService');
 
-// Save original reference and restore after tests
-const originalProcessInvoiceAsync = InvoiceService.processInvoiceAsync;
-
 // Mock dependencies
 jest.mock('../../../src/instrument', () => ({
   addBreadcrumb: jest.fn(),
@@ -22,11 +19,9 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Mock the internal methods of InvoiceService
-    InvoiceService.documentAnalyzer = {
-      analyzeDocument: jest.fn().mockResolvedValue({ data: 'test data' })
-    };
-    
+    // Mock methods directly on the InvoiceService singleton
+    InvoiceService.analyzeInvoice = jest.fn().mockResolvedValue({ data: 'test data' });
+    InvoiceService.uploadAnalysisResults = jest.fn().mockResolvedValue('https://example.com/analysis.json');
     InvoiceService.mapAnalysisResult = jest.fn().mockReturnValue({
       invoiceData: { invoice_number: 'INV-001' },
       customerData: { name: 'Test Customer' },
@@ -38,9 +33,9 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     InvoiceService.updateCustomerAndVendorData = jest.fn().mockResolvedValue();
     InvoiceService.saveInvoiceItems = jest.fn().mockResolvedValue();
     
-    InvoiceService.invoiceRepository = {
-      updateStatus: jest.fn().mockResolvedValue()
-    };
+    // Mock directly on repository instances
+    InvoiceService.invoiceRepository.update = jest.fn().mockResolvedValue();
+    InvoiceService.invoiceRepository.updateStatus = jest.fn().mockResolvedValue();
     
     // Mock console to avoid cluttering test output
     global.console = {
@@ -48,11 +43,6 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
       error: jest.fn(),
       warn: jest.fn()
     };
-  });
-  
-  afterAll(() => {
-    // Restore the original method
-    InvoiceService.processInvoiceAsync = originalProcessInvoiceAsync;
   });
 
   test('should process invoice successfully', async () => {
@@ -64,7 +54,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     const uuid = 'test-uuid-123';
 
     // Act
-    await originalProcessInvoiceAsync.call(InvoiceService, invoiceId, buffer, partnerId, originalname, uuid);
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
     expect(Sentry.addBreadcrumb).toHaveBeenCalledWith({
@@ -73,13 +63,18 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
       level: "info"
     });
     
-    expect(InvoiceService.documentAnalyzer.analyzeDocument).toHaveBeenCalledWith(buffer);
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalledWith(buffer);
+    expect(InvoiceService.uploadAnalysisResults).toHaveBeenCalled();
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalledWith(
       { data: 'test data' }, partnerId, originalname, buffer.length
     );
     
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalledWith(
-      invoiceId, { invoice_number: 'INV-001' }
+      invoiceId, 
+      { 
+        invoice_number: 'INV-001',
+        analysis_json_url: 'https://example.com/analysis.json'
+      }
     );
     expect(InvoiceService.updateCustomerAndVendorData).toHaveBeenCalledWith(
       invoiceId, { name: 'Test Customer' }, { name: 'Test Vendor' }
@@ -88,8 +83,8 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
       invoiceId, [{ description: 'Test Item' }]
     );
     
-    expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(
-      invoiceId, 'Analyzed'
+    expect(InvoiceService.invoiceRepository.update).toHaveBeenCalledWith(
+      invoiceId, { status: "Analyzed" }
     );
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       `Successfully completed processing invoice ${uuid}`
@@ -105,14 +100,14 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     const uuid = 'error-uuid-123';
 
     const error = new Error('Analysis error');
-    InvoiceService.documentAnalyzer.analyzeDocument.mockRejectedValue(error);
+    InvoiceService.analyzeInvoice.mockRejectedValue(error);
 
     // Act
-    await originalProcessInvoiceAsync.call(InvoiceService, invoiceId, buffer, partnerId, originalname, uuid);
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
     expect(Sentry.addBreadcrumb).toHaveBeenCalled();
-    expect(InvoiceService.documentAnalyzer.analyzeDocument).toHaveBeenCalledWith(buffer);
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalledWith(buffer);
     expect(InvoiceService.mapAnalysisResult).not.toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
     expect(console.error).toHaveBeenCalled();
@@ -134,10 +129,10 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     });
 
     // Act
-    await originalProcessInvoiceAsync.call(InvoiceService, invoiceId, buffer, partnerId, originalname, uuid);
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
-    expect(InvoiceService.documentAnalyzer.analyzeDocument).toHaveBeenCalled();
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalled();
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
     expect(console.error).toHaveBeenCalled();
@@ -157,10 +152,10 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     InvoiceService.updateInvoiceRecord.mockRejectedValue(error);
 
     // Act
-    await originalProcessInvoiceAsync.call(InvoiceService, invoiceId, buffer, partnerId, originalname, uuid);
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
-    expect(InvoiceService.documentAnalyzer.analyzeDocument).toHaveBeenCalled();
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalled();
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).not.toHaveBeenCalled();
@@ -181,10 +176,10 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     InvoiceService.updateCustomerAndVendorData.mockRejectedValue(error);
 
     // Act
-    await originalProcessInvoiceAsync.call(InvoiceService, invoiceId, buffer, partnerId, originalname, uuid);
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
-    expect(InvoiceService.documentAnalyzer.analyzeDocument).toHaveBeenCalled();
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalled();
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
@@ -206,15 +201,14 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     InvoiceService.saveInvoiceItems.mockRejectedValue(error);
 
     // Act
-    await originalProcessInvoiceAsync.call(InvoiceService, invoiceId, buffer, partnerId, originalname, uuid);
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
-    expect(InvoiceService.documentAnalyzer.analyzeDocument).toHaveBeenCalled();
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalled();
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
     expect(InvoiceService.saveInvoiceItems).toHaveBeenCalled();
-    expect(InvoiceService.invoiceRepository.updateStatus).not.toHaveBeenCalledWith(invoiceId, 'Analyzed');
     expect(console.error).toHaveBeenCalled();
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
     expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(invoiceId, 'Failed');
@@ -229,18 +223,18 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     const uuid = 'error-uuid-123';
 
     const error = new Error('Status update error');
-    InvoiceService.invoiceRepository.updateStatus.mockImplementation((id, status) => {
-      if (status === 'Analyzed') {
+    InvoiceService.invoiceRepository.update.mockImplementation((id, status) => {
+      if (status && status.status === 'Analyzed') {
         return Promise.reject(error);
       }
       return Promise.resolve();
     });
 
     // Act
-    await originalProcessInvoiceAsync.call(InvoiceService, invoiceId, buffer, partnerId, originalname, uuid);
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid);
 
     // Assert
-    expect(InvoiceService.documentAnalyzer.analyzeDocument).toHaveBeenCalled();
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalled();
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
