@@ -1,0 +1,26 @@
+name: Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: "Test type to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - upload-fixed
+          - upload-ramping
+          - get-fixed
+          - get-ramping
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Placeholder Step
+        run: echo "This is a placeholder. The actual tests run from the staging branch."
