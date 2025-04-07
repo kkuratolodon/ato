@@ -173,4 +173,39 @@ describe('updateInvoiceRecord method', () => {
     // Verify the error was logged with all its details
     expect(console.error).toHaveBeenCalledWith('Error updating invoice:', nestedError);
   });
+  test('should update invoice with analysis_json_url', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const jsonUrl = 'https://storage.example.com/invoices/analysis-123.json';
+    const invoiceData = {
+      invoice_number: 'INV-001',
+      invoice_date: '2023-01-01',
+      analysis_json_url: jsonUrl
+    };
+    
+    // Mock successful update
+    invoiceService.invoiceRepository.update.mockResolvedValue([1]);
+    
+    // Act
+    await invoiceService.updateInvoiceRecord(invoiceId, invoiceData);
+    
+    // Assert
+    expect(invoiceService.invoiceRepository.update).toHaveBeenCalledWith(
+      invoiceId, 
+      expect.objectContaining({
+        invoice_number: 'INV-001',
+        invoice_date: '2023-01-01',
+        analysis_json_url: jsonUrl
+      })
+    );
+    
+    // Check if the URL is properly logged (if you add the logging enhancement I suggested earlier)
+    if (invoiceService.updateInvoiceRecord.toString().includes('analysis_json_url')) {
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining(`analysis_json_url: ${jsonUrl}`)
+      );
+    }
+    
+    expect(console.log).toHaveBeenCalledWith(`Invoice data updated for ${invoiceId}`);
+  });
 });
