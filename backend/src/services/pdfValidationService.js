@@ -1,5 +1,6 @@
 const path = require("path");
 const pdfjsLib = require("pdfjs-dist");
+const { PayloadTooLargeError, UnsupportedMediaTypeError, ValidationError } = require("../utils/errors");
 
 class PdfValidationService {
     /**
@@ -45,7 +46,7 @@ class PdfValidationService {
         const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
         
         if (fileBuffer.length > MAX_FILE_SIZE) {
-            throw new Error(`File exceeds maximum allowed size of 20MB`);
+            throw new PayloadTooLargeError(`File exceeds maximum allowed size of 20MB`);
         }
 
         return true;
@@ -104,9 +105,24 @@ class PdfValidationService {
     }
 
     async allValidations(fileBuffer, mimeType, fileName) {
-        await this.validatePDF(fileBuffer, mimeType, fileName);
-        await this.validateSizeFile(fileBuffer);
-        await this.validatePdfPageCount(fileBuffer);
+        try {
+            await this.validatePDF(fileBuffer, mimeType, fileName);
+        } catch (error) {
+            throw new UnsupportedMediaTypeError(error.message);
+        }
+
+        try {
+            await this.validateSizeFile(fileBuffer);
+        } catch (error) {
+            throw new PayloadTooLargeError(error.message);
+        }
+
+        try {
+            await this.validatePdfPageCount(fileBuffer);
+        } catch (error) {
+            throw new ValidationError(error.message);
+        } 
+
         const isEncrypted = await this.isPdfEncrypted(fileBuffer);
         if (isEncrypted) {
             throw new Error("PDF is encrypted");

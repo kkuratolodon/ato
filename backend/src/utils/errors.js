@@ -29,7 +29,7 @@ class PayloadTooLargeError extends Error {
 class UnsupportedMediaTypeError extends Error {
     constructor(message) {
         super(message);
-        this.name = "UnsupportedMediaTypeError";
+        this.name = "UnsupportedMediaTypeError";         
     }
 }
 

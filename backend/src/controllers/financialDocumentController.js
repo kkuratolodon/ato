@@ -1,6 +1,6 @@
 const pdfValidationService = require('../services/pdfValidationService');
 const { safeResponse } = require('../utils/responseHelper');
-const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
+const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError } = require('../utils/errors');
 
 class FinancialDocumentController {
   constructor(service, documentType) {
@@ -52,8 +52,11 @@ class FinancialDocumentController {
     try {
       await pdfValidationService.allValidations(buffer, mimetype, originalname);
     } catch (error) {
-      throw new ValidationError(error.message); 
-    }
+      if (error instanceof UnsupportedMediaTypeError || error instanceof PayloadTooLargeError) {
+        throw error; 
+      }
+      throw new ValidationError(error.message);
+    } 
   }
 
   // make sure to implement this method in child
@@ -71,6 +74,12 @@ class FinancialDocumentController {
     }
     if (error instanceof ForbiddenError) {
       return safeResponse(res, 403, error.message);
+    }
+    if (error instanceof PayloadTooLargeError) {
+      return safeResponse(res, 413, error.message);
+    }
+    if (error instanceof UnsupportedMediaTypeError) {
+      return safeResponse(res, 415, error.message);
     }
     if (error.message === "Timeout") {
       return safeResponse(res, 504, "Server timeout - upload processing timed out");
