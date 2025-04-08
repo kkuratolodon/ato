@@ -190,15 +190,15 @@ jobs:
           npm install -g newman
           npm install -g newman-reporter-htmlextra
 
-      - name: Create dev-environment.json from secret
-        run: echo '${{ secrets.DEV_ENVIRONMENT_JSON }}' > tests/dev-environment.json
+      - name: Create staging-environment.json from secret
+        run: echo '${{ secrets.STAGING_ENVIRONMENT_JSON }}' > tests/staging-environment.json
         working-directory: backend
 
       - name: Run Functional Tests with htmlextra
         working-directory: backend
         run: |
           mkdir -p reports
-          newman run tests/functional-test-1.json -e tests/dev-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html
+          newman run tests/functional-test-2.json -e tests/staging-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html
 
       - name: Upload Functional Test Report
         uses: actions/upload-artifact@v4
