@@ -75,7 +75,7 @@ module.exports = {
           quantity: Math.floor(Math.random() * 5) + 1,
           unit_price: (Math.random() * 100 + 50).toFixed(2),
           amount: (Math.random() * 500 + 100).toFixed(2),
-          // REMOVED: unit field which doesn't exist in the table!
+          unit: 'pcs',
           createdAt: new Date(),
           updatedAt: new Date()
         });
@@ -92,7 +92,7 @@ module.exports = {
           quantity: Math.floor(Math.random() * 5) + 1,
           unit_price: (Math.random() * 100 + 50).toFixed(2),
           amount: (Math.random() * 500 + 100).toFixed(2),
-          // REMOVED: unit field which doesn't exist in the table!
+          unit: 'pcs',
           createdAt: new Date(),
           updatedAt: new Date()
         });

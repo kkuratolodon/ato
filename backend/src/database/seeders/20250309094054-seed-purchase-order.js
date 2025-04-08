@@ -14,8 +14,8 @@ module.exports = {
 
     const purchaseOrders = partners.flatMap(partner => ([
       {
+        po_number: 'PO-2024-001', 
         po_date: new Date('2024-01-01'),
-        po_number: 'PO-2024-001',
         due_date: new Date('2024-02-01'),
         total_amount: 5000.00,
         subtotal_amount: 5200.00,
@@ -28,8 +28,8 @@ module.exports = {
         updatedAt: new Date()
       },
       {
-        po_date: new Date('2024-02-15'),
         po_number: 'PO-2024-002',
+        po_date: new Date('2024-02-15'),
         due_date: new Date('2024-03-15'),
         total_amount: 3500.00,
         subtotal_amount: 3700.00,
