@@ -94,7 +94,7 @@ class InvoiceController extends FinancialDocumentController{
  * @param {Object} res - The response object used to send status and messages.
  * @returns {Promise<Response>} The response indicating success or failure.
  */
-  deleteInvoiceById = async (req, res) => {
+  async deleteInvoiceById(req, res) {
     try {
       const { id } = req.params;
 
@@ -139,7 +139,7 @@ class InvoiceController extends FinancialDocumentController{
   };
 }
 
-const controller = new InvoiceController(require('../services/invoiceService'));
+const controller = new InvoiceController(InvoiceService);
 module.exports = {
   InvoiceController,  // Export the class for testing
   controller,         // Export instance for routes

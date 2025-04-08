@@ -110,11 +110,7 @@ class PdfValidationService {
         const isEncrypted = await this.isPdfEncrypted(fileBuffer);
         if (isEncrypted) {
             throw new Error("PDF is encrypted");
-        }
-        const isValidPdf = await this.checkPdfIntegrity(fileBuffer);
-        if (!isValidPdf) {
-            throw new Error("PDF file is invalid");
-        }
+        }        
     }
 }
 

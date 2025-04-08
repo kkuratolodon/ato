@@ -1,4 +1,4 @@
-const { deleteInvoiceById } = require('../../src/controllers/invoiceController');
+const { controller } = require('../../src/controllers/invoiceController');
 const InvoiceService = require('../../src/services/invoice/invoiceService');
 const validateDeletion = require('../../src/services/validateDeletion');
 const s3Service = require('../../src/services/s3Service');
@@ -30,7 +30,7 @@ describe('Delete Invoice Controller Tests', () => {
         
         for (const id of invalidIds) {
             mockRequest.params = { id };
-            await deleteInvoiceById(mockRequest, mockResponse);
+            await controller.deleteInvoiceById(mockRequest, mockResponse);
             expect(mockResponse.status).toHaveBeenCalledWith(400);
             expect(mockResponse.json).toHaveBeenCalledWith({ message: "Invalid invoice ID" });
         }
@@ -40,7 +40,7 @@ describe('Delete Invoice Controller Tests', () => {
         mockRequest.params = { id: '1' };
         mockRequest.user = null;
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(mockResponse.status).toHaveBeenCalledWith(401);
         expect(mockResponse.json).toHaveBeenCalledWith({ message: "Unauthorized" });
@@ -50,7 +50,7 @@ describe('Delete Invoice Controller Tests', () => {
         mockRequest.params = { id: '1' };
         validateDeletion.validateInvoiceDeletion.mockRejectedValue(new Error('Invoice not found'));
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(validateDeletion.validateInvoiceDeletion).toHaveBeenCalledWith('user-123', 1);
         expect(mockResponse.status).toHaveBeenCalledWith(404);
@@ -61,7 +61,7 @@ describe('Delete Invoice Controller Tests', () => {
         mockRequest.params = { id: '1' };
         validateDeletion.validateInvoiceDeletion.mockRejectedValue(new Error('Unauthorized: You do not own this invoice'));
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(mockResponse.status).toHaveBeenCalledWith(403);
         expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Unauthorized: You do not own this invoice' });
@@ -71,7 +71,7 @@ describe('Delete Invoice Controller Tests', () => {
         mockRequest.params = { id: '1' };
         validateDeletion.validateInvoiceDeletion.mockRejectedValue(new Error('Invoice cannot be deleted unless it is Analyzed'));
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(mockResponse.status).toHaveBeenCalledWith(409);
         expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Invoice cannot be deleted unless it is Analyzed' });
@@ -84,7 +84,7 @@ describe('Delete Invoice Controller Tests', () => {
         validateDeletion.validateInvoiceDeletion.mockResolvedValue(mockInvoice);
         s3Service.deleteFile.mockResolvedValue({ success: false, error: 'S3 error' });
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(s3Service.deleteFile).toHaveBeenCalledWith('file-key.pdf');
         expect(mockResponse.status).toHaveBeenCalledWith(500);
@@ -102,7 +102,7 @@ describe('Delete Invoice Controller Tests', () => {
         s3Service.deleteFile.mockResolvedValue({ success: true });
         InvoiceService.deleteInvoiceById.mockResolvedValue(true);
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(validateDeletion.validateInvoiceDeletion).toHaveBeenCalledWith('user-123', 1);
         expect(s3Service.deleteFile).toHaveBeenCalledWith('file-key.pdf');
@@ -118,7 +118,7 @@ describe('Delete Invoice Controller Tests', () => {
         validateDeletion.validateInvoiceDeletion.mockResolvedValue(mockInvoice);
         InvoiceService.deleteInvoiceById.mockResolvedValue(true);
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(validateDeletion.validateInvoiceDeletion).toHaveBeenCalledWith('user-123', 1);
         expect(s3Service.deleteFile).not.toHaveBeenCalled();
@@ -131,7 +131,7 @@ describe('Delete Invoice Controller Tests', () => {
         mockRequest.params = { id: '1' };
         validateDeletion.validateInvoiceDeletion.mockRejectedValue(new Error('Unexpected error'));
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         expect(mockResponse.status).toHaveBeenCalledWith(500);
         expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Internal server error' });
@@ -146,7 +146,7 @@ describe('Delete Invoice Controller Tests', () => {
         // Simulate error during deletion process
         InvoiceService.deleteInvoiceById.mockRejectedValue(new Error('Database connection error'));
         
-        await deleteInvoiceById(mockRequest, mockResponse);
+        await controller.deleteInvoiceById(mockRequest, mockResponse);
         
         // Verify the catch block at line 139 returns 500
         expect(mockResponse.status).toHaveBeenCalledWith(500);

@@ -201,8 +201,7 @@ describe("PDF Page Count Validation", () => {
       jest.spyOn(pdfValidationService, "validatePDF").mockResolvedValue(true);
       jest.spyOn(pdfValidationService, "validateSizeFile").mockResolvedValue(true);
       jest.spyOn(pdfValidationService, "validatePdfPageCount").mockResolvedValue(true);
-      jest.spyOn(pdfValidationService, "isPdfEncrypted").mockResolvedValue(false);
-      jest.spyOn(pdfValidationService, "checkPdfIntegrity").mockResolvedValue(true);      
+      jest.spyOn(pdfValidationService, "isPdfEncrypted").mockResolvedValue(false);      
     });
 
     afterEach(() => {
@@ -241,18 +240,7 @@ describe("PDF Page Count Validation", () => {
       await expect(
         pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "encrypted.pdf")
       ).rejects.toThrow("PDF is encrypted");
-    });
-
-    test("Should fail if PDF integrity check fails", async () => {
-      jest.spyOn(pdfValidationService, "validatePDF").mockResolvedValue(true);
-      jest.spyOn(pdfValidationService, "validateSizeFile").mockResolvedValue(true);
-      jest.spyOn(pdfValidationService, "validatePdfPageCount").mockResolvedValue(true);
-      jest.spyOn(pdfValidationService, "isPdfEncrypted").mockResolvedValue(false);
-      jest.spyOn(pdfValidationService, "checkPdfIntegrity").mockResolvedValue(false);
-      await expect(
-        pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "truncated.pdf")
-      ).rejects.toThrow("PDF file is invalid");
-    });
+    });    
 
     test("Should fail if PDF has no pages", async () => {
       jest.spyOn(pdfValidationService, "validatePdfPageCount").mockRejectedValue(new Error("PDF has no pages."));
