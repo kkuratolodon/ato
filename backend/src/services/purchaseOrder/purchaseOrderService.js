@@ -42,7 +42,7 @@ class PurchaseOrderService extends FinancialDocumentService {
       });
       
       // Process in the background
-      this.processPurchaseOrderAsync(purchaseOrderId, buffer, partnerId);
+      this.processPurchaseOrderAsync(purchaseOrderId);
       
       console.log(`Purchase order upload initiated with ID: ${purchaseOrderId}`);
       
@@ -60,7 +60,7 @@ class PurchaseOrderService extends FinancialDocumentService {
     }
   }
 
-  async processPurchaseOrderAsync(purchaseOrderId, buffer, partnerId) {
+  async processPurchaseOrderAsync(purchaseOrderId) {
     try {
       Sentry.addBreadcrumb({
         category: "purchaseOrderProcessing",

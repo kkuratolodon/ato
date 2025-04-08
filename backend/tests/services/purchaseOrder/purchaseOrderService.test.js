@@ -1,7 +1,4 @@
 const PurchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
-const PurchaseOrderRepository = require('../../../src/repositories/purchaseOrderRepository');
-const PurchaseOrderValidator = require('../../../src/services/purchaseOrder/purchaseOrderValidator');
-const PurchaseOrderResponseFormatter = require('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
 const Sentry = require('../../../src/instrument');
 
 jest.mock('../../../src/repositories/purchaseOrderRepository');
@@ -57,8 +54,6 @@ describe('PurchaseOrderService', () => {
 
   test('should handle errors during async processing', async () => {
     const purchaseOrderId = 'mock-id';
-    const buffer = Buffer.from('test');
-    const partnerId = 'partner-123';
 
     // Create an error that will be thrown inside the method
     const testError = new Error('Processing error');
@@ -68,7 +63,7 @@ describe('PurchaseOrderService', () => {
     });
 
     // Call the actual method, which should catch the error
-    await service.processPurchaseOrderAsync(purchaseOrderId, buffer, partnerId);
+    await service.processPurchaseOrderAsync(purchaseOrderId);
 
     // Verify error handling
     expect(Sentry.captureException).toHaveBeenCalledWith(testError);
@@ -81,11 +76,9 @@ describe('PurchaseOrderService', () => {
 
   test('should successfully process purchase order async', async () => {
     const purchaseOrderId = 'mock-id';
-    const buffer = Buffer.from('test');
-    const partnerId = 'partner-123';
 
     // Call the method
-    await service.processPurchaseOrderAsync(purchaseOrderId, buffer, partnerId);
+    await service.processPurchaseOrderAsync(purchaseOrderId);
 
     // Verify the expected behavior
     expect(Sentry.addBreadcrumb).toHaveBeenCalled();
@@ -119,7 +112,7 @@ describe('PurchaseOrderService', () => {
       file_size: fileData.buffer.length,
       analysis_json_url: 'https://example.com/analysis.json'
     });
-    expect(service.processPurchaseOrderAsync).toHaveBeenCalledWith('test-uuid-1234', fileData.buffer, fileData.partnerId);
+    expect(service.processPurchaseOrderAsync).toHaveBeenCalledWith('test-uuid-1234');
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('test-uuid-1234'));
     
     // Verify the result
