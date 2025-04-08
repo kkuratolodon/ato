@@ -2,6 +2,7 @@ const { InvoiceController } = require("../../src/controllers/invoiceController")
 const pdfValidationService = require("../../src/services/pdfValidationService");
 // const invoiceService = require("../../src/services/mockInvoiceService");
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
+const { PayloadTooLargeError, UnsupportedMediaTypeError } = require("../../src/utils/errors");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");
@@ -134,6 +135,46 @@ describe("Invoice Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Internal server error"
       }); 
+    });
+
+    test("should return 413 when file is too large", async () => {
+      req.user = { uuid: "test-uuid" };
+      req.file = {
+        buffer: Buffer.from("test"),
+        originalname: "test.pdf",
+        mimetype: "application/pdf"
+      };
+
+      pdfValidationService.allValidations.mockRejectedValue(
+        new PayloadTooLargeError("File size exceeds 20MB limit")
+      );
+
+      await controller.uploadInvoice(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(413);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "File size exceeds 20MB limit"
+      });
+    });
+
+    test("should return 415 when file is not PDF", async () => {
+      req.user = { uuid: "test-uuid" };
+      req.file = {
+        buffer: Buffer.from("test"),
+        originalname: "test.jpg",
+        mimetype: "image/jpeg"
+      };
+
+      pdfValidationService.allValidations.mockRejectedValue(
+        new UnsupportedMediaTypeError("Only PDF files are allowed")
+      );
+
+      await controller.uploadInvoice(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(415);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Only PDF files are allowed"
+      });
     });
   }); 
 
