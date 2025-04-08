@@ -229,7 +229,7 @@ jobs:
         working-directory: backend
         run: |
           echo "Starting Newman tests..."
-          newman run tests/functional-test-2.json -e tests/staging-environment.json -r cli,htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html || {
+          newman run tests/functional-test-2.json -e tests/staging-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html || {
             echo "Newman tests failed with exit code $?"
             if [ -f ./reports/functional-test-report.html ]; then
               echo "Test report was generated despite failure"
