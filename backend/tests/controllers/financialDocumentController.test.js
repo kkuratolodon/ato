@@ -29,36 +29,4 @@ describe("FinancialDocumentController", () => {
       );
     });
   });
-  // describe("processUpload", () => {
-  //   test("should throw an error if not implemented in the child class", async () => {
-  //     await expect(controller.processUpload(mockReq)).rejects.toThrow(
-  //       "processUpload must be implemented by child classes"
-  //     );
-  //   });
-
-    // test("should process the upload when implemented in a child class", async () => {
-    //   // Mock a child class that implements processUpload
-    //   class MockChildController extends FinancialDocumentController {
-    //     async processUpload(req) {
-    //       return {
-    //         success: true,
-    //         userId: req.user.id,
-    //         fileName: req.file.originalname,
-    //       };
-    //     }
-    //   }
-
-    //   const childController = new MockChildController(
-    //     mockService,
-    //     "anyDocumentType"
-    //   );
-    //   const result = await childController.processUpload(mockReq);
-
-    //   expect(result).toEqual({
-    //     success: true,
-    //     userId: mockReq.user.id,
-    //     fileName: mockReq.file.originalname,
-    //   });
-    // });
-  // });
 });
