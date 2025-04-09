@@ -24,7 +24,7 @@ describe('PurchaseOrderService', () => {
     
     // Setup general mocks
     service.uploadFile = jest.fn().mockResolvedValue({ 
-      fileUrl: 'https://example.com/file.pdf',
+      file_url: 'https://example.com/file.pdf',
       analysisJsonUrl: 'https://example.com/analysis.json'
     });
     service.purchaseOrderRepository.createInitial = jest.fn().mockResolvedValue();
