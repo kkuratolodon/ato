@@ -135,13 +135,13 @@ exports.deleteInvoiceById = async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
 
-    // if (invoice.file_url) {
-    //   const fileKey = invoice.file_url.split('/').pop();
-    //   const deleteResult = await s3Service.deleteFile(fileKey);
-    //   if (!deleteResult.success) {
-    //     return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
-    //   }
-    // }
+    if (invoice.file_url) {
+      const fileKey = invoice.file_url.split('/').pop();
+      const deleteResult = await s3Service.deleteFile(fileKey);
+      if (!deleteResult.success) {
+        return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
+      }
+    }
 
     await InvoiceService.deleteInvoiceById(id);
 
