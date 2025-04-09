@@ -352,7 +352,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/test-files/test-valid_protected.pdf"
+									"src": "test-encrypted.pdf"
 								}
 							]
 						},
@@ -856,7 +856,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/test-files/test-valid_protected.pdf"
+									"src": "test-encrypted.pdf"
 								}
 							]
 						},
