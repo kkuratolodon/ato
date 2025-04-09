@@ -1,5 +1,5 @@
 const multer = require('multer');
-const { handleMulterError: invoiceHandleMulterError, uploadMiddleware: invoiceUploadMiddleware } = require('../../src/controllers/invoiceController');
+const { uploadMiddleware: invoiceUploadMiddleware } = require('../../src/controllers/invoiceController');
 const { uploadMiddleware: purchaseOrderUploadMiddleware } = require('../../src/controllers/purchaseOrderController');
 
 describe('Multer Error Handling Middleware', () => {
