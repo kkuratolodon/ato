@@ -24,7 +24,8 @@ const pdfData = open('./sample1.pdf', 'b');
 export function setup() {
     console.log('Setting up: Uploading invoice to get an ID');
     
-    const uploadUrl = 'http://stg-team6.api.fineksi.com/api/invoices/upload';
+    const baseUrl = __ENV.API_BASE_URL;
+    const uploadUrl = `${baseUrl}/api/invoices/upload`;
     
     const payload = {
         file: http.file(pdfData, 'sample1.pdf', 'application/pdf')
@@ -56,7 +57,8 @@ export function setup() {
 
 export default function(data) {
     const { invoiceId, headers } = data;
-    const url = `http://stg-team6.api.fineksi.com/api/invoices/${invoiceId}`;
+    const baseUrl = __ENV.API_BASE_URL;
+    const url = `${baseUrl}/api/invoices/${invoiceId}`;
     
     const startTime = new Date().getTime();
     
