@@ -119,17 +119,9 @@ exports.deleteInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!id || isNaN(id) || parseInt(id) <= 0) {
-      return res.status(400).json({ message: "Invalid invoice ID" });
-    }
-
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
     let invoice;
     try {
-      invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, parseInt(id));
+      invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, id);
     } catch (error) {
       if (error.message === "Invoice not found") {
         return res.status(404).json({ message: error.message });
@@ -143,13 +135,13 @@ exports.deleteInvoiceById = async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
 
-    if (invoice.file_url) {
-      const fileKey = invoice.file_url.split('/').pop();
-      const deleteResult = await s3Service.deleteFile(fileKey);
-      if (!deleteResult.success) {
-        return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
-      }
-    }
+    // if (invoice.file_url) {
+    //   const fileKey = invoice.file_url.split('/').pop();
+    //   const deleteResult = await s3Service.deleteFile(fileKey);
+    //   if (!deleteResult.success) {
+    //     return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
+    //   }
+    // }
 
     await InvoiceService.deleteInvoiceById(id);
 
