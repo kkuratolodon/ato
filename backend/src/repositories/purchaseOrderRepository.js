@@ -21,6 +21,24 @@ class PurchaseOrderRepository {
             where: { id }
         });
     }
+
+    async updateCustomerId(id, customer_id) {
+        return await PurchaseOrder.update({ customer_id }, {
+            where: { id }
+        });
+    }
+
+    async updateVendorId(id, vendor_id) {
+        return await PurchaseOrder.update({ vendor_id }, {
+            where: { id }
+        });
+    }
+
+    async delete(id) {
+        return await PurchaseOrder.destroy({
+            where: { id }
+        });
+    }
 }
 
 module.exports = PurchaseOrderRepository;
