@@ -42,6 +42,13 @@ class FinancialDocumentController {
       const partnerId = req.user.uuid;
       
       try {
+        // Check file size first - outside of the timeout to immediately reject large files
+        try {
+          await pdfValidationService.validateSizeFile(buffer);
+        } catch (error) {
+          return safeResponse(res, 413, "File size exceeds maximum limit");
+        }
+
         await this.executeWithTimeout(async () => {
         // File type validation
         try {
@@ -73,12 +80,6 @@ class FinancialDocumentController {
         return safeResponse(res, 400, "Failed to determine PDF page count.");
       }
 
-        // File size validation
-        try {
-          await pdfValidationService.validateSizeFile(buffer);
-        } catch (error) {
-          return safeResponse(res, 413, "File size exceeds maximum limit");
-        }
         try{
           let result;
           if (this.documentType === "Invoice") {
@@ -122,4 +123,3 @@ class FinancialDocumentController {
 }
   
 module.exports = FinancialDocumentController;
-  

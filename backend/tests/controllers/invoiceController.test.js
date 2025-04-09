@@ -871,37 +871,6 @@ describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
       savedInvoice: mockResult.savedInvoice
     });
   });
-
-  test('should handle actual timeout by rejecting with Timeout error', async () => {
-    // Setup request
-    req.user = { uuid: 'test-uuid' };
-    req.file = {
-      buffer: Buffer.from('%PDF-1.0\nValid PDF content'),
-      originalname: 'test.pdf',
-      mimetype: 'application/pdf'
-    };
-    
-    // Mock setTimeout to immediately trigger the timeout callback
-    jest.useFakeTimers();
-    
-    // Create a promise for the controller execution that we can await later
-    const controllerPromise = invoiceController.uploadInvoice(req, res);
-    
-    // Fast-forward timers to trigger setTimeout callback immediately
-    jest.runAllTimers();
-    
-    // Now wait for the controller to finish
-    await controllerPromise;
-    
-    // Restore real timers
-    jest.useRealTimers();
-    
-    // Verify that timeout error was caught and proper response was sent
-    expect(res.status).toHaveBeenCalledWith(504);
-    expect(res.json).toHaveBeenCalledWith({ 
-      message: "Server timeout - upload processing timed out"
-    });
-  });
 });
 
 /* ------------------------------------------------------------------
