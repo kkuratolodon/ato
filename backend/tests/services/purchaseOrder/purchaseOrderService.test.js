@@ -33,7 +33,8 @@ describe('PurchaseOrderService', () => {
     service.validator.validateFileData = jest.fn();
     service.responseFormatter.formatPurchaseOrderResponse = jest.fn();
     
-    // Don't mock processPurchaseOrderAsync by default to use the real implementation
+    // Mock the implementation of processPurchaseOrderAsync for tests
+    service.processPurchaseOrderAsync = jest.fn();
     
     // Sentry mocks
     Sentry.addBreadcrumb = jest.fn();
@@ -53,32 +54,60 @@ describe('PurchaseOrderService', () => {
   });
 
   test('should handle errors during async processing', async () => {
+    // Mock all required parameters for processPurchaseOrderAsync
     const purchaseOrderId = 'mock-id';
+    const mockBuffer = Buffer.from('test');
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const uuid = 'mock-id';
+    
+    service.processPurchaseOrderAsync = originalProcessAsync; // Use real implementation for this test
 
     // Create an error that will be thrown inside the method
     const testError = new Error('Processing error');
-    service.purchaseOrderRepository.updateStatus.mockImplementationOnce(() => {
-      // This will throw the first time it's called (during the normal flow)
-      throw testError;
-    });
+    service.analyzeDocument = jest.fn().mockRejectedValue(testError);
+    
+    // Make sure updateStatus doesn't throw errors
+    service.purchaseOrderRepository.updateStatus = jest.fn().mockResolvedValue();
 
     // Call the actual method, which should catch the error
-    await service.processPurchaseOrderAsync(purchaseOrderId);
+    await service.processPurchaseOrderAsync(purchaseOrderId, mockBuffer, partnerId, originalname, uuid);
 
     // Verify error handling
     expect(Sentry.captureException).toHaveBeenCalledWith(testError);
-    expect(service.purchaseOrderRepository.updateStatus).toHaveBeenCalledTimes(2);
-    // First call - fails with error
-    // Second call - the error handling updates status to "Failed"
-    expect(service.purchaseOrderRepository.updateStatus.mock.calls[1][0]).toBe(purchaseOrderId);
-    expect(service.purchaseOrderRepository.updateStatus.mock.calls[1][1]).toBe('Failed');
+    // Only checking that updateStatus was called with 'Failed' status
+    expect(service.purchaseOrderRepository.updateStatus).toHaveBeenCalledWith(purchaseOrderId, 'Failed');
+    expect(console.error).toHaveBeenCalled();
   });
 
   test('should successfully process purchase order async', async () => {
     const purchaseOrderId = 'mock-id';
+    // Mock needed dependencies to allow successful processing with the implementation
+    service.analyzeDocument = jest.fn().mockResolvedValue({ data: {} });
+    service.uploadAnalysisResults = jest.fn().mockResolvedValue('https://example.com/analysis.json');
+    service.mapAnalysisResult = jest.fn().mockReturnValue({ 
+      purchaseOrderData: {}, 
+      customerData: {}, 
+      vendorData: {}, 
+      itemsData: [] 
+    });
+    service.updatePurchaseOrderRecord = jest.fn().mockResolvedValue();
+    service.updateCustomerAndVendorData = jest.fn().mockResolvedValue();
+    service.saveInvoiceItems = jest.fn().mockResolvedValue();
+
+    // Reset updateStatus mock to avoid previous test's implementation
+    service.purchaseOrderRepository.updateStatus = jest.fn().mockResolvedValue();
+
+    // Use the real implementation for this test
+    service.processPurchaseOrderAsync = originalProcessAsync;
+
+    // Call the method with required parameters
+    const mockBuffer = Buffer.from('test');
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
 
     // Call the method
-    await service.processPurchaseOrderAsync(purchaseOrderId);
+    await service.processPurchaseOrderAsync(purchaseOrderId, mockBuffer, partnerId, originalname, purchaseOrderId);
 
     // Verify the expected behavior
     expect(Sentry.addBreadcrumb).toHaveBeenCalled();
@@ -93,9 +122,6 @@ describe('PurchaseOrderService', () => {
       originalname: 'test.pdf',
       partnerId: 'partner-123'
     };
-
-    // Mock processPurchaseOrderAsync only for this test
-    service.processPurchaseOrderAsync = jest.fn().mockResolvedValue();
 
     // Call the method
     const result = await service.uploadPurchaseOrder(fileData);
@@ -112,7 +138,13 @@ describe('PurchaseOrderService', () => {
       file_size: fileData.buffer.length,
       analysis_json_url: 'https://example.com/analysis.json'
     });
-    expect(service.processPurchaseOrderAsync).toHaveBeenCalledWith('test-uuid-1234');
+    expect(service.processPurchaseOrderAsync).toHaveBeenCalledWith(
+      'test-uuid-1234', 
+      fileData.buffer, 
+      'partner-123', 
+      'test.pdf', 
+      'test-uuid-1234'
+    );
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('test-uuid-1234'));
     
     // Verify the result
@@ -184,9 +216,15 @@ describe('PurchaseOrderService', () => {
     const purchaseOrderId = 'test-order-id';
     const mockPurchaseOrder = { id: purchaseOrderId, status: 'Completed' };
     const mockFormattedResponse = { id: purchaseOrderId, status: 'Completed', formatted: true };
+    const mockItems = [];
+    const mockCustomer = null;
+    const mockVendor = null;
     
     // Setup mocks
     service.purchaseOrderRepository.findById.mockResolvedValue(mockPurchaseOrder);
+    service.getItems = jest.fn().mockResolvedValue(mockItems);
+    service.getCustomer = jest.fn().mockResolvedValue(mockCustomer);
+    service.getVendor = jest.fn().mockResolvedValue(mockVendor);
     service.responseFormatter.formatPurchaseOrderResponse.mockReturnValue(mockFormattedResponse);
 
     // Call the method
@@ -194,7 +232,12 @@ describe('PurchaseOrderService', () => {
 
     // Verify the expected behavior
     expect(service.purchaseOrderRepository.findById).toHaveBeenCalledWith(purchaseOrderId);
-    expect(service.responseFormatter.formatPurchaseOrderResponse).toHaveBeenCalledWith(mockPurchaseOrder);
+    expect(service.responseFormatter.formatPurchaseOrderResponse).toHaveBeenCalledWith(
+      mockPurchaseOrder, 
+      mockItems, 
+      mockCustomer, 
+      mockVendor
+    );
     expect(result).toEqual(mockFormattedResponse);
   });
 
