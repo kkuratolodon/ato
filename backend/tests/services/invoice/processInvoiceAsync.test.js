@@ -8,12 +8,27 @@ jest.mock('../../../src/instrument', () => ({
   captureException: jest.fn()
 }));
 
+// Mock the InvoiceLogger
+jest.mock('../../../src/services/invoice/invoiceLogger', () => ({
+  logUploadStart: jest.fn(),
+  logUploadSuccess: jest.fn(),
+  logProcessingStart: jest.fn(),
+  logAnalysisComplete: jest.fn(),
+  logDataMappingComplete: jest.fn(),
+  logProcessingComplete: jest.fn(),
+  logError: jest.fn(),
+  logValidationError: jest.fn()
+}));
+
 jest.mock('../../../src/repositories/invoiceRepository');
 jest.mock('../../../src/repositories/customerRepository');
 jest.mock('../../../src/repositories/vendorRepository');
 jest.mock('../../../src/repositories/itemRepository');
 jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
 jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
+
+// Import the mocked logger
+const InvoiceLogger = require('../../../src/services/invoice/invoiceLogger');
 
 describe('InvoiceService.processInvoiceAsync direct implementation', () => {
   beforeEach(() => {
@@ -89,6 +104,16 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       `Successfully completed processing invoice ${uuid}`
     );
+    
+    // Verify logger calls
+    expect(InvoiceLogger.logProcessingStart).toHaveBeenCalledWith(invoiceId);
+    expect(InvoiceLogger.logAnalysisComplete).toHaveBeenCalledWith(invoiceId, 'https://example.com/analysis.json');
+    expect(InvoiceLogger.logDataMappingComplete).toHaveBeenCalledWith(invoiceId, {
+      hasCustomerData: true,
+      hasVendorData: true,
+      itemsCount: 1
+    });
+    expect(InvoiceLogger.logProcessingComplete).toHaveBeenCalledWith(invoiceId);
   });
 
   test('should handle error during document analysis', async () => {
@@ -110,7 +135,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(InvoiceService.analyzeInvoice).toHaveBeenCalledWith(buffer);
     expect(InvoiceService.mapAnalysisResult).not.toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalled();
+    expect(InvoiceLogger.logError).toHaveBeenCalledWith(invoiceId, error, 'PROCESSING');
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
     expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(invoiceId, 'Failed');
   });
@@ -135,7 +160,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(InvoiceService.analyzeInvoice).toHaveBeenCalled();
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalled();
+    expect(InvoiceLogger.logError).toHaveBeenCalledWith(invoiceId, error, 'PROCESSING');
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
     expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(invoiceId, 'Failed');
   });
@@ -159,7 +184,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(InvoiceService.mapAnalysisResult).toHaveBeenCalled();
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalled();
+    expect(InvoiceLogger.logError).toHaveBeenCalledWith(invoiceId, error, 'PROCESSING');
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
     expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(invoiceId, 'Failed');
   });
@@ -184,7 +209,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
     expect(InvoiceService.saveInvoiceItems).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalled();
+    expect(InvoiceLogger.logError).toHaveBeenCalledWith(invoiceId, error, 'PROCESSING');
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
     expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(invoiceId, 'Failed');
   });
@@ -209,7 +234,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
     expect(InvoiceService.saveInvoiceItems).toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalled();
+    expect(InvoiceLogger.logError).toHaveBeenCalledWith(invoiceId, error, 'PROCESSING');
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
     expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(invoiceId, 'Failed');
   });
@@ -239,7 +264,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(InvoiceService.updateInvoiceRecord).toHaveBeenCalled();
     expect(InvoiceService.updateCustomerAndVendorData).toHaveBeenCalled();
     expect(InvoiceService.saveInvoiceItems).toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalled();
+    expect(InvoiceLogger.logError).toHaveBeenCalledWith(invoiceId, error, 'PROCESSING');
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
   });
 });
