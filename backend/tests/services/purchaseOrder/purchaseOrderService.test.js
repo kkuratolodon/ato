@@ -24,8 +24,8 @@ describe('PurchaseOrderService', () => {
     
     // Setup general mocks
     service.uploadFile = jest.fn().mockResolvedValue({ 
-      fileUrl: 'https://example.com/file.pdf',
-      analysisJsonUrl: 'https://example.com/analysis.json'
+      file_url: 'https://example.com/file.pdf',
+      analysis_json_url: 'https://example.com/analysis.json'
     });
     service.purchaseOrderRepository.createInitial = jest.fn().mockResolvedValue();
     service.purchaseOrderRepository.updateStatus = jest.fn().mockResolvedValue();
@@ -135,8 +135,7 @@ describe('PurchaseOrderService', () => {
       partner_id: 'partner-123',
       file_url: 'https://example.com/file.pdf',
       original_filename: 'test.pdf',
-      file_size: fileData.buffer.length,
-      analysis_json_url: 'https://example.com/analysis.json'
+      file_size: fileData.buffer.length
     });
     expect(service.processPurchaseOrderAsync).toHaveBeenCalledWith(
       'test-uuid-1234', 
