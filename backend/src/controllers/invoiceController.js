@@ -52,6 +52,10 @@ class InvoiceController extends FinancialDocumentController{
     const { buffer, originalname, mimetype } = req.file;
     const partnerId = req.user.uuid;
 
+    if (!buffer || !originalname || !mimetype || !partnerId) {  
+      throw new ValidationError('Missing required upload parameters');  
+    } 
+
     return await this.service.uploadInvoice({
       buffer,
       originalname,

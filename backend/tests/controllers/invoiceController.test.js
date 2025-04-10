@@ -11,36 +11,41 @@ jest.mock("../../src/services/pdfValidationService");
 describe("Invoice Controller", () => {
   let req, res, controller, mockInvoiceService;
 
+  const setupTestData = (overrides = {}) => {  
+    return {  
+      user: { uuid: "test-uuid" },  
+      file: {  
+        buffer: Buffer.from("test"),  
+        originalname: "test.pdf",  
+        mimetype: "application/pdf"  
+      },
+      params: { id: "1" },  
+      ...overrides  
+    };  
+  };  
+  
   beforeEach(() => {
     req = mockRequest();
     res = mockResponse();
 
     mockInvoiceService = {
-      uploadInvoice: jest.fn(),
-      getInvoiceById: jest.fn(), 
+      uploadInvoice: jest.fn().mockResolvedValue({
+        message: "Invoice upload success",
+        invoiceId: "123"
+      }),
+      getInvoiceById: jest.fn(),
       getPartnerId: jest.fn()
-    }; 
+    };
 
-    controller = new InvoiceController(mockInvoiceService); 
-    jest.clearAllMocks();
-
-    // Set default mocks
+    controller = new InvoiceController(mockInvoiceService);
     pdfValidationService.allValidations.mockResolvedValue(true);
-    
-    mockInvoiceService.uploadInvoice.mockResolvedValue({
-      message: "Invoice upload success",
-      invoiceId: "123"
-    });
+    jest.clearAllMocks();
   });
 
   describe("uploadInvoice", () => {
     test("should successfully upload when all validations pass", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.file = {
-        buffer: Buffer.from("test"),
-        originalname: "test.pdf",
-        mimetype: "application/pdf"
-      };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       await controller.uploadInvoice(req, res);
 
@@ -54,11 +59,8 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 401 when user is not authenticated", async () => {
-      req.user = undefined;
-      req.file = {
-        buffer: Buffer.from("test"),
-        originalname: "test.pdf",
-      };
+      const testData = setupTestData({ user: undefined });
+      Object.assign(req, testData);
 
       await controller.uploadInvoice(req, res);
 
@@ -69,8 +71,8 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 400 when no file uploaded", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.file = undefined;
+      const testData = setupTestData({ file: undefined });
+      Object.assign(req, testData);
 
       await controller.uploadInvoice(req, res);
 
@@ -79,14 +81,10 @@ describe("Invoice Controller", () => {
         message: "No file uploaded"
       });
     });
-    
+
     test("should return 400 when PDF validation fails", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.file = {
-        buffer: Buffer.from("test"),
-        originalname: "test.pdf",
-        mimetype: "application/pdf"
-      };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       pdfValidationService.allValidations.mockRejectedValue(new Error("Invalid PDF"));
 
@@ -96,15 +94,11 @@ describe("Invoice Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Invalid PDF"
       });
-    }); 
+    });
 
     test("should handle timeout and return 504", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.file = {
-        buffer: Buffer.from("test"),
-        originalname: "test.pdf",
-        mimetype: "application/pdf"
-      };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       // Simulate timeout
       mockInvoiceService.uploadInvoice.mockImplementation(() => 
@@ -120,12 +114,8 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 500 for unexpected internal server errors", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.file = {
-        buffer: Buffer.from("test"),
-        originalname: "test.pdf",
-        mimetype: "application/pdf"
-      };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       mockInvoiceService.uploadInvoice.mockRejectedValue(new Error("Internal server error"));
 
@@ -138,12 +128,8 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 413 when file is too large", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.file = {
-        buffer: Buffer.from("test"),
-        originalname: "test.pdf",
-        mimetype: "application/pdf"
-      };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       pdfValidationService.allValidations.mockRejectedValue(
         new PayloadTooLargeError("File size exceeds 20MB limit")
@@ -158,12 +144,14 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 415 when file is not PDF", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.file = {
-        buffer: Buffer.from("test"),
-        originalname: "test.jpg",
-        mimetype: "image/jpeg"
-      };
+      const testData = setupTestData({
+        file: {
+          buffer: Buffer.from("test"),
+          originalname: "test.jpg",
+          mimetype: "image/jpeg"
+        }
+      });
+      Object.assign(req, testData);
 
       pdfValidationService.allValidations.mockRejectedValue(
         new UnsupportedMediaTypeError("Only PDF files are allowed")
@@ -176,7 +164,7 @@ describe("Invoice Controller", () => {
         message: "Only PDF files are allowed"
       });
     });
-  }); 
+  });
 
   describe("getInvoiceById", () => {
     test("should return invoice when authorized", async () => {
@@ -185,9 +173,8 @@ describe("Invoice Controller", () => {
         partnerId: "test-uuid",
         total: 100
       };
-
-      req.user = { uuid: "test-uuid" };
-      req.params = { id: "1" };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
       mockInvoiceService.getInvoiceById.mockResolvedValue(mockInvoice);
@@ -199,8 +186,8 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 401 when user is not authenticated", async () => {
-      req.user = undefined;
-      req.params = { id: "1" };
+      const testData = setupTestData({ user: undefined });
+      Object.assign(req, testData);
 
       await controller.getInvoiceById(req, res);
 
@@ -211,10 +198,10 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 403 when accessing another user's invoice", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.params = { id: "1" };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
-      mockInvoiceService.getPartnerId.mockResolvedValue("other-uuid")
+      mockInvoiceService.getPartnerId.mockResolvedValue("other-uuid");
 
       await controller.getInvoiceById(req, res);
 
@@ -225,8 +212,8 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 404 when invoice not found", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.params = { id: "1" };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
       mockInvoiceService.getInvoiceById.mockResolvedValue(null);
@@ -237,11 +224,11 @@ describe("Invoice Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Invoice not found"
       });
-    }); 
+    });
 
     test("should return 500 for unexpected internal server errors", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.params = { id: "1" };
+      const testData = setupTestData();
+      Object.assign(req, testData);
 
       mockInvoiceService.getPartnerId.mockRejectedValue(new Error("Internal server error"));
 
@@ -254,8 +241,8 @@ describe("Invoice Controller", () => {
     });
 
     test("should return 400 when invoice ID is null", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.params = { id: null };
+      const testData = setupTestData({ params: { id: null } });
+      Object.assign(req, testData);
 
       await controller.getInvoiceById(req, res);
 
@@ -263,11 +250,11 @@ describe("Invoice Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Invalid invoice ID"
       });
-    }); 
+    });
 
     test("should return 400 when invoice ID is not a number", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.params = { id: "abc" };
+      const testData = setupTestData({ params: { id: "abc" } });
+      Object.assign(req, testData);
 
       await controller.getInvoiceById(req, res);
 
@@ -275,11 +262,11 @@ describe("Invoice Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Invalid invoice ID"
       });
-    }); 
+    });
 
     test("should return 400 when invoice ID is negative", async () => {
-      req.user = { uuid: "test-uuid" };
-      req.params = { id: "-1" };
+      const testData = setupTestData({ params: { id: "-1" } });
+      Object.assign(req, testData);
 
       await controller.getInvoiceById(req, res);
 
@@ -287,6 +274,6 @@ describe("Invoice Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Invalid invoice ID"
       });
-    }); 
+    });
   });
 });

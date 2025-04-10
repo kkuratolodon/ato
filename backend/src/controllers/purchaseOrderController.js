@@ -9,8 +9,11 @@ const upload = multer({
 });
 
 class PurchaseOrderController extends FinancialDocumentController {
-  constructor(puchaseOrderService) {
-    super(puchaseOrderService, "Purchase Order");
+  constructor(purchaseOrderService) {
+    if (!purchaseOrderService || typeof purchaseOrderService.uploadPurchaseOrder !== 'function') {  
+      throw new Error('Invalid purchase order service provided');  
+    }  
+    super(purchaseOrderService, "Purchase Order");
   }
 
   async uploadPurchaseOrder(req, res) {
