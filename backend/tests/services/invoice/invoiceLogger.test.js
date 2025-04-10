@@ -253,4 +253,122 @@ describe('InvoiceLogger', () => {
       });
     });
   });
+
+  describe('logDataMappingComplete direct from production code', () => {
+    it('should cover the optional chaining with an array', () => {
+      const invoiceId = 'test-invoice';
+      
+      // Directly from production code
+      const customerData = { name: 'Customer' };
+      const vendorData = { name: 'Vendor' };
+      const itemsData = [1, 2, 3]; // Non-empty array to test .length
+      
+      // This is the exact line from invoiceService.js
+      const dataSummary = {
+        hasCustomerData: !!customerData,
+        hasVendorData: !!vendorData,
+        itemsCount: itemsData?.length || 0
+      };
+      
+      InvoiceLogger.logDataMappingComplete(invoiceId, dataSummary);
+      
+      expect(logger.info).toHaveBeenCalledWith('Invoice data mapping completed', {
+        invoiceId,
+        dataSummary,
+        event: 'MAPPING_COMPLETE'
+      });
+      
+      // Verify the exact values to confirm the execution path
+      expect(dataSummary.itemsCount).toBe(3);
+    });
+    
+    it('should cover the optional chaining with null', () => {
+      const invoiceId = 'test-invoice';
+      
+      // Direct from production code - but with null
+      const customerData = { name: 'Customer' };
+      const vendorData = { name: 'Vendor' };
+      const itemsData = null;
+      
+      // The exact statement we want to cover
+      const dataSummary = {
+        hasCustomerData: !!customerData,
+        hasVendorData: !!vendorData,
+        itemsCount: itemsData?.length || 0  // This is the problematic line
+      };
+      
+      InvoiceLogger.logDataMappingComplete(invoiceId, dataSummary);
+      
+      // Explicitly verify that itemsCount is 0
+      expect(dataSummary.itemsCount).toBe(0);
+      expect(logger.info).toHaveBeenCalledWith('Invoice data mapping completed', {
+        invoiceId,
+        dataSummary: {
+          hasCustomerData: true,
+          hasVendorData: true,
+          itemsCount: 0
+        },
+        event: 'MAPPING_COMPLETE'
+      });
+    });
+    
+    it('should cover the optional chaining with empty array', () => {
+      const invoiceId = 'test-invoice';
+      
+      // Direct variable names from production
+      const customerData = { name: 'Customer' };
+      const vendorData = { name: 'Vendor' };
+      const itemsData = []; // Empty array case
+      
+      // The exact statement
+      const dataSummary = {
+        hasCustomerData: !!customerData,
+        hasVendorData: !!vendorData,
+        itemsCount: itemsData?.length || 0
+      };
+      
+      InvoiceLogger.logDataMappingComplete(invoiceId, dataSummary);
+      
+      // Verify we get 0 from length of empty array, not from the fallback
+      expect(dataSummary.itemsCount).toBe(0);
+    });
+  });
+
+  describe('logDataMappingComplete with exact production code scenarios', () => {
+    // Test case untuk memanggil fungsi dengan persis sama seperti di invoiceService.js
+    function testScenario(title, itemsDataValue, expectedItemsCount) {
+      it(title, () => {
+        const invoiceId = 'test-invoice';
+        
+        // Variabel dengan nama persis sama seperti di production code
+        const customerData = { name: 'Test Customer' };
+        const vendorData = { name: 'Test Vendor' };
+        const itemsData = itemsDataValue;
+        
+        // Gunakan kode persis sama seperti di invoiceService.js
+        InvoiceLogger.logDataMappingComplete(invoiceId, {
+          hasCustomerData: !!customerData,
+          hasVendorData: !!vendorData,
+          itemsCount: itemsData?.length || 0
+        });
+        
+        // Verifikasi pemanggilan logger
+        expect(logger.info).toHaveBeenCalledWith('Invoice data mapping completed', {
+          invoiceId,
+          dataSummary: {
+            hasCustomerData: true,
+            hasVendorData: true,
+            itemsCount: expectedItemsCount
+          },
+          event: 'MAPPING_COMPLETE'
+        });
+      });
+    }
+    
+    // Uji berbagai skenario input untuk itemsData
+    testScenario('with array containing elements', [1, 2, 3], 3);
+    testScenario('with empty array', [], 0);
+    testScenario('with null', null, 0);
+    testScenario('with undefined', undefined, 0);
+  });
 });

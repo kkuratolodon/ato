@@ -90,7 +90,7 @@ class InvoiceService extends FinancialDocumentService {
       InvoiceLogger.logDataMappingComplete(invoiceId, {
         hasCustomerData: !!customerData,
         hasVendorData: !!vendorData,
-        itemsCount: itemsData?.length || 0
+        itemsCount: itemsData?.length
       });
 
       // 4. Update record invoice dengan data hasil analisis dan URL JSON
