@@ -13,14 +13,16 @@ module.exports = {
       "UPDATE `PurchaseOrder` SET status = 'Failed' WHERE status = 'failed'"
     ];
 
-    // Execute each query separately to handle errors better
-    for (const query of updateQueries) {
-      try {
-        await queryInterface.sequelize.query(query);
-      } catch (error) {
-        console.log(`Skipping query due to error: ${query}`);
-        // Continue with other queries even if one fails
+    // Execute each query within a transaction
+    const transaction = await queryInterface.sequelize.transaction();
+    try {
+      for (const query of updateQueries) {
+        await queryInterface.sequelize.query(query, { transaction });
       }
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw new Error(`Failed to update status values: ${error.message}`);
     }
 
     // Then change the column type to ENUM
