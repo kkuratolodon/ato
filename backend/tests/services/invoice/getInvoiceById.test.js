@@ -402,4 +402,56 @@ describe("getInvoiceById", () => {
     
     expect(result.data.documents[0].header.vendor_details.address).toBe('');
   });
+
+  test("Should return processing message when invoice status is PROCESSING", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      status: DocumentStatus.PROCESSING
+    };
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+
+    // Act
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+    expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
+    expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
+    expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
+    
+    expect(result).toEqual({
+      message: "Invoice is still being processed. Please try again later.",
+      data: { documents: [] }
+    });
+  });
+
+  test("Should return failed message when invoice status is FAILED", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      status: DocumentStatus.FAILED
+    };
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+
+    // Act
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+    expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
+    expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
+    expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
+    
+    expect(result).toEqual({
+      message: "Invoice processing failed. Please re-upload the document.",
+      data: { documents: [] }
+    });
+  });
 });
