@@ -244,7 +244,7 @@ class InvoiceService extends FinancialDocumentService {
       const result = await this.invoiceRepository.delete(id);
   
       if (result === 0) {
-        const err = new Error("Failed to delete invoice");
+        const err = new Error(`Failed to delete invoice with ID: ${id}`);;
         Sentry.captureException(err);
         throw err;
       }

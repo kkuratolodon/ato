@@ -1,5 +1,4 @@
 const InvoiceRepository = require("../repositories/invoiceRepository");
-const Sentry = require("../instrument");
 
 /**
  * Class for handling invoice deletion validation logic
@@ -19,30 +18,22 @@ class ValidateDeletion {
    */
   async validateInvoiceDeletion(partnerId, invoiceId) {
     if (!invoiceId) {
-      const err = new Error("Invalid invoice ID");
-      Sentry.captureException(err);
-      throw err;
+      throw new Error("Invalid invoice ID");
     }
-    
+
     const invoice = await this.invoiceRepository.findById(invoiceId);
-    
+
     if (!invoice) {
-      const err = new Error("Invoice not found");
-      Sentry.captureException(err);
-      throw err;
+      throw new Error("Invoice not found");
     }
-    
+
     if (invoice.partner_id !== partnerId) {
-      const err = new Error("Unauthorized: You do not own this invoice");
-      Sentry.captureException(err);
-      throw err;
+      throw new Error("Unauthorized: You do not own this invoice");
     }
-    
+
     if (invoice.status !== "Analyzed") {
-      const err = new Error("Invoice cannot be deleted unless it is Analyzed");
-      Sentry.captureException(err);
-      throw err;
-    }    
+      throw new Error("Invoice cannot be deleted unless it is Analyzed");
+    }
 
     return invoice;
   }
