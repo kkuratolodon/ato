@@ -212,9 +212,24 @@ class InvoiceService extends FinancialDocumentService {
   async getInvoiceById(id) {
     try {
       const invoice = await this.invoiceRepository.findById(id);
-
+      
       if (!invoice) {
         throw new Error("Invoice not found");
+      }
+
+      // Check invoice status first
+      if (invoice.status === DocumentStatus.PROCESSING) {
+        return {
+          message: "Invoice is still being processed. Please try again later.",
+          data: { documents: [] }
+        };
+      }
+
+      if (invoice.status === DocumentStatus.FAILED) {
+        return {
+          message: "Invoice processing failed. Please re-upload the document.",
+          data: { documents: [] }
+        };
       }
 
       const items = await this.itemRepository.findItemsByDocumentId(id, 'Invoice');
