@@ -41,7 +41,7 @@ jobs:
         if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'upload'
         run: |
           echo "Starting Upload Stress Test..."
-          k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} -e API_BASE_URL=${{ secrets.API_BASE_URL }} backend/tests/stress/upload-invoice-stress-test.mjs | tee backend/tests/stress/upload-stress-test.log || echo "Upload Stress Test completed with issues!"
+          k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} -e API_BASE_URL=${{ secrets.API_BASE_URL }} backend/tests/stress/upload-inv-stress-test.mjs | tee backend/tests/stress/upload-stress-test.log || echo "Upload Stress Test completed with issues!"
           echo "Upload Stress Test completed."
 
       - name: Run Get-By-ID Stress Test
