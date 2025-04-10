@@ -193,14 +193,14 @@ describe('PurchaseOrder Model', () => {
                 discount_amount: 199.50,
                 payment_terms: 'Net 30',
                 file_url: 'https://example.com/doc.pdf',
-                status: 'Processing',
+                status: DocumentStatus.PROCESSING,
                 partner_id: partnerId
             });
 
             expect(purchaseOrder).toBeTruthy();
             expect(purchaseOrder.po_number).toBe('PO-2024-001');
             expect(purchaseOrder.total_amount).toBe(1000.50);
-            expect(purchaseOrder.status).toBe('Processing');
+            expect(purchaseOrder.status).toBe(DocumentStatus.PROCESSING);
         });
 
         test('should create purchase order with only required fields', async () => {
@@ -219,7 +219,7 @@ describe('PurchaseOrder Model', () => {
 
         test('should associate correctly with Partner model', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                status: 'Processing',
+                status: DocumentStatus.PROCESSING,
                 partner_id: partnerId
             });
 
@@ -257,13 +257,13 @@ describe('PurchaseOrder Model', () => {
                     status: 'Invalid',
                     partner_id: partnerId
                 })
-            ).rejects.toThrow("status must be one of 'Processing', 'Analyzed', or 'Failed'");
+            ).rejects.toThrow("status must be one of DocumentStatus.PROCESSING, 'Analyzed', or 'Failed'");
         });
 
         test('should fail if total_amount is negative', async () => {
             await expect(
                 PurchaseOrder.create({
-                    status: 'Processing',
+                    status: DocumentStatus.PROCESSING,
                     partner_id: partnerId,
                     total_amount: -100
                 })
@@ -273,7 +273,7 @@ describe('PurchaseOrder Model', () => {
         test('should fail if partner_id is missing', async () => {
             await expect(
                 PurchaseOrder.create({
-                    status: 'Processing'
+                    status: DocumentStatus.PROCESSING
                 })
             ).rejects.toThrow('notNull Violation: PurchaseOrder.partner_id cannot be null');
         });
@@ -283,7 +283,7 @@ describe('PurchaseOrder Model', () => {
                 PurchaseOrder.create({
                     po_date: new Date('2024-05-01'),
                     due_date: new Date('2024-04-30'), // Earlier than po_date
-                    status: 'Processing',
+                    status: DocumentStatus.PROCESSING,
                     partner_id: partnerId
                 })
             ).rejects.toThrow('due_date must not be earlier than po_date');
@@ -293,7 +293,7 @@ describe('PurchaseOrder Model', () => {
     describe('Corner Cases', () => {
         test('should handle zero total_amount', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                status: 'Processing',
+                status: DocumentStatus.PROCESSING,
                 partner_id: partnerId,
                 total_amount: 0
             });
@@ -307,7 +307,7 @@ describe('PurchaseOrder Model', () => {
             const purchaseOrder = await PurchaseOrder.create({
                 po_date: sameDate,
                 due_date: sameDate,
-                status: 'Processing',
+                status: DocumentStatus.PROCESSING,
                 partner_id: partnerId
             });
 
@@ -317,7 +317,7 @@ describe('PurchaseOrder Model', () => {
 
         test('should handle very large amounts', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                status: 'Processing',
+                status: DocumentStatus.PROCESSING,
                 partner_id: partnerId,
                 total_amount: 999999999.99,
                 subtotal_amount: 999999999.99
@@ -329,7 +329,7 @@ describe('PurchaseOrder Model', () => {
 
         test('should handle empty strings for optional string fields', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                status: 'Processing',
+                status: DocumentStatus.PROCESSING,
                 partner_id: partnerId,
                 po_number: '',
                 payment_terms: '',

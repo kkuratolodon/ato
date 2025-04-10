@@ -2,6 +2,7 @@ const FinancialDocumentService = require('../../src/services/financialDocumentSe
 const s3Service = require('../../src/services/s3Service');
 const invoiceService = require('../../src/services/invoice/invoiceService'); // Import as singleton instance
 const { Invoice } = require('../../src/models');
+const DocumentStatus = require('../../src/models/enums/documentStatus');
 
 // Mock dependencies
 jest.mock('../../src/services/s3Service', () => ({
@@ -171,7 +172,7 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
     jest.clearAllMocks();
     
     // Setup success mocks
-    Invoice.findByPk.mockResolvedValue({ id: mockInvoiceId, status: 'Processing' });
+    Invoice.findByPk.mockResolvedValue({ id: mockInvoiceId, status: DocumentStatus.PROCESSING });
     Invoice.update.mockResolvedValue([1]);
     
     // Mock the uploadAnalysisResults method for FinancialDocumentService
@@ -197,7 +198,7 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
       const jsonUrl = await FinancialDocumentService.prototype.uploadAnalysisResults(analysisResult, invoiceId);
       
       // After successful processing, update status to Analyzed
-      await Invoice.update({ status: "Analyzed" }, { where: { id: invoiceId } });
+      await Invoice.update({ status: DocumentStatus.ANALYZED }, { where: { id: invoiceId } });
       
       return jsonUrl;
     });
@@ -221,7 +222,7 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
     
     // Verify status was updated to "Analyzed"
     expect(Invoice.update).toHaveBeenCalledWith(
-      { status: "Analyzed" },
+      { status: DocumentStatus.ANALYZED },
       { where: { id: mockInvoiceId } }
     );
   });
@@ -239,7 +240,7 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
         await FinancialDocumentService.prototype.uploadAnalysisResults(analysisResult, invoiceId);
       } catch (error) {
         // Set status to Failed on error
-        await Invoice.update({ status: "Failed" }, { where: { id: invoiceId } });
+        await Invoice.update({ status: DocumentStatus.FAILED }, { where: { id: invoiceId } });
         throw error;
       }
     });
@@ -250,7 +251,7 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
     
     // Verify status was updated to "Failed"
     expect(Invoice.update).toHaveBeenCalledWith(
-      { status: "Failed" },
+      { status: DocumentStatus.FAILED },
       { where: { id: mockInvoiceId } }
     );
   });
@@ -282,11 +283,11 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
         invoiceService.mapAnalysisResult(analysisResult, mockPartnerId, mockOriginalname, buffer.length);
         
         // If we get here, update to "Analyzed" (but we shouldn't reach this)
-        await Invoice.update({ status: "Analyzed" }, { where: { id: invoiceId } });
+        await Invoice.update({ status: DocumentStatus.ANALYZED }, { where: { id: invoiceId } });
         return jsonUrl;
       } catch (error) {
         // When mapping fails, we should set status to "Failed"
-        await Invoice.update({ status: "Failed" }, { where: { id: invoiceId } });
+        await Invoice.update({ status: DocumentStatus.FAILED }, { where: { id: invoiceId } });
         // Just return, don't throw, so test can continue
         return null;
       }
@@ -302,7 +303,7 @@ describe('InvoiceService - processInvoiceAsync with JSON upload', () => {
     
     // Verify status was updated to "Failed" due to mapping error
     expect(Invoice.update).toHaveBeenCalledWith(
-      { status: "Failed" },
+      { status: DocumentStatus.FAILED },
       { where: { id: mockInvoiceId } }
     );
   });

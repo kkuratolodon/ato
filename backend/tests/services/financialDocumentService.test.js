@@ -1,3 +1,4 @@
+const DocumentStatus = require('../../src/models/enums/documentStatus');
 const FinancialDocumentService = require('../../src/services/financialDocumentService');
 const s3Service = require('../../src/services/s3Service');
 
@@ -66,7 +67,7 @@ describe('FinancialDocumentService', () => {
       // Assert
       expect(s3Service.uploadFile).toHaveBeenCalledWith(mockBuffer);
       expect(result).toEqual({
-        status: 'Processing',
+        status: DocumentStatus.PROCESSING
         partner_id: mockPartnerId,
         file_url: mockS3Url
       });

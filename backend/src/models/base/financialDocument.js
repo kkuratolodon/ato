@@ -101,7 +101,7 @@ class FinancialDocument extends Model {
         validate: {
           isIn: {
             args: [Object.values(DocumentStatus)],
-            msg: "status must be one of 'Processing', 'Analyzed', or 'Failed'"
+            msg: `status must be one of: ${Object.values(DocumentStatus).join(', ')}`
           }
         }
       },

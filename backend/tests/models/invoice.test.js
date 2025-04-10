@@ -339,7 +339,7 @@ describe("Invoice Model", () => {
       uuid,
       invoice_number: 'INV-002',
       invoice_date: new Date(),
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: 'partner-uuid-123'
     });
     
@@ -355,7 +355,7 @@ describe("Invoice Model", () => {
     await testInvoice.reload();
     
     expect(testInvoice.analysis_json_url).toBe('https://storage.example.com/analyses/invoice-002.json');
-    expect(testInvoice.status).toBe('Processing'); // Other fields should remain unchanged
+    expect(testInvoice.status).toBe(DocumentStatus.PROCESSING); // Other fields should remain unchanged
   });
 
   test('should accept null for analysis_json_url', async () => {
