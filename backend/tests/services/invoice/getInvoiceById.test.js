@@ -403,55 +403,218 @@ describe("getInvoiceById", () => {
     expect(result.data.documents[0].header.vendor_details.address).toBe('');
   });
 
-  test("Should return processing message when invoice status is PROCESSING", async () => {
-    // Arrange
-    const mockInvoice = {
-      id: '1',
-      invoice_date: "2025-02-01",
-      status: DocumentStatus.PROCESSING
-    };
+  describe("Invoice Status Handling", () => {
+    // Positive tests - Each possible status scenario
+    test("Should return processing message when invoice status is PROCESSING", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: DocumentStatus.PROCESSING
+      };
 
-    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
 
-    // Act
-    const result = await invoiceService.getInvoiceById('1');
+      // Act
+      const result = await invoiceService.getInvoiceById('1');
 
-    // Assert
-    expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
-    expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
-    expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
-    expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
-    expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
-    
-    expect(result).toEqual({
-      message: "Invoice is still being processed. Please try again later.",
-      data: { documents: [] }
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
+      expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
+      
+      expect(result).toEqual({
+        message: "Invoice is still being processed. Please try again later.",
+        data: { documents: [] }
+      });
     });
-  });
 
-  test("Should return failed message when invoice status is FAILED", async () => {
-    // Arrange
-    const mockInvoice = {
-      id: '1',
-      invoice_date: "2025-02-01",
-      status: DocumentStatus.FAILED
-    };
+    test("Should return failed message when invoice status is FAILED", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: DocumentStatus.FAILED
+      };
 
-    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
 
-    // Act
-    const result = await invoiceService.getInvoiceById('1');
+      // Act
+      const result = await invoiceService.getInvoiceById('1');
 
-    // Assert
-    expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
-    expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
-    expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
-    expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
-    expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
+      expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
+      
+      expect(result).toEqual({
+        message: "Invoice processing failed. Please re-upload the document.",
+        data: { documents: [] }
+      });
+    });
+
+    test("Should process invoice normally when status is ANALYZED", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: DocumentStatus.ANALYZED,
+        // Other invoice properties
+        invoice_number: "INV-001"
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+      invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(mockFormattedResponse);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
     
-    expect(result).toEqual({
-      message: "Invoice processing failed. Please re-upload the document.",
-      data: { documents: [] }
+    // Additional positive test with fully populated data
+    test("Should process invoice with all properties when status is ANALYZED", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        due_date: "2025-03-01",
+        invoice_number: "INV-001",
+        total_amount: 1500.00,
+        status: DocumentStatus.ANALYZED,
+        customer_id: "customer-123",
+        vendor_id: "vendor-456"
+      };
+
+      const mockItems = [
+        { description: "Item 1", quantity: 2, unit: "pcs", unit_price: 500, amount: 1000 },
+        { description: "Item 2", quantity: 1, unit: "ea", unit_price: 500, amount: 500 }
+      ];
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue(mockItems);
+      invoiceService.customerRepository.findById.mockResolvedValue({ uuid: "customer-123", name: "Test Customer" });
+      invoiceService.vendorRepository.findById.mockResolvedValue({ uuid: "vendor-456", name: "Test Vendor" });
+      
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.customerRepository.findById).toHaveBeenCalled();
+      expect(invoiceService.vendorRepository.findById).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    // Negative tests
+    test("Should handle case when status property is missing", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        // status is intentionally missing
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    // Corner cases
+    test("Should handle undefined status gracefully", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: undefined
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    test("Should handle null status gracefully", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: null
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    test("Should handle non-standard status values", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: "INVALID_STATUS"  // Non-standard status
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    test("Should handle case-insensitive status comparisons", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: "processing"  // Lowercase version of PROCESSING
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing (not match PROCESSING)
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
     });
   });
 });
