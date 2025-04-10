@@ -63,7 +63,6 @@ class AzurePurchaseOrderMapper {
     const purchaseOrderData = {
       po_number: poNumber, 
       po_date: poDate,
-      due_date: null,
       total_amount: totalAmountAmount,
       subtotal_amount: subtotalAmountAmount,
       discount_amount: discountAmountAmount,

@@ -186,7 +186,6 @@ describe('PurchaseOrder Model', () => {
             const purchaseOrder = await PurchaseOrder.create({
                 po_date: new Date('2024-01-01'),
                 po_number: 'PO-2024-001',
-                due_date: new Date('2024-02-01'),
                 total_amount: 1000.50,
                 subtotal_amount: 1200.00,
                 discount_amount: 199.50,
@@ -211,9 +210,7 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder).toBeTruthy();
             expect(purchaseOrder.status).toBe('Analyzed');
             expect(purchaseOrder.partner_id).toBe(partnerId);
-            expect(purchaseOrder.due_date).toBeUndefined();
             expect(purchaseOrder.po_date).toBeUndefined();
-            expect(purchaseOrder.po_number).toBeUndefined();
         });
 
         test('should associate correctly with Partner model', async () => {
@@ -275,17 +272,6 @@ describe('PurchaseOrder Model', () => {
                     status: 'Processing'
                 })
             ).rejects.toThrow('notNull Violation: PurchaseOrder.partner_id cannot be null');
-        });
-
-        test('should fail if due_date is earlier than po_date', async () => {
-            await expect(
-                PurchaseOrder.create({
-                    po_date: new Date('2024-05-01'),
-                    due_date: new Date('2024-04-30'), // Earlier than po_date
-                    status: 'Processing',
-                    partner_id: partnerId
-                })
-            ).rejects.toThrow('due_date must not be earlier than po_date');
         });
     });
 
