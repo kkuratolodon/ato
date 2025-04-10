@@ -1,0 +1,77 @@
+name: Stress Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: "Stress test type to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - upload
+          - get-by-id
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          echo "Installing required dependencies..."
+          sudo apt-get update
+          sudo apt-get install -y gnupg2 dirmngr
+
+          echo "Adding k6 repository and installing k6..."
+          curl -s https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+          echo "k6 installation completed."
+
+      - name: Prepare Test Directory
+        run: |
+          mkdir -p backend/tests/stress
+
+      - name: Run Upload Stress Test
+        if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'upload'
+        run: |
+          echo "Starting Upload Stress Test..."
+          k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} -e API_BASE_URL=${{ secrets.API_BASE_URL }} backend/tests/stress/upload-invoice-stress-test.mjs | tee backend/tests/stress/upload-stress-test.log || echo "Upload Stress Test completed with issues!"
+          echo "Upload Stress Test completed."
+
+      - name: Run Get-By-ID Stress Test
+        if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'get-by-id'
+        run: |
+          echo "Starting Get-By-ID Stress Test..."
+          k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} -e API_BASE_URL=${{ secrets.API_BASE_URL }} backend/tests/stress/get-invoice-stress-test.mjs | tee backend/tests/stress/get-stress-test.log || echo "Get-By-ID Stress Test completed with issues!"
+          echo "Get-By-ID Stress Test completed."
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-test-results
+          path: backend/tests/stress/*.log
+
+      - name: Generate Summary
+        run: |
+          echo "# Stress Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "backend/tests/stress/upload-stress-test.log" ]; then
+            echo "## Upload Stress Test Results" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -A 10 "Summary" backend/tests/stress/upload-stress-test.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "backend/tests/stress/get-stress-test.log" ]; then
+            echo "## Get-By-ID Stress Test Results" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -A 10 "Summary" backend/tests/stress/get-stress-test.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
