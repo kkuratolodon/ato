@@ -1,6 +1,6 @@
-import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { Trend, Rate, Counter } from 'k6/metrics';
+import http from 'k6/http';
+import { Counter, Rate, Trend } from 'k6/metrics';
 
 const errorRate = new Rate('error_rate');
 const latencyP95 = new Trend('latency_p95');
@@ -23,24 +23,26 @@ export const options = {
     error_rate: ['rate<0.6'], // fail test if error rate > 60%
     latency_p95: ['p(95)<3000'],
   },
+  setupTimeout: '30s',
 };
 
 const pdfData = open('./sample1.pdf', 'b');
 
 export default function () {
-  const url = 'http://localhost:3000/api/invoices/upload';
+  const baseUrl = __ENV.API_BASE_URL;
+  const uploadUrl = `${baseUrl}/api/invoices/upload`;
 
   const payload = {
     file: http.file(pdfData, 'sample1.pdf', 'application/pdf'),
   };
 
   const headers = {
-    'client_id': 'surya',
-    'client_secret': 'suryasecret',
+    'client_id': __ENV.LOAD_CLIENT_ID,
+    'client_secret': __ENV.LOAD_CLIENT_SECRET,
   };
 
   const startTime = Date.now();
-  const res = http.post(url, payload, { headers});
+  const res = http.post(uploadUrl, payload, { headers });
   const endTime = Date.now();
 
   const success = check(res, {
@@ -54,24 +56,28 @@ export default function () {
   if (res.status !== 200) {
     console.log(`Request failed: Status ${res.status}, Response: ${res.body}`);
   } else {
-    console.log(`Request completed: ${res.status}, Duration: ${res.timings.duration}ms`);
+    // Only log every 10th successful request to reduce console noise during stress test
+    if (Math.random() < 0.1) {
+      console.log(`Request completed: ${res.status}, Duration: ${res.timings.duration}ms`);
+    }
   }
 
+  // Shorter sleep time to increase request rate during stress test
   sleep(0.5);
 }
 
 // Custom summary at the end
-// export function handleSummary(data) {
-//   const errRate = data.metrics.error_rate.rate ?? 0;
-//   const errPercent = (errRate * 100).toFixed(2);
+export function handleSummary(data) {
+  const errRate = data.metrics.error_rate.rate ?? 0;
+  const errPercent = (errRate * 100).toFixed(2);
 
-//   console.log(`\n📊 Final error rate: ${errPercent}%`);
+  console.log(`\n📊 Final error rate: ${errPercent}%`);
 
-//   if (errRate > 0.6) {
-//     console.log(`⚠️  Error rate exceeded 60%! The system can't handle that many users.`);
-//   } else {
-//     console.log(`✅ Error rate is within acceptable limits.`);
-//   }
+  if (errRate > 0.6) {
+    console.log(`⚠️  Error rate exceeded 60%! The system can't handle that many users.`);
+  } else {
+    console.log(`✅ Error rate is within acceptable limits.`);
+  }
 
-//   return {};
-// }
+  return {};
+}
