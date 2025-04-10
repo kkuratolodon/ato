@@ -69,42 +69,6 @@ class PdfValidationService {
     }
 
     /**
-     * Checks the integrity of a PDF file.
-     * 
-     * This function validates that a PDF file has the proper structure
-     * by checking for required PDF components including trailer, xref table,
-     * startxref position, and proper EOF marker placement.
-     * 
-     * @param {Buffer} buffer - Buffer containing the PDF file data to check
-     * @returns {Promise<boolean>} - Returns true if the PDF has proper structure, false otherwise
-     */
-    async checkPdfIntegrity(buffer) {
-        if (!buffer || buffer.length === 0) {
-            return false;
-        }
-
-        const content = buffer.toString('utf-8');
-        
-        const hasTrailer = content.includes('trailer');
-        const hasEOF = content.includes('%%EOF');
-        const hasXref = content.includes('xref');
-        const hasStartXref = content.includes('startxref');
-        
-        if (!hasTrailer || !hasEOF || !hasXref || !hasStartXref) {
-            return false;
-        }
-
-        const startXrefPos = content.lastIndexOf('startxref');
-        const eofPos = content.lastIndexOf('%%EOF');
-
-        const startXrefSection = content.substring(startXrefPos, eofPos);
-        const regex = /startxref\s*(\d+)/;
-        const matches = regex.exec(startXrefSection);
-
-        return !!(matches?.[1] && /\d{1,10} \d{1,10} obj/.test(content));
-    }
-
-    /**
      * Validates the number of pages in a PDF file.
      * 
      * This function ensures that the PDF has at least 1 page 

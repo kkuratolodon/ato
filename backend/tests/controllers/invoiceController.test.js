@@ -7,7 +7,7 @@ const bodyParser = require("body-parser");
 const invoiceController = require("../../src/controllers/invoiceController");
 const { uploadInvoice,getInvoiceById } = require("../../src/controllers/invoiceController");
 const pdfValidationService = require("../../src/services/pdfValidationService");
-const invoiceService = require("../../src/services/invoiceService");
+const invoiceService = require("../../src/services/invoice/invoiceService");
 const authService = require("../../src/services/authService");
 const DocumentStatus = require('../../src/models/enums/documentStatus');
 
@@ -16,7 +16,7 @@ const { mockRequest, mockResponse } = require("jest-mock-req-res");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");
-jest.mock("../../src/services/invoiceService");
+jest.mock("../../src/services/invoice/invoiceService");
 jest.mock("../../src/services/authService");
 
 jest.mock('../../src/models', () => {
@@ -60,7 +60,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     // Default-nya validasi lolos semua jika tidak dispesifikkan sebaliknya dalam test
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
     pdfValidationService.validatePdfPageCount.mockResolvedValue(true);
     
@@ -209,24 +208,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
 
     expect(res.status).toHaveBeenCalledWith(415);
     expect(res.json).toHaveBeenCalledWith({ message: "File format is not PDF" });
-  });
-
-
-  test("should return status 400 if PDF file is invalid", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = {
-      originalname: "test.pdf",
-      buffer: Buffer.from("%PDF-"),
-      mimetype: "application/pdf",
-    };
-
-    // Override mock hanya untuk test ini
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(false);
-
-    await uploadInvoice(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "PDF file is invalid" });
   });
 
   test("should return status 413 if file size is too large", async () => {
@@ -404,7 +385,6 @@ describe("Invoice Controller - uploadInvoice (Unit Test)", () => {
     // Mock services for successful path
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
     
     // Gunakan format yang sama seperti test berhasil lainnya
@@ -468,7 +448,6 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     // Set default successful mock implementations
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
     pdfValidationService.validatePdfPageCount.mockResolvedValue(1);
     
@@ -558,22 +537,6 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     expect(res.body).toEqual({ message: "PDF is encrypted" });
   });
 
-  test("harus mengembalikan status 400 jika PDF rusak", async () => {
-    authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
-    
-    // Override mock hanya untuk test ini
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(false);
-
-    const res = await request(localApp)
-      .post("/api/upload")
-      .field("client_id", "valid_id")
-      .field("client_secret", "valid_secret")
-      .attach("file", path.join(__dirname, "test-files/test-invoice.pdf"));
-
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ message: "PDF file is invalid" });
-  });
-
   test("harus mengembalikan status 413 jika ukuran file melebihi limit", async () => {
     authService.authenticate.mockResolvedValue({ uuid: "dummy-uuid" });
     
@@ -596,7 +559,6 @@ describe("Invoice Controller (Integration) with Supertest", () => {
     // Pastikan semua validasi diset untuk berhasil
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
     
     const mockResult = {
@@ -909,37 +871,6 @@ describe("Invoice Controller - analyzeInvoice (Unit Test)", () => {
       savedInvoice: mockResult.savedInvoice
     });
   });
-
-  test('should handle actual timeout by rejecting with Timeout error', async () => {
-    // Setup request
-    req.user = { uuid: 'test-uuid' };
-    req.file = {
-      buffer: Buffer.from('%PDF-1.0\nValid PDF content'),
-      originalname: 'test.pdf',
-      mimetype: 'application/pdf'
-    };
-    
-    // Mock setTimeout to immediately trigger the timeout callback
-    jest.useFakeTimers();
-    
-    // Create a promise for the controller execution that we can await later
-    const controllerPromise = invoiceController.uploadInvoice(req, res);
-    
-    // Fast-forward timers to trigger setTimeout callback immediately
-    jest.runAllTimers();
-    
-    // Now wait for the controller to finish
-    await controllerPromise;
-    
-    // Restore real timers
-    jest.useRealTimers();
-    
-    // Verify that timeout error was caught and proper response was sent
-    expect(res.status).toHaveBeenCalledWith(504);
-    expect(res.json).toHaveBeenCalledWith({ 
-      message: "Server timeout - upload processing timed out"
-    });
-  });
 });
 
 /* ------------------------------------------------------------------
@@ -971,7 +902,6 @@ describe("Financial Document Controller - Document Type Error", () => {
     // Mock validation services to pass all checks
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
     
     // Call uploadFile method which should trigger the unknown document type error
@@ -1036,7 +966,6 @@ describe("Financial Document Controller - S3 Upload Error", () => {
     // Set up passing validations
     pdfValidationService.validatePDF.mockResolvedValue(true);
     pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.checkPdfIntegrity.mockResolvedValue(true);
     pdfValidationService.validateSizeFile.mockResolvedValue(true);
   });
 

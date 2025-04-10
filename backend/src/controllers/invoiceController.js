@@ -1,11 +1,32 @@
-const InvoiceService = require('../services/invoiceService');
+const InvoiceService = require('../services/invoice/invoiceService');
 const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
+const validateDeletion = require('../services/validateDeletion');
+const s3Service = require('../services/s3Service');
 
 const upload = multer({
-  storage: multer.memoryStorage()
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024 // 20MB size limit
+  }
 });
-exports.uploadMiddleware = upload.single('file');
+
+// Multer error handling middleware
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ 
+        message: 'File size exceeds the 20MB limit'
+      });
+    }
+    return res.status(400).json({ 
+      message: `Upload error: ${err.message}`
+    });
+  }
+  next(err);
+};
+
+exports.uploadMiddleware = [upload.single('file'), handleMulterError];
 /**
  * Handles the upload and validation of invoice PDF files with an automatic 3-second timeout.
  *
@@ -86,6 +107,49 @@ exports.getInvoiceById = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 }
+
+/**
+ * Deletes an invoice by its ID.
+ *
+ * @param {Object} req - The request object containing parameters and user info.
+ * @param {Object} res - The response object used to send status and messages.
+ * @returns {Promise<Response>} The response indicating success or failure.
+ */
+exports.deleteInvoiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    let invoice;
+    try {
+      invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, id);
+    } catch (error) {
+      if (error.message === "Invoice not found") {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === "Unauthorized: You do not own this invoice") {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message === "Invoice cannot be deleted unless it is Analyzed") {
+        return res.status(409).json({ message: error.message });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    if (invoice.file_url) {
+      const fileKey = invoice.file_url.split('/').pop();
+      const deleteResult = await s3Service.deleteFile(fileKey);
+      if (!deleteResult.success) {
+        return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
+      }
+    }
+
+    await InvoiceService.deleteInvoiceById(id);
+
+    return res.status(200).json({ message: "Invoice successfully deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 /**
  * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database
