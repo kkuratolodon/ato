@@ -1,9 +1,6 @@
 name: Load Test
 
 on:
-  push:
-    branches:
-      - staging
   workflow_dispatch:
     inputs:
       test_type:
@@ -31,7 +28,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Install k6
         run: |
           echo "Installing required dependencies..."

@@ -1,4 +1,5 @@
 'use strict';
+const DocumentStatus = require('../../models/enums/documentStatus');
 const FieldParser = require('./FieldParserService');
 const EntityExtractor = require('./entityExtractorService');
 
@@ -71,7 +72,7 @@ class AzureInvoiceMapper {
       subtotal_amount: subtotalAmountAmount,
       discount_amount: discountAmountAmount,
       payment_terms: paymentTerms,
-      status: 'Analyzed',
+      status: DocumentStatus.ANALYZED,
       partner_id: partnerId,
 
       // Additional data

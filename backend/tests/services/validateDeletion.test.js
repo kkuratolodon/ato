@@ -4,6 +4,7 @@ jest.mock('../../src/repositories/invoiceRepository');
 // Now import the modules
 const validateDeletion = require('../../src/services/validateDeletion');
 const InvoiceRepository = require('../../src/repositories/invoiceRepository');
+const DocumentStatus = require('../../src/models/enums/documentStatus');
 
 describe('ValidateDeletion Service', () => {
   let mockFindById;
@@ -33,7 +34,7 @@ describe('ValidateDeletion Service', () => {
       const mockInvoice = {
         id: 'uuid-123',
         partner_id: 'partner123',
-        status: 'Analyzed'
+        status: DocumentStatus.ANALYZED, 
       };
       
       mockFindById.mockResolvedValue(mockInvoice);
@@ -73,7 +74,7 @@ describe('ValidateDeletion Service', () => {
       const mockInvoice = {
         id: 'uuid-123',
         partner_id: 'different_partner',
-        status: 'Analyzed'
+        status: DocumentStatus.ANALYZED
       };
       
       mockFindById.mockResolvedValue(mockInvoice);
@@ -90,7 +91,7 @@ describe('ValidateDeletion Service', () => {
       const mockInvoice = {
         id: 'uuid-123',
         partner_id: 'partner123',
-        status: 'Pending'
+        status: DocumentStatus.PROCESSING
       };
       
       mockFindById.mockResolvedValue(mockInvoice);
@@ -118,7 +119,7 @@ describe('ValidateDeletion Service', () => {
       const mockInvoice = {
         id: 'valid-uuid',
         partner_id: 'partner123',
-        status: 'Analyzed'
+        status: DocumentStatus.ANALYZED
       };
       
       mockFindById.mockResolvedValue(mockInvoice);

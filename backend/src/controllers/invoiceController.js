@@ -3,6 +3,7 @@ const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
 const validateDeletion = require('../services/validateDeletion');
 const s3Service = require('../services/s3Service');
+const Sentry = require("../instrument");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -119,10 +120,17 @@ exports.deleteInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    Sentry.addBreadcrumb({
+      category: "invoiceDeletion",
+      message: `Partner ${req.user.uuid} attempting to delete invoice ${id}`,
+      level: "info"
+    });
+
     let invoice;
     try {
       invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, id);
     } catch (error) {
+      Sentry.captureException(error);
       if (error.message === "Invoice not found") {
         return res.status(404).json({ message: error.message });
       }
@@ -139,17 +147,22 @@ exports.deleteInvoiceById = async (req, res) => {
       const fileKey = invoice.file_url.split('/').pop();
       const deleteResult = await s3Service.deleteFile(fileKey);
       if (!deleteResult.success) {
-        return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
+        const err = new Error("Failed to delete file from S3");
+        Sentry.captureException(err);
+        return res.status(500).json({ message: err.message, error: deleteResult.error });
       }
     }
 
     await InvoiceService.deleteInvoiceById(id);
 
+    Sentry.captureMessage(`Invoice ${id} successfully deleted by ${req.user.uuid}`);
     return res.status(200).json({ message: "Invoice successfully deleted" });
   } catch (error) {
+    Sentry.captureException(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 /**
  * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database
