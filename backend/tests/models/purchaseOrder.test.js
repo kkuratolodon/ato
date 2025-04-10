@@ -205,7 +205,7 @@ describe('PurchaseOrder Model', () => {
 
         test('should create purchase order with only required fields', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                status: 'Analyzed',
+                status: DocumentStatus.ANALYZED,
                 partner_id: partnerId
             });
 
@@ -239,7 +239,7 @@ describe('PurchaseOrder Model', () => {
             const testPO = await PurchaseOrder.create({
                 uuid,
                 po_number: 'PO-001',
-                status: 'Analyzed', // Ubah field issue_date menjadi status
+                status: DocumentStatus.ANALYZED, // Ubah field issue_date menjadi status
                 partner_id: partnerId, // Gunakan partnerId yang valid
                 file_url: 'https://storage.example.com/po/po-001.pdf',
                 analysis_json_url: 'https://storage.example.com/analyses/po-001.json'
@@ -257,7 +257,7 @@ describe('PurchaseOrder Model', () => {
                     status: 'Invalid',
                     partner_id: partnerId
                 })
-            ).rejects.toThrow("status must be one of DocumentStatus.PROCESSING, 'Analyzed', or 'Failed'");
+            ).rejects.toThrow("Validation error: status must be one of: Processing, Analyzed, Failed");
         });
 
         test('should fail if total_amount is negative', async () => {

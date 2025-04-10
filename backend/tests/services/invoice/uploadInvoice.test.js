@@ -60,7 +60,7 @@ jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService', () 
         invoice_date: '2023-01-01',
         due_date: '2023-02-01',
         total_amount: 1000,
-        status: 'Analyzed'
+        status: 'Analyzed',
       },
       customerData: {}, // Include empty customer data
       vendorData: {},

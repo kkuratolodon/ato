@@ -67,7 +67,7 @@ describe('FinancialDocumentService', () => {
       // Assert
       expect(s3Service.uploadFile).toHaveBeenCalledWith(mockBuffer);
       expect(result).toEqual({
-        status: DocumentStatus.PROCESSING
+        status: DocumentStatus.PROCESSING, 
         partner_id: mockPartnerId,
         file_url: mockS3Url
       });

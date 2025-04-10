@@ -325,7 +325,7 @@ describe("Invoice Model", () => {
       payment_terms: 'Net 30',
       file_url: 'https://storage.example.com/invoices/invoice-001.pdf',
       analysis_json_url: 'https://storage.example.com/analyses/invoice-001.json',
-      status: 'Analyzed',
+      status: DocumentStatus.ANALYZED,
       partner_id: 'partner-uuid-123'
     });
     
@@ -364,7 +364,7 @@ describe("Invoice Model", () => {
       uuid,
       invoice_number: 'INV-003',
       invoice_date: new Date(),
-      status: 'Failed',
+      status: DocumentStatus.FAILED,
       partner_id: 'partner-uuid-123',
       analysis_json_url: null
     });

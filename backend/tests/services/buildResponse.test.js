@@ -34,7 +34,7 @@ describe('buildResponse method', () => {
       invoice_date: '2023-07-15',
       due_date: '2023-08-15',
       total_amount: 1250.50,
-      status: 'Analyzed',
+      status: DocumentStatus.ANALYZED,
       created_at: new Date('2023-07-10T12:30:45Z')
     };
 
@@ -51,7 +51,7 @@ describe('buildResponse method', () => {
         invoice_date: '2023-07-15',
         due_date: '2023-08-15',
         total_amount: 1250.50,
-        status: 'Analyzed',
+        status: DocumentStatus.ANALYZED,
         created_at: mockInvoice.created_at
       }
     });
