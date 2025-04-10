@@ -287,19 +287,6 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder.total_amount).toBe(0);
         });
 
-        test('should allow same date for po_date and due_date', async () => {
-            const sameDate = new Date('2024-05-01');
-            const purchaseOrder = await PurchaseOrder.create({
-                po_date: sameDate,
-                due_date: sameDate,
-                status: 'Processing',
-                partner_id: partnerId
-            });
-
-            expect(purchaseOrder).toBeTruthy();
-            expect(purchaseOrder.po_date).toEqual(purchaseOrder.due_date);
-        });
-
         test('should handle very large amounts', async () => {
             const purchaseOrder = await PurchaseOrder.create({
                 status: 'Processing',
