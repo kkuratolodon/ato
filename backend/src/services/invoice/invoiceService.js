@@ -9,6 +9,7 @@ const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
 const InvoiceValidator = require('./invoiceValidator');
 const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
+const DocumentStatus = require('../../models/enums/documentStatus.js');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {
@@ -40,7 +41,7 @@ class InvoiceService extends FinancialDocumentService {
 
       await this.invoiceRepository.createInitial({
         id: invoiceUuid,
-        status: "Processing",
+        status: DocumentStatus.PROCESSING,
         partner_id: partnerId,
         file_url: s3Result.file_url,
         original_filename: originalname,
@@ -52,7 +53,7 @@ class InvoiceService extends FinancialDocumentService {
       return {
         message: "Invoice upload initiated",
         id: invoiceUuid,
-        status: "Processing"
+        status: DocumentStatus.PROCESSING
       };
     } catch (error) {
       console.error("Error in uploadInvoice:", error);
@@ -100,7 +101,7 @@ class InvoiceService extends FinancialDocumentService {
       await this.saveInvoiceItems(invoiceId, itemsData);
 
       // 7. Update status menjadi "Analyzed"
-      await this.invoiceRepository.update(invoiceId, { status: "Analyzed" });
+      await this.invoiceRepository.update(invoiceId, { status: DocumentStatus.ANALYZED });
 
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
     } catch (error) {
@@ -108,7 +109,7 @@ class InvoiceService extends FinancialDocumentService {
       Sentry.captureException(error);
 
       // Update status menjadi "Failed" jika processing gagal
-      await this.invoiceRepository.updateStatus(invoiceId, "Failed");
+      await this.invoiceRepository.updateStatus(invoiceId, DocumentStatus.FAILED);
     }
   }
 
