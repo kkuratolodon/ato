@@ -4,6 +4,7 @@ const Sentry = require("../../instrument");
 const PurchaseOrderRepository = require('../../repositories/purchaseOrderRepository');
 const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
+const DocumentStatus = require('../../models/enums/documentStatus');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {
@@ -33,9 +34,9 @@ class PurchaseOrderService extends FinancialDocumentService {
       // Create basic purchase order record with UUID
       await this.purchaseOrderRepository.createInitial({
         id: purchaseOrderId,
-        status: "Processing",
+        status: DocumentStatus.PROCESSING,
         partner_id: partnerId,
-        file_url: s3Result.fileUrl,
+        file_url: s3Result.file_url,
         original_filename: originalname,
         file_size: buffer.length,
         analysis_json_url: s3Result.analysisJsonUrl
@@ -49,11 +50,11 @@ class PurchaseOrderService extends FinancialDocumentService {
       return {
         message: "Purchase Order upload initiated",
         id: purchaseOrderId,
-        status: "Processing"
+        status: DocumentStatus.PROCESSING
       };
     } catch (error) {
       if (purchaseOrderId) {
-        await this.purchaseOrderRepository.updateStatus(purchaseOrderId, "Failed");
+        await this.purchaseOrderRepository.updateStatus(purchaseOrderId, DocumentStatus.FAILED);
       }
       console.error("Error processing purchase order:", error);
       throw new Error("Failed to process purchase order: " + error.message);
@@ -71,14 +72,14 @@ class PurchaseOrderService extends FinancialDocumentService {
       // Here you would add document analysis and data extraction
       // For now, we'll just update the status to show the process completed
       
-      await this.purchaseOrderRepository.updateStatus(purchaseOrderId, "Analyzed");
+      await this.purchaseOrderRepository.updateStatus(purchaseOrderId, DocumentStatus.ANALYZED);
 
       Sentry.captureMessage(`Successfully completed processing purchase order ${purchaseOrderId}`);
     } catch (error) {
       console.error(`Error in async processing for purchase order ${purchaseOrderId}:`, error);
       Sentry.captureException(error);
 
-      await this.purchaseOrderRepository.updateStatus(purchaseOrderId, "Failed");
+      await this.purchaseOrderRepository.updateStatus(purchaseOrderId, DocumentStatus.FAILED);
     }
   }
 

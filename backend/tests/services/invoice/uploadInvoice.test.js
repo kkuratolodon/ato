@@ -2,6 +2,7 @@ const invoiceService = require('../../../src/services/invoice/invoiceService');
 const fs = require("fs");
 const path = require("path");
 const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
+const DocumentStatus = require('../../../src/models/enums/documentStatus');
 
 // Mock Azure Document Intelligence
 jest.mock("@azure/ai-form-recognizer");
@@ -59,7 +60,7 @@ jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService', () 
         invoice_date: '2023-01-01',
         due_date: '2023-02-01',
         total_amount: 1000,
-        status: 'Analyzed'
+        status: 'Analyzed',
       },
       customerData: {}, // Include empty customer data
       vendorData: {},
@@ -137,7 +138,7 @@ describe('uploadInvoice', () => {
     // Mock repository methods
     invoiceService.invoiceRepository.createInitial = jest.fn().mockResolvedValue({
       id: 'mocked-uuid-123',
-      status: 'Processing'
+      status: DocumentStatus.PROCESSING
     });
 
     // Mock document analyzer
@@ -177,14 +178,14 @@ describe('uploadInvoice', () => {
       id: 'mocked-uuid-123',
       partner_id: mockPartnerId,
       file_url: TEST_S3_URL,
-      status: "Processing"
+      status: DocumentStatus.PROCESSING
     }));
 
     // Check response format
     expect(result).toEqual({
       message: "Invoice upload initiated",
       id: 'mocked-uuid-123',
-      status: "Processing"
+      status: DocumentStatus.PROCESSING
     });
   });
 
@@ -269,7 +270,7 @@ describe('uploadInvoice - Corner Cases', () => {
       id: '1',
       invoice_date: "2025-02-01",
       vendor_id: "missing-vendor-uuid",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     // Mock repository methods for this test

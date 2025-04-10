@@ -1,3 +1,4 @@
+const DocumentStatus = require('../../../src/models/enums/documentStatus');
 const invoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock the repositories
@@ -78,7 +79,7 @@ describe("getInvoiceById", () => {
     const mockInvoice = {
       id: '1',
       invoice_number: "INV-001",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
@@ -127,7 +128,7 @@ describe("getInvoiceById", () => {
       id: '1',
       invoice_date: "2025-02-01",
       customer_id: "missing-customer-uuid",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
@@ -160,7 +161,7 @@ describe("getInvoiceById", () => {
       id: '1',
       invoice_date: "2025-02-01",
       vendor_id: "missing-vendor-uuid",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
@@ -186,7 +187,7 @@ describe("getInvoiceById", () => {
       id: '1',
       invoice_date: "2025-02-01",
       customer_id: "existing-customer-uuid",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockCustomer = {
@@ -233,7 +234,7 @@ describe("getInvoiceById", () => {
       id: '1',
       invoice_date: "2025-02-01",
       vendor_id: "existing-vendor-uuid",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockVendor = {
@@ -276,7 +277,7 @@ describe("getInvoiceById", () => {
     // Arrange
     const mockInvoice = {
       id: '1',
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockItems = [
@@ -317,7 +318,7 @@ describe("getInvoiceById", () => {
       id: '1',
       invoice_date: "2025-02-01",
       customer_id: "customer-with-null-address",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockCustomer = {
@@ -363,7 +364,7 @@ describe("getInvoiceById", () => {
       id: '1',
       invoice_date: "2025-02-01",
       vendor_id: "vendor-with-null-address",
-      status: "Analyzed"
+      status: DocumentStatus.ANALYZED
     };
 
     const mockVendor = {
