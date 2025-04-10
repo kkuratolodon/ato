@@ -242,17 +242,20 @@ class InvoiceService extends FinancialDocumentService {
   async deleteInvoiceById(id) {
     try {
       const result = await this.invoiceRepository.delete(id);
-
+  
       if (result === 0) {
-        throw new Error("Failed to delete invoice");
+        const err = new Error(`Failed to delete invoice with ID: ${id}`);;
+        Sentry.captureException(err);
+        throw err;
       }
-
+  
       return { message: "Invoice successfully deleted" };
     } catch (error) {
-      console.error("Error deleting invoice:", error);
+      Sentry.captureException(error);
       throw new Error("Failed to delete invoice: " + error.message);
     }
   }
+  
 
   async analyzeInvoice(documentUrl) {
     return this.documentAnalyzer.analyzeDocument(documentUrl);
