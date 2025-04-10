@@ -45,7 +45,7 @@ class PurchaseOrderService extends FinancialDocumentService {
         id: purchaseOrderId,
         status: "Processing",
         partner_id: partnerId,
-        file_url: s3Result.fileUrl,
+        file_url: s3Result.file_url,
         original_filename: originalname,
         file_size: buffer.length,
         analysis_json_url: s3Result.analysisJsonUrl
