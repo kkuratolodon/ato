@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const InvoiceController = require('../controllers/invoiceController');
+const { controller } = require('../controllers/invoiceController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const apiLimiter = require('../middlewares/rateLimitMiddleware');
+const uploadMiddleware = require('../middlewares/uploadMiddleware');
 
 router.get('/debug-sentry', () => {
     throw new Error("Sentry error dummy!");
@@ -9,13 +11,24 @@ router.get('/debug-sentry', () => {
 
 router.post(
     '/upload',
+    apiLimiter,
     authMiddleware,               
-    InvoiceController.uploadMiddleware,
-    InvoiceController.uploadInvoice
+    uploadMiddleware,
+    controller.uploadInvoice
 );
 
-router.get('/:id',authMiddleware, InvoiceController.getInvoiceById);
+router.get(
+    '/:id', 
+    apiLimiter,
+    authMiddleware,
+    controller.getInvoiceById
+);
 
-router.post('/analyze', InvoiceController.analyzeInvoice);
+// TODO: tanya ini apakah ga mau dikasih api limiter juga? 
+router.delete(
+    '/:id', 
+    authMiddleware, 
+    controller.deleteInvoiceById
+);
 
 module.exports = router;

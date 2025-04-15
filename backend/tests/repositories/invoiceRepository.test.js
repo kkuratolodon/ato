@@ -6,7 +6,8 @@ jest.mock('../../src/models', () => ({
     Invoice: {
         create: jest.fn(),
         findOne: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        destroy: jest.fn()
     }
 }));
 
@@ -171,6 +172,43 @@ describe('InvoiceRepository', () => {
                 .rejects.toThrow(mockError);
             
             expect(Invoice.update).toHaveBeenCalledWith({ vendor_id: 'invalid-id' }, { where: { id: 1 } });
+        });
+    });
+
+    describe('delete', () => {
+        test('should delete an invoice successfully', async () => {
+            // Setup mock to return 1 (number of deleted rows)
+            Invoice.destroy.mockResolvedValue(1);
+            
+            // Call the method
+            await invoiceRepository.delete(1);
+            
+            // Verify destroy was called with correct parameters
+            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
+        });
+
+        test('should handle case when no invoice is deleted', async () => {
+            // Setup mock to return 0 (no rows deleted)
+            Invoice.destroy.mockResolvedValue(0);
+            
+            // Call the method
+            await invoiceRepository.delete(999);
+            
+            // Verify destroy was called with correct parameters
+            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 999 } });
+        });
+
+        test('should throw an error when delete operation fails', async () => {
+            // Setup mock to throw an error
+            const mockError = new Error('Database error during delete');
+            Invoice.destroy.mockRejectedValue(mockError);
+            
+            // Expect the method to throw
+            await expect(invoiceRepository.delete(1))
+                .rejects.toThrow(mockError);
+            
+            // Verify destroy was called with correct parameters
+            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
         });
     });
 });

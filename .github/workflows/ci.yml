@@ -190,18 +190,55 @@ jobs:
           npm install -g newman
           npm install -g newman-reporter-htmlextra
 
-      - name: Create dev-environment.json from secret
-        run: echo '${{ secrets.DEV_ENVIRONMENT_JSON }}' > tests/dev-environment.json
-        working-directory: backend
+      - name: Check for test files
+        run: |
+          ls -la functional_test_files/
+          if [ ! -f functional_test_files/functional-test-1.json ]; then
+            echo "Error: functional-test-1.json not found in functional_test_files directory"
+            exit 1
+          fi
+
+      - name: Create staging-environment.json from secret
+        run: echo '${{ secrets.STAGING_ENVIRONMENT_JSON }}' > functional_test_files/staging-environment.json
+
+      - name: Verify environment file
+        run: |
+          if [ ! -f functional_test_files/staging-environment.json ]; then
+            echo "Error: staging-environment.json not created properly"
+            exit 1
+          fi
+          echo "Environment file created successfully"
+          
+      - name: Verify repository content
+        run: |
+          echo "Current working directory: $(pwd)"
+          echo "Repository content:"
+          ls -la
+          echo "Functional test files directory content:"
+          ls -la functional_test_files/ || echo "Functional test files directory not found!"
+          
+      - name: Create reports directory
+        working-directory: functional_test_files
+        run: mkdir -p reports
 
       - name: Run Functional Tests with htmlextra
-        working-directory: backend
+        working-directory: functional_test_files
         run: |
-          mkdir -p reports
-          newman run tests/functional-test-1.json -e tests/dev-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html
+          echo "Starting Newman tests..."
+          newman run functional-test-1.json -e staging-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html || {
+            echo "Newman tests failed with exit code $?"
+            if [ -f ./reports/functional-test-report.html ]; then
+              echo "Test report was generated despite failure"
+            else
+              echo "No test report was generated"
+            fi
+            exit 1
+          }
+          echo "Newman tests completed successfully"
 
       - name: Upload Functional Test Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: functional-test-report
-          path: backend/reports/functional-test-report.html
+          path: functional_test_files/reports/functional-test-report.html

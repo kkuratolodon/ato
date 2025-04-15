@@ -1,9 +1,6 @@
 name: Load Test
 
 on:
-  push:
-    branches:
-      - staging
   workflow_dispatch:
     inputs:
       test_type:
@@ -82,3 +79,4 @@ jobs:
         with:
           name: load-test-results
           path: backend/tests/load/*.log
+
