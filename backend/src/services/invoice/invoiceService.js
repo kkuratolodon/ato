@@ -9,6 +9,7 @@ const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
 const InvoiceValidator = require('./invoiceValidator');
 const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
+const InvoiceLogger = require('./invoiceLogger');
 const DocumentStatus = require('../../models/enums/documentStatus.js');
 
 class InvoiceService extends FinancialDocumentService {
@@ -30,12 +31,14 @@ class InvoiceService extends FinancialDocumentService {
       const { buffer, originalname, partnerId } = fileData;
 
       const invoiceUuid = uuidv4();
+      InvoiceLogger.logUploadStart(invoiceUuid, partnerId, originalname);
 
       let s3Result;
       try {
         s3Result = await this.uploadFile(fileData);
+        InvoiceLogger.logUploadSuccess(invoiceUuid, s3Result.file_url);
       } catch (error) {
-        console.error("Error uploading to S3:", error);
+        InvoiceLogger.logError(invoiceUuid, error, 'S3_UPLOAD');
         throw new Error("Failed to upload file to S3");
       }
 
@@ -56,7 +59,7 @@ class InvoiceService extends FinancialDocumentService {
         status: DocumentStatus.PROCESSING
       };
     } catch (error) {
-      console.error("Error in uploadInvoice:", error);
+      InvoiceLogger.logError(null, error, 'UPLOAD_INITIATION');
       throw new Error(`Failed to process invoice: ${error.message}`);
     }
   }
@@ -67,6 +70,7 @@ class InvoiceService extends FinancialDocumentService {
      */
   async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid) {
     try {
+      InvoiceLogger.logProcessingStart(invoiceId);
       Sentry.addBreadcrumb({
         category: "invoiceProcessing",
         message: `Starting async processing for invoice ${uuid}`,
@@ -78,20 +82,22 @@ class InvoiceService extends FinancialDocumentService {
 
       // 2. Upload hasil OCR ke S3 sebagai JSON dan dapatkan URL-nya
       const jsonUrl = await this.uploadAnalysisResults(analysisResult, invoiceId);
-
-      // Print URL JSON yang berhasil diupload
-      console.log("=============================================");
-      console.log(`JSON Analysis URL: ${jsonUrl}`);
-      console.log("=============================================");
+      InvoiceLogger.logAnalysisComplete(invoiceId, jsonUrl);
 
       // 3. Map hasil analisis ke model data
       const { invoiceData, customerData, vendorData, itemsData } =
         this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
 
+      InvoiceLogger.logDataMappingComplete(invoiceId, {
+        hasCustomerData: !!customerData,
+        hasVendorData: !!vendorData,
+        itemsCount: itemsData?.length
+      });
+
       // 4. Update record invoice dengan data hasil analisis dan URL JSON
       await this.updateInvoiceRecord(invoiceId, {
         ...invoiceData,
-        analysis_json_url: jsonUrl // Store the JSON URL in the database
+        analysis_json_url: jsonUrl
       });
 
       // 5. Update data customer dan vendor
@@ -103,9 +109,10 @@ class InvoiceService extends FinancialDocumentService {
       // 7. Update status menjadi "Analyzed"
       await this.invoiceRepository.update(invoiceId, { status: DocumentStatus.ANALYZED });
 
+      InvoiceLogger.logProcessingComplete(invoiceId);
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
     } catch (error) {
-      console.error(`Error in async processing for invoice ${uuid}:`, error);
+      InvoiceLogger.logError(invoiceId, error, 'PROCESSING');
       Sentry.captureException(error);
 
       // Update status menjadi "Failed" jika processing gagal
