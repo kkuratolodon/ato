@@ -1,12 +1,6 @@
+const PurchaseOrderService = require("../services/purchaseOrder/purchaseOrderService");
 const FinancialDocumentController = require('./financialDocumentController');
-const multer = require("multer");
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 20 * 1024 * 1024,
-  },
-});
 
 class PurchaseOrderController extends FinancialDocumentController {
   constructor(purchaseOrderService) {
@@ -36,6 +30,5 @@ class PurchaseOrderController extends FinancialDocumentController {
 const purchaseOrderController = new PurchaseOrderController();
 module.exports = {
   PurchaseOrderController, 
-  purchaseOrderController, 
-  uploadMiddleware: upload.single("file")
+  purchaseOrderController,   
 }

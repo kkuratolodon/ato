@@ -14,13 +14,13 @@ jest.mock('../../src/controllers/invoiceController', () => ({
     getInvoiceById: jest.fn(),
     analyzeInvoice: jest.fn(), 
     deleteInvoiceById: jest.fn()
-  },
-  uploadMiddleware: jest.fn((req, res, next) => next())
+  }  
 }));
 
 // Import after mocking
 const { controller: invoiceController, uploadMiddleware } = require('../../src/controllers/invoiceController');
 const authMiddleware = require('../../src/middlewares/authMiddleware');
+const uploadMiddleware = require('../../src/middlewares/uploadMiddleware');
 const invoiceRoutes = require('../../src/routes/invoiceRoute');
 
 describe('Invoice Routes', () => {
@@ -38,6 +38,11 @@ describe('Invoice Routes', () => {
   beforeEach(() => {
     // Pastikan setiap test bersih
     jest.clearAllMocks();
+    
+    invoiceController.uploadMiddleware = [
+      jest.fn().mockImplementation((req, res, next) => next()),
+      jest.fn().mockImplementation((err, req, res, next) => next())
+    ];
   });
 
   test('POST /api/invoices/upload memanggil authMiddleware, uploadMiddleware, dan uploadInvoice', async () => {
@@ -93,6 +98,7 @@ describe('Invoice Routes', () => {
     expect(uploadMiddleware).not.toHaveBeenCalled();
     expect(invoiceController.uploadInvoice).not.toHaveBeenCalled();
   });
+  
   test('GET /api/invoices/debug-sentry should throw an error for Sentry testing', async () => {
     // Express error handler needs to be set up to catch the error
     app.use((err, req, res) => {

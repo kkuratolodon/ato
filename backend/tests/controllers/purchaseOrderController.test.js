@@ -3,7 +3,7 @@ const { PurchaseOrderController } = require("../../src/controllers/purchaseOrder
 const purchaseOrderService = require("../../src/services/purchaseOrderService");
 const pdfValidationService = require("../../src/services/pdfValidationService");
 
-jest.mock("../../src/services/purchaseOrderService");
+jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
 jest.mock("../../src/services/pdfValidationService");
 
 describe("Purchase Order Controller", () => {

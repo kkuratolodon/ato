@@ -3,11 +3,9 @@ const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
 const validateDeletion = require('../services/validateDeletion');
 const s3Service = require('../services/s3Service');
+const Sentry = require("../instrument");
 const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
 
-const upload = multer({
-  storage: multer.memoryStorage()
-});
 
 class InvoiceController extends FinancialDocumentController{
   constructor(invoiceService){
@@ -52,10 +50,6 @@ class InvoiceController extends FinancialDocumentController{
     const { buffer, originalname, mimetype } = req.file;
     const partnerId = req.user.uuid;
 
-    if (!buffer || !originalname || !mimetype || !partnerId) {  
-      throw new ValidationError('Missing required upload parameters');  
-    } 
-
     return await this.service.uploadInvoice({
       buffer,
       originalname,
@@ -64,6 +58,15 @@ class InvoiceController extends FinancialDocumentController{
     })
   }
 
+  /**
+   * @description Retrieves an invoice by ID with authorization check.
+   *
+   * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
+   * @throws {401} Unauthorized if req.user is missing
+   * @throws {403} Forbidden if invoice does not belong to the authenticated user
+   * @throws {404} Not Found if invoice is not found
+   * @throws {500} Internal Server Error 
+   */
   async getInvoiceById(req, res) {
     try {
       const { id } = req.params;
@@ -79,15 +82,18 @@ class InvoiceController extends FinancialDocumentController{
   }
 
   async validateGetRequest(req, id) {
-    if (!id || isNaN(id) || parseInt(id) <= 0) {
-      throw new ValidationError("Invalid invoice ID");
-    }
     if (!req.user) {
       throw new AuthError("Unauthorized");
     }
+    if (!id) {
+      throw new ValidationError("Invoice ID is required");
+    }
+    if (isNaN(id) || parseInt(id) <= 0) {
+      throw new ValidationError("Invalid invoice ID");
+    }
     const invoicePartnerId = await this.service.getPartnerId(id);
     if (invoicePartnerId !== req.user.uuid) {
-      throw new ForbiddenError("You do not have access to this invoice");
+      throw new ForbiddenError("Forbidden: You do not have access to this invoice");
     }
   }
 
@@ -101,38 +107,40 @@ class InvoiceController extends FinancialDocumentController{
   async deleteInvoiceById(req, res) {
     try {
       const { id } = req.params;
+      
+    // TODO: check sentry  config again for all method 
+    Sentry.addBreadcrumb({
+      category: "invoiceDeletion",
+      message: `Partner ${req.user.uuid} attempting to delete invoice ${id}`,
+      level: "info"
+    });
 
-      if (!id || isNaN(id) || parseInt(id) <= 0) {
-        return res.status(400).json({ message: "Invalid invoice ID" });
+    let invoice;
+    try {
+      invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, id);
+    } catch (error) {
+      Sentry.captureException(error);
+      if (error.message === "Invoice not found") {
+        return res.status(404).json({ message: error.message });
       }
+      if (error.message === "Unauthorized: You do not own this invoice") {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message === "Invoice cannot be deleted unless it is Analyzed") {
+        return res.status(409).json({ message: error.message });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
 
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
+    if (invoice.file_url) {
+      const fileKey = invoice.file_url.split('/').pop();
+      const deleteResult = await s3Service.deleteFile(fileKey);
+      if (!deleteResult.success) {
+        const err = new Error("Failed to delete file from S3");
+        Sentry.captureException(err);
+        return res.status(500).json({ message: err.message, error: deleteResult.error });
       }
-
-      let invoice;
-      try {
-        invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, parseInt(id));
-      } catch (error) {
-        if (error.message === "Invoice not found") {
-          return res.status(404).json({ message: error.message });
-        }
-        if (error.message === "Unauthorized: You do not own this invoice") {
-          return res.status(403).json({ message: error.message });
-        }
-        if (error.message === "Invoice cannot be deleted unless it is Analyzed") {
-          return res.status(409).json({ message: error.message });
-        }
-        return res.status(500).json({ message: "Internal server error" });
-      }
-
-      if (invoice.file_url) {
-        const fileKey = invoice.file_url.split('/').pop();
-        const deleteResult = await s3Service.deleteFile(fileKey);
-        if (!deleteResult.success) {
-          return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
-        }
-      }
+    }
 
       await InvoiceService.deleteInvoiceById(id);
 
@@ -143,9 +151,9 @@ class InvoiceController extends FinancialDocumentController{
   };
 }
 
+// TODO: check again this part, might want to export class instead
 const controller = new InvoiceController(InvoiceService);
 module.exports = {
   InvoiceController,  // Export the class for testing
-  controller,         // Export instance for routes
-  uploadMiddleware: upload.single('file')
+  controller         // Export instance for routes
 };
