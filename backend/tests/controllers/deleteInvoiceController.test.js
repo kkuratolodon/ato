@@ -1,5 +1,5 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const invoiceController = require("../../src/controllers/invoiceController");
+const { controller: invoiceController } = require("../../src/controllers/invoiceController");
 const validateDeletion = require("../../src/services/validateDeletion");
 const InvoiceService = require("../../src/services/invoice/invoiceService");
 const s3Service = require("../../src/services/s3Service");

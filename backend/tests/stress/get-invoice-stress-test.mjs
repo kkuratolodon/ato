@@ -1,3 +1,4 @@
+/* global __ENV */
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { Counter, Rate, Trend } from 'k6/metrics';
