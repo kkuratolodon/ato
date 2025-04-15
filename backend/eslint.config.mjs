@@ -18,5 +18,16 @@ export default [
       }
     }
   },
+  // Add this new configuration object for k6 load test files
+  {
+    files: ["**/tests/load/*.mjs"],
+    languageOptions: {
+      globals: {
+        __ENV: "readonly",
+        open: "readonly",
+        sleep: "readonly"
+      }
+    }
+  },
   pluginJs.configs.recommended
 ];
