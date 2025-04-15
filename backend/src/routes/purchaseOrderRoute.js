@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const PurchaseOrderController = require('../controllers/purchaseOrderController');
+const { purchaseOrderController } = require('../controllers/purchaseOrderController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const uploadMiddleware = require('../middlewares/uploadMiddleware')
 
 router.post(
     '/upload',
     authMiddleware,               
-    PurchaseOrderController.uploadMiddleware,
-    PurchaseOrderController.uploadPurchaseOrder
+    uploadMiddleware,
+    purchaseOrderController.uploadPurchaseOrder
 );
 
 module.exports = router;

@@ -193,4 +193,69 @@ describe("PDF Page Count Validation", () => {
       const mockBuffer = Buffer.from("mock pdf data");
       await expect(pdfValidationService.validatePdfPageCount(mockBuffer)).rejects.toThrow("Failed to read PDF page count.");
   });
+
+  describe("All Validations", () => {
+    const dummyPdfBuffer = Buffer.from("%PDF-1.4 Dummy PDF File");
+
+    beforeEach(() => {
+      jest.spyOn(pdfValidationService, "validatePDF").mockResolvedValue(true);
+      jest.spyOn(pdfValidationService, "validateSizeFile").mockResolvedValue(true);
+      jest.spyOn(pdfValidationService, "validatePdfPageCount").mockResolvedValue(true);
+      jest.spyOn(pdfValidationService, "isPdfEncrypted").mockResolvedValue(false);      
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test("Should pass all validations for a valid PDF", async () => {
+      await expect(
+        pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "valid.pdf")
+      ).resolves.toBeUndefined();
+    });
+
+    test("Should fail if MIME type is invalid", async () => {
+      jest.spyOn(pdfValidationService, "validatePDF").mockRejectedValue(new Error("Invalid MIME type"));
+      await expect(
+        pdfValidationService.allValidations(dummyPdfBuffer, "image/png", "valid.pdf")
+      ).rejects.toThrow("Invalid MIME type");
+    });
+
+    test("Should fail if file extension is invalid", async () => {
+      jest.spyOn(pdfValidationService, "validatePDF").mockRejectedValue(new Error("Invalid file extension"));
+      await expect(
+        pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "invalid.txt")
+      ).rejects.toThrow("Invalid file extension");
+    });
+
+    test("Should fail if file size exceeds 20MB", async () => {
+      jest.spyOn(pdfValidationService, "validateSizeFile").mockRejectedValue(new Error("File exceeds maximum allowed size of 20MB"));
+      await expect(
+        pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "large.pdf")
+      ).rejects.toThrow("File exceeds maximum allowed size of 20MB");
+    });
+
+    test("Should fail if PDF is encrypted", async () => {
+      jest.spyOn(pdfValidationService, "isPdfEncrypted").mockResolvedValue(true);
+      await expect(
+        pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "encrypted.pdf")
+      ).rejects.toThrow("PDF is encrypted");
+    });    
+
+    test("Should fail if PDF has no pages", async () => {
+      jest.spyOn(pdfValidationService, "validatePdfPageCount").mockRejectedValue(new Error("PDF has no pages."));
+
+      await expect(
+        pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "empty.pdf")
+      ).rejects.toThrow("PDF has no pages.");
+    });
+
+    test("Should fail if PDF exceeds maximum page count", async () => {
+      jest.spyOn(pdfValidationService, "validatePdfPageCount").mockRejectedValue(new Error("PDF exceeds the maximum allowed pages (100)."));
+
+      await expect(
+        pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "largePageCount.pdf")
+      ).rejects.toThrow("PDF exceeds the maximum allowed pages (100).");
+    });
+  });
 });
