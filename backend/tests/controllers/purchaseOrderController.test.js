@@ -1,286 +1,143 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const purchaseOrderController = require("../../src/controllers/purchaseOrderController");
-const FinancialDocumentController = require("../../src/controllers/financialDocumentController");
+const { PurchaseOrderController } = require("../../src/controllers/purchaseOrderController");
 const purchaseOrderService = require("../../src/services/purchaseOrder/purchaseOrderService");
 const pdfValidationService = require("../../src/services/pdfValidationService");
-const authService = require("../../src/services/authService");
 
 jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
 jest.mock("../../src/services/pdfValidationService");
-jest.mock("../../src/services/authService");
 
-describe("Purchase Order Controller - uploadPurchaseOrder (Unit Test)", () => {
-  let req, res;
+describe("Purchase Order Controller", () => {
+  let req, res, controller;
 
   beforeEach(() => {
     req = mockRequest();
     res = mockResponse();
+
+    controller = new PurchaseOrderController(purchaseOrderService);
     jest.clearAllMocks();
 
-    // Default: valid file passes all validation checks
-    pdfValidationService.validatePDF.mockResolvedValue(true);
-    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.validateSizeFile.mockResolvedValue(true);
-    pdfValidationService.validatePdfPageCount.mockResolvedValue(1);
-
-    authService.authenticate.mockResolvedValue(true);
+    // Default mocks
+    pdfValidationService.allValidations.mockResolvedValue(true);    
 
     purchaseOrderService.uploadPurchaseOrder.mockResolvedValue({
-      message: "Purchase order service called",
-      filename: "test.pdf",
+      message: "Purchase order uploaded successfully",
+      id: "123"
     });
   });
 
-  test("should return 401 if req.user is not defined", async () => {
-    req.user = undefined;
-    req.file = { originalname: "test.pdf" };
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ message: "Unauthorized" });
-  });
-
-  test("should return 400 if no file is uploaded", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = undefined;
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "No file uploaded" });
-  });
-
-  test("should return 504 if processing time exceeds timeout", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { 
+  describe("uploadPurchaseOrder", () => {
+    test("should successfully upload when all validations pass", async () => {
+      req.user = { uuid: "test-uuid" };
+      req.file = {
+        buffer: Buffer.from("test"),
         originalname: "test.pdf",
-        buffer: Buffer.from("dummy content"),
         mimetype: "application/pdf"
       };
-    req.query = { simulateTimeout: "true" };
 
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(504);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "Server timeout - upload processing timed out",
-    });
-  });
-
-  test("should return 415 if validatePDF fails", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = {
-      originalname: "test.pdf",
-      buffer: Buffer.from("test"),
-      mimetype: "application/pdf",
-    };
-
-    pdfValidationService.validatePDF.mockRejectedValue(new Error("Not PDF"));
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(415);
-    expect(res.json).toHaveBeenCalledWith({ message: "File format is not PDF" });
-  });
-
-  test("should return 400 if PDF is encrypted", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
-
-    pdfValidationService.isPdfEncrypted.mockResolvedValue(true);
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "PDF is encrypted" });
-  });
-
-  test("should return 413 if file size is too large", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
-
-    pdfValidationService.validateSizeFile.mockRejectedValue(new Error("File too big"));
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(413);
-    expect(res.json).toHaveBeenCalledWith({ message: "File size exceeds maximum limit" });
-  });
-
-  test("should return 200 if file upload is successful", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
-
-    pdfValidationService.validatePDF.mockResolvedValue(true);
-    pdfValidationService.isPdfEncrypted.mockResolvedValue(false);
-    pdfValidationService.validateSizeFile.mockResolvedValue(true);
-
-    const mockResult = {
-      message: "Purchase order service called",
-      filename: "test.pdf",
-    };
-
-    purchaseOrderService.uploadPurchaseOrder.mockResolvedValue(mockResult);
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
-  });
-
-  test("should return 500 if unexpected error occurs", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
-
-    purchaseOrderService.uploadPurchaseOrder.mockImplementation(() => {
-      throw new Error("Unexpected error");
-    });
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
-  });
-
-  test("should handle timeout errors properly", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
-    
-    // Directly mock what happens in a timeout scenario
-    // by simulating the simulateTimeout query parameter being set to true
-    req.query = { simulateTimeout: "true" };
-    
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-    
-    expect(res.status).toHaveBeenCalledWith(504);
-    expect(res.json).toHaveBeenCalledWith({ 
-      message: "Server timeout - upload processing timed out" 
-    });
-  });
-
-  test("should clear timeout when function completes before timeout", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
-
-    const mockResult = {
-      message: "Purchase order service called",
-      filename: "test.pdf",
-    };
-
-    purchaseOrderService.uploadPurchaseOrder.mockResolvedValue(mockResult);
-    const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
-
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: mockResult });
-    expect(clearTimeoutSpy).toHaveBeenCalled();
-
-    clearTimeoutSpy.mockRestore();
-  });
-
-    test("should handle unexpected errors in executeWithTimeout", async () => {
-        req.user = { uuid: "dummy-uuid" };
-        req.file = {
+      expect(purchaseOrderService.uploadPurchaseOrder).toHaveBeenCalledWith({
+        buffer: expect.any(Buffer),
         originalname: "test.pdf",
-        buffer: Buffer.from("%PDF-"),
         mimetype: "application/pdf",
-        };
-
-        purchaseOrderService.uploadPurchaseOrder.mockImplementation(() => {
-        throw new Error("Something unexpected happened");
-        });
-
-        await purchaseOrderController.uploadPurchaseOrder(req, res);
-
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+        partnerId: "test-uuid"
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        message: {
+          message: "Purchase order uploaded successfully",
+          id: "123"
+        }
+      });
     });
 
-  test("should not send a response if headersSent is already true", async () => {
-    const req = { user: null, file: null };
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), headersSent: true };
+    test("should return 401 when unauthorized", async () => {
+      req.user = undefined;
+      req.file = {
+        buffer: Buffer.from("test"),
+        originalname: "test.pdf",
+        mimetype: "application/pdf"
+      };
 
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
+      await controller.uploadPurchaseOrder(req, res);
 
-    expect(res.status).not.toHaveBeenCalled();
-    expect(res.json).not.toHaveBeenCalled();
-  });
-  test("should return 400 when document type is unknown", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = { originalname: "test.pdf", buffer: Buffer.from("%PDF-"), mimetype: "application/pdf" };
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unauthorized"
+      });
+      expect(purchaseOrderService.uploadPurchaseOrder).not.toHaveBeenCalled();
+    });
 
-    const invalidController = new FinancialDocumentController(purchaseOrderService, "UnknownType");
+    test("should return 400 when no file uploaded", async () => {
+      req.user = { uuid: "test-uuid" };
+      req.file = undefined;
 
-    await invalidController.uploadFile(req, res); 
+      await controller.uploadPurchaseOrder(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "Invalid document type provided" });
-  });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "No file uploaded"
+      });
+    });
 
-  test("should return status 400 if PDF has zero pages", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = {
-      originalname: "test.pdf",
-      buffer: Buffer.from("%PDF-"),
-      mimetype: "application/pdf",
-    };
-  
-    // Mock correct error response
-    pdfValidationService.validatePdfPageCount.mockRejectedValue(
-      new Error("PDF has no pages.")
-    );
-  
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-  
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ 
-      message: "PDF has no pages." 
+    test("should handle timeout", async () => {
+      req.user = { uuid: "test-uuid" };
+      req.file = {
+        buffer: Buffer.from("test"),
+        originalname: "test.pdf",
+        mimetype: "application/pdf"
+      };
+
+      purchaseOrderService.uploadPurchaseOrder.mockImplementation(() => 
+        new Promise(resolve => setTimeout(resolve, 4000))
+      );
+
+      await controller.uploadPurchaseOrder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(504);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Server timeout - upload processing timed out"
+      });
+    });
+
+    test("should handle PDF validation errors", async () => {
+      req.user = { uuid: "test-uuid" };
+      req.file = {
+        buffer: Buffer.from("test"),
+        originalname: "test.pdf",
+        mimetype: "application/pdf"
+      };
+
+      pdfValidationService.allValidations.mockRejectedValue(
+        new Error("PDF validation failed")
+      );
+
+      await controller.uploadPurchaseOrder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "PDF validation failed"
+      });
+    });
+
+    test("should handle service errors", async () => {
+      req.user = { uuid: "test-uuid" };
+      req.file = {
+        buffer: Buffer.from("test"),
+        originalname: "test.pdf",
+        mimetype: "application/pdf"
+      };
+
+      purchaseOrderService.uploadPurchaseOrder.mockRejectedValue(
+        new Error("Service error")
+      );
+
+      await controller.uploadPurchaseOrder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Internal server error"
+      });
     });
   });
-  
-  test("should return status 400 if PDF exceeds maximum page count", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = {
-      originalname: "test.pdf",
-      buffer: Buffer.from("%PDF-"),
-      mimetype: "application/pdf",
-    };
-  
-    // Mock error for exceeding maximum page count
-    pdfValidationService.validatePdfPageCount.mockRejectedValue(
-      new Error("PDF exceeds the maximum allowed pages (100).")
-    );
-  
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-  
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ 
-      message: "PDF exceeds the maximum allowed pages (100)." 
-    });
-  });
-  
-  test("should handle generic error when validatePdfPageCount fails", async () => {
-    req.user = { uuid: "dummy-uuid" };
-    req.file = {
-      originalname: "test.pdf",
-      buffer: Buffer.from("%PDF-"),
-      mimetype: "application/pdf",
-    };
-  
-    // Mock general error
-    pdfValidationService.validatePdfPageCount.mockRejectedValue(
-      new Error("Some unexpected error")
-    );
-  
-    await purchaseOrderController.uploadPurchaseOrder(req, res);
-  
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ 
-      message: "Failed to determine PDF page count." 
-    });
-  });
-
-
 });

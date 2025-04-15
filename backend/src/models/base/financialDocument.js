@@ -1,5 +1,7 @@
 'use strict';
 const { Model } = require('sequelize');
+const DocumentStatus = require('../enums/documentStatus');
+
 
 /**
  * Base class for financial documents (Invoice, PurchaseOrder)
@@ -93,12 +95,13 @@ class FinancialDocument extends Model {
         defaultValue: null
       },
       status: {
-        type: options.DataTypes.STRING,
+        type: options.DataTypes.ENUM(Object.values(DocumentStatus)),
         allowNull: false,
+        defaultValue: DocumentStatus.PROCESSING,
         validate: {
           isIn: {
-            args: [["Processing", "Analyzed", "Failed"]],
-            msg: "status must be one of 'Processing', 'Analyzed', or 'Failed'"
+            args: [Object.values(DocumentStatus)],
+            msg: `status must be one of: ${Object.values(DocumentStatus).join(', ')}`
           }
         }
       },

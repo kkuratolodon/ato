@@ -1,6 +1,5 @@
-const multer = require('multer');
-const { uploadMiddleware: invoiceUploadMiddleware } = require('../../src/controllers/invoiceController');
-const { uploadMiddleware: purchaseOrderUploadMiddleware } = require('../../src/controllers/purchaseOrderController');
+const multer = require('multer'); 
+const multerErrorHandler = require('../../src/middlewares/multerErrorHandler')
 
 describe('Multer Error Handling Middleware', () => {
   let req, res, next;
@@ -17,7 +16,7 @@ describe('Multer Error Handling Middleware', () => {
   describe('Invoice Controller Multer Error Handler', () => {
     test('should handle LIMIT_FILE_SIZE error with 413 status', () => {
       // Access the handleMulterError function directly from the array
-      const handleMulterError = invoiceUploadMiddleware[1];
+      const handleMulterError = multerErrorHandler;
       
       // Create a MulterError with LIMIT_FILE_SIZE code
       const err = new multer.MulterError('LIMIT_FILE_SIZE');
@@ -33,7 +32,7 @@ describe('Multer Error Handling Middleware', () => {
   
     test('should handle other MulterError types with 400 status', () => {
       // Access the handleMulterError function directly from the array
-      const handleMulterError = invoiceUploadMiddleware[1];
+      const handleMulterError = multerErrorHandler;
       
       // Create a different MulterError type
       const err = new multer.MulterError('LIMIT_UNEXPECTED_FILE');
@@ -50,7 +49,7 @@ describe('Multer Error Handling Middleware', () => {
   
     test('should pass non-Multer errors to next middleware', () => {
       // Access the handleMulterError function directly from the array
-      const handleMulterError = invoiceUploadMiddleware[1];
+      const handleMulterError = multerErrorHandler;
       
       // Create a regular Error (not MulterError)
       const err = new Error('Generic error');
@@ -60,23 +59,13 @@ describe('Multer Error Handling Middleware', () => {
       expect(res.status).not.toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(err);
-    });
-
-    test('should have two middleware functions', () => {
-      expect(Array.isArray(invoiceUploadMiddleware)).toBe(true);
-      expect(invoiceUploadMiddleware.length).toBe(2);
-      
-      // First middleware should be multer
-      expect(typeof invoiceUploadMiddleware[0]).toBe('function');
-      // Second middleware should be handleMulterError
-      expect(typeof invoiceUploadMiddleware[1]).toBe('function');
     });
   });
 
   describe('Purchase Order Controller Multer Error Handler', () => {
     test('should handle LIMIT_FILE_SIZE error with 413 status', () => {
       // Access the handleMulterError function directly from the array
-      const handleMulterError = purchaseOrderUploadMiddleware[1];
+      const handleMulterError = multerErrorHandler;
       
       // Create a MulterError with LIMIT_FILE_SIZE code
       const err = new multer.MulterError('LIMIT_FILE_SIZE');
@@ -92,7 +81,7 @@ describe('Multer Error Handling Middleware', () => {
   
     test('should handle other MulterError types with 400 status', () => {
       // Access the handleMulterError function directly from the array
-      const handleMulterError = purchaseOrderUploadMiddleware[1];
+      const handleMulterError = multerErrorHandler;
       
       // Create a different MulterError type
       const err = new multer.MulterError('LIMIT_UNEXPECTED_FILE');
@@ -109,7 +98,7 @@ describe('Multer Error Handling Middleware', () => {
   
     test('should pass non-Multer errors to next middleware', () => {
       // Access the handleMulterError function directly from the array
-      const handleMulterError = purchaseOrderUploadMiddleware[1];
+      const handleMulterError = multerErrorHandler;
       
       // Create a regular Error (not MulterError)
       const err = new Error('Generic error');
@@ -119,16 +108,6 @@ describe('Multer Error Handling Middleware', () => {
       expect(res.status).not.toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(err);
-    });
-
-    test('should have two middleware functions', () => {
-      expect(Array.isArray(purchaseOrderUploadMiddleware)).toBe(true);
-      expect(purchaseOrderUploadMiddleware.length).toBe(2);
-      
-      // First middleware should be multer
-      expect(typeof purchaseOrderUploadMiddleware[0]).toBe('function');
-      // Second middleware should be handleMulterError
-      expect(typeof purchaseOrderUploadMiddleware[1]).toBe('function');
     });
   });
 
@@ -136,8 +115,8 @@ describe('Multer Error Handling Middleware', () => {
     test('both handlers should handle errors identically', () => {
       // This test verifies that both error handlers respond the same way
       // to the same error, ensuring consistent behavior across controllers
-      const invoiceHandler = invoiceUploadMiddleware[1];
-      const purchaseOrderHandler = purchaseOrderUploadMiddleware[1];
+      const invoiceHandler = multerErrorHandler;
+      const purchaseOrderHandler = multerErrorHandler;
       
       // Create a MulterError with LIMIT_FILE_SIZE code
       const err = new multer.MulterError('LIMIT_FILE_SIZE');

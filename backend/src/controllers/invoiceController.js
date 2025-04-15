@@ -1,33 +1,17 @@
 const InvoiceService = require('../services/invoice/invoiceService');
-const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
 const validateDeletion = require('../services/validateDeletion');
 const s3Service = require('../services/s3Service');
+const Sentry = require("../instrument");
+const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 20 * 1024 * 1024 // 20MB size limit
+
+class InvoiceController extends FinancialDocumentController {
+  constructor(invoiceService) {
+    super(invoiceService, "Invoice");
   }
-});
 
-// Multer error handling middleware
-const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({ 
-        message: 'File size exceeds the 20MB limit'
-      });
-    }
-    return res.status(400).json({ 
-      message: `Upload error: ${err.message}`
-    });
-  }
-  next(err);
-};
-
-exports.uploadMiddleware = [upload.single('file'), handleMulterError];
-/**
+  /**
  * Handles the upload and validation of invoice PDF files with an automatic 3-second timeout.
  *
  * This function performs multiple validation steps on the uploaded file:
@@ -57,72 +41,102 @@ exports.uploadMiddleware = [upload.single('file'), handleMulterError];
  * Returns a 504 Gateway Timeout response if processing exceeds 3 seconds.
  * Logs internal server errors to the console but provides a generic response to the client.
  */
-
-class InvoiceController extends FinancialDocumentController{
-  constructor(){
-    super(InvoiceService, "Invoice");
+  async uploadInvoice(req, res) {
+    return this.uploadFile(req, res)
   }
-}
 
-const invoiceController = new InvoiceController();
-exports.uploadInvoice = async (req, res) => {
-  return invoiceController.uploadFile(req, res);
-  
-};
+  async processUpload(req) {
+    const { buffer, originalname, mimetype } = req.file;
+    const partnerId = req.user.uuid;
 
-/**
- * @description Retrieves an invoice by ID with authorization check.
- *
- * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
- * @throws {401} Unauthorized if req.user is missing
- * @throws {403} Forbidden if invoice does not belong to the authenticated user
- * @throws {404} Not Found if invoice is not found
- * @throws {500} Internal Server Error 
- */
-exports.getInvoiceById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({message: "Invoice ID is required"});
+    return await this.service.uploadInvoice({
+      buffer,
+      originalname,
+      mimetype,
+      partnerId
+    })
+  }
+
+  /**
+   * @description Retrieves an invoice by ID with authorization check.
+   *
+   * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
+   * @throws {401} Unauthorized if req.user is missing
+   * @throws {403} Forbidden if invoice does not belong to the authenticated user
+   * @throws {404} Not Found if invoice is not found
+   * @throws {500} Internal Server Error 
+   */
+  async getInvoiceById(req, res) {
+    try {
+      const { id } = req.params;
+      await this.validateGetRequest(req, id);
+      const invoiceDetail = await this.service.getInvoiceById(id);
+      if (!invoiceDetail) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      return res.status(200).json(invoiceDetail);
+    } catch (error) {
+      return this.handleError(res, error);
     }
-    
+  }
+
+  async validateGetRequest(req, id) {
     if (!req.user) {
-      return res.status(401).json({message: "Unauthorized"});
+      throw new AuthError("Unauthorized");
     }
-    const invoicePartnerId = await InvoiceService.getPartnerId(id);
-    
-    if(invoicePartnerId !== req.user.uuid){
-      return res.status(403).json({message: "Forbidden: You do not have access to this invoice"});
+    if (!id) {
+      throw new ValidationError("Invoice ID is required");
     }
-
-    // Method getInvoiceById sudah diubah untuk menerima UUID
-    const invoiceDetail = await InvoiceService.getInvoiceById(id);
-
-    return res.status(200).json(invoiceDetail);
-  } catch (error) {
-    if (error.message === "Invoice not found") {
-      return res.status(404).json({ message: "Invoice not found" });
+    if (isNaN(id) || parseInt(id) <= 0) {
+      throw new ValidationError("Invalid invoice ID");
     }
-    return res.status(500).json({ message: "Internal server error" });
+    const invoicePartnerId = await this.service.getPartnerId(id);
+    if (invoicePartnerId !== req.user.uuid) {
+      throw new ForbiddenError("Forbidden: You do not have access to this invoice");
+    }
   }
-}
 
-/**
+  /**
  * Deletes an invoice by its ID.
  *
  * @param {Object} req - The request object containing parameters and user info.
  * @param {Object} res - The response object used to send status and messages.
  * @returns {Promise<Response>} The response indicating success or failure.
  */
-exports.deleteInvoiceById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    let invoice;
+  async deleteInvoiceById(req, res) {
     try {
+      const { id } = req.params;
+
+      // TODO: check sentry  config again for all method 
+      Sentry.addBreadcrumb({
+        category: "invoiceDeletion",
+        message: `Partner ${req.user.uuid} attempting to delete invoice ${id}`,
+        level: "info"
+      });
+
+      let invoice;
       invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, id);
+
+      if (invoice.file_url) {
+        const fileKey = invoice.file_url.split('/').pop();
+        const deleteResult = await s3Service.deleteFile(fileKey);
+        if (!deleteResult.success) {
+          // TODO: refactor this too 
+          const err = new Error("Failed to delete file from S3");
+          Sentry.captureException(err);
+          return res.status(500).json({ message: err.message, error: deleteResult.error });
+        }
+      }
+
+      await InvoiceService.deleteInvoiceById(id);
+
+      Sentry.captureMessage(`Invoice ${id} successfully deleted by ${req.user.uuid}`);
+      return res.status(200).json({ message: "Invoice successfully deleted" });
+
     } catch (error) {
+      // TODO: refactor this 
+      Sentry.captureException(error);
+
       if (error.message === "Invoice not found") {
         return res.status(404).json({ message: error.message });
       }
@@ -132,59 +146,15 @@ exports.deleteInvoiceById = async (req, res) => {
       if (error.message === "Invoice cannot be deleted unless it is Analyzed") {
         return res.status(409).json({ message: error.message });
       }
+      
       return res.status(500).json({ message: "Internal server error" });
     }
+  };
+}
 
-    if (invoice.file_url) {
-      const fileKey = invoice.file_url.split('/').pop();
-      const deleteResult = await s3Service.deleteFile(fileKey);
-      if (!deleteResult.success) {
-        return res.status(500).json({ message: "Failed to delete file from S3", error: deleteResult.error });
-      }
-    }
-
-    await InvoiceService.deleteInvoiceById(id);
-
-    return res.status(200).json({ message: "Invoice successfully deleted" });
-  } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-/**
- * Analyzes an invoice document using Azure Form Recognizer and optionally saves to database
- */
-exports.analyzeInvoice = async (req, res) => {
-  const { documentUrl } = req.body;
-  const partnerId = req.user?.uuid; 
-  if (!documentUrl) {
-    return res.status(400).json({ message: "documentUrl is required" });
-  }
-  if (!partnerId) {
-    return res.status(401).json({ message: "Unauthorized. User information not available." });
-  }
-
-  try {
-    // Analisis dokumen, mapping, dan simpan ke database
-    const result = await InvoiceService.analyzeInvoice(documentUrl, partnerId);
-    
-    if (!result?.savedInvoice) {
-      return res.status(500).json({ message: "Failed to analyze invoice: no saved invoice returned" });
-    }
-    
-    return res.status(200).json({
-      message: "Invoice analyzed and saved to database",
-      rawData: result.rawData,
-      invoiceData: result.invoiceData,
-      savedInvoice: result.savedInvoice
-    });
-  } catch (error) {
-    if (error.message.includes("Invalid date format") || error.message === "Invoice contains invalid date format") {
-      return res.status(400).json({ message: error.message });
-    } else if (error.message === "Failed to process the document") {
-      return res.status(400).json({ message: error.message });
-    } else {
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
-  }
+// TODO: check again this part, might want to export class instead
+const controller = new InvoiceController(InvoiceService);
+module.exports = {
+  InvoiceController,  // Export the class for testing
+  controller         // Export instance for routes
 };

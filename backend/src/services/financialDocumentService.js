@@ -1,4 +1,5 @@
 const s3Service = require("./s3Service")
+const DocumentStatus = require('../models/enums/documentStatus');
 
 class FinancialDocumentService {
   constructor(documentType) {
@@ -14,7 +15,7 @@ class FinancialDocumentService {
       throw new Error("Failed to upload file to S3");
     }
     return {
-      status: "Processing",
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url
     };

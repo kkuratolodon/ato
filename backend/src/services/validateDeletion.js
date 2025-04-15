@@ -1,3 +1,4 @@
+const DocumentStatus = require("../models/enums/documentStatus");
 const InvoiceRepository = require("../repositories/invoiceRepository");
 
 /**
@@ -31,7 +32,7 @@ class ValidateDeletion {
       throw new Error("Unauthorized: You do not own this invoice");
     }
 
-    if (invoice.status !== "Analyzed") {
+    if (invoice.status !== DocumentStatus.ANALYZED) {
       throw new Error("Invoice cannot be deleted unless it is Analyzed");
     }
 

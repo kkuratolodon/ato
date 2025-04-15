@@ -10,6 +10,7 @@ const InvoiceValidator = require('./invoiceValidator');
 const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
 const InvoiceLogger = require('./invoiceLogger');
+const DocumentStatus = require('../../models/enums/documentStatus.js');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {
@@ -43,7 +44,7 @@ class InvoiceService extends FinancialDocumentService {
 
       await this.invoiceRepository.createInitial({
         id: invoiceUuid,
-        status: "Processing",
+        status: DocumentStatus.PROCESSING,
         partner_id: partnerId,
         file_url: s3Result.file_url,
         original_filename: originalname,
@@ -55,7 +56,7 @@ class InvoiceService extends FinancialDocumentService {
       return {
         message: "Invoice upload initiated",
         id: invoiceUuid,
-        status: "Processing"
+        status: DocumentStatus.PROCESSING
       };
     } catch (error) {
       InvoiceLogger.logError(null, error, 'UPLOAD_INITIATION');
@@ -106,14 +107,16 @@ class InvoiceService extends FinancialDocumentService {
       await this.saveInvoiceItems(invoiceId, itemsData);
 
       // 7. Update status menjadi "Analyzed"
-      await this.invoiceRepository.update(invoiceId, { status: "Analyzed" });
+      await this.invoiceRepository.update(invoiceId, { status: DocumentStatus.ANALYZED });
 
       InvoiceLogger.logProcessingComplete(invoiceId);
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
     } catch (error) {
       InvoiceLogger.logError(invoiceId, error, 'PROCESSING');
       Sentry.captureException(error);
-      await this.invoiceRepository.updateStatus(invoiceId, "Failed");
+
+      // Update status menjadi "Failed" jika processing gagal
+      await this.invoiceRepository.updateStatus(invoiceId, DocumentStatus.FAILED);
     }
   }
 
@@ -216,9 +219,24 @@ class InvoiceService extends FinancialDocumentService {
   async getInvoiceById(id) {
     try {
       const invoice = await this.invoiceRepository.findById(id);
-
+      
       if (!invoice) {
         throw new Error("Invoice not found");
+      }
+
+      // Check invoice status first
+      if (invoice.status === DocumentStatus.PROCESSING) {
+        return {
+          message: "Invoice is still being processed. Please try again later.",
+          data: { documents: [] }
+        };
+      }
+
+      if (invoice.status === DocumentStatus.FAILED) {
+        return {
+          message: "Invoice processing failed. Please re-upload the document.",
+          data: { documents: [] }
+        };
       }
 
       const items = await this.itemRepository.findItemsByDocumentId(id, 'Invoice');
@@ -247,17 +265,20 @@ class InvoiceService extends FinancialDocumentService {
   async deleteInvoiceById(id) {
     try {
       const result = await this.invoiceRepository.delete(id);
-
+  
       if (result === 0) {
-        throw new Error("Failed to delete invoice");
+        const err = new Error(`Failed to delete invoice with ID: ${id}`);;
+        Sentry.captureException(err);
+        throw err;
       }
-
+  
       return { message: "Invoice successfully deleted" };
     } catch (error) {
-      console.error("Error deleting invoice:", error);
+      Sentry.captureException(error);
       throw new Error("Failed to delete invoice: " + error.message);
     }
   }
+  
 
   async analyzeInvoice(documentUrl) {
     return this.documentAnalyzer.analyzeDocument(documentUrl);

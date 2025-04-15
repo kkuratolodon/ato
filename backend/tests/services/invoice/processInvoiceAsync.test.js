@@ -1,4 +1,5 @@
 const Sentry = require('../../../src/instrument');
+const DocumentStatus = require('../../../src/models/enums/documentStatus');
 const InvoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock dependencies
@@ -99,7 +100,7 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     );
     
     expect(InvoiceService.invoiceRepository.update).toHaveBeenCalledWith(
-      invoiceId, { status: "Analyzed" }
+      invoiceId, { status: DocumentStatus.ANALYZED }
     );
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       `Successfully completed processing invoice ${uuid}`
