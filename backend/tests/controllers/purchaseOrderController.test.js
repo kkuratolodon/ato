@@ -1,6 +1,6 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
 const { PurchaseOrderController } = require("../../src/controllers/purchaseOrderController");
-const purchaseOrderService = require("../../src/services/purchaseOrderService");
+const purchaseOrderService = require("../../src/services/purchaseOrder/purchaseOrderService");
 const pdfValidationService = require("../../src/services/pdfValidationService");
 
 jest.mock("../../src/services/purchaseOrder/purchaseOrderService");

@@ -1,13 +1,9 @@
 const request = require('supertest');
 const express = require('express');
 
-// // Route dan dependensi
-// const invoiceRoutes = require('../../src/routes/invoiceRoute');
-// const authMiddleware = require('../../src/middlewares/authMiddleware');
-// const invoiceController = require('../../src/controllers/invoiceController');
-
 // Mock agar kita tidak memanggil implementasi asli
 jest.mock('../../src/middlewares/authMiddleware');
+jest.mock('../../src/middlewares/uploadMiddleware'); 
 jest.mock('../../src/controllers/invoiceController', () => ({
   controller: {
     uploadInvoice: jest.fn((req, res) => res.end()),
@@ -18,7 +14,7 @@ jest.mock('../../src/controllers/invoiceController', () => ({
 }));
 
 // Import after mocking
-const { controller: invoiceController, uploadMiddleware } = require('../../src/controllers/invoiceController');
+const { controller: invoiceController } = require('../../src/controllers/invoiceController');
 const authMiddleware = require('../../src/middlewares/authMiddleware');
 const uploadMiddleware = require('../../src/middlewares/uploadMiddleware');
 const invoiceRoutes = require('../../src/routes/invoiceRoute');
@@ -80,6 +76,7 @@ describe('Invoice Routes', () => {
     authMiddleware.mockImplementation((req, res) => {
       return res.status(401).json({ message: 'Unauthorized' });
     });
+
     // 2. Middleware/controller lain seharusnya tidak dipanggil
     uploadMiddleware.mockImplementation((req, res, next) => next());
     invoiceController.uploadInvoice.mockImplementation((req, res) => res.end());

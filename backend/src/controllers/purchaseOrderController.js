@@ -1,4 +1,4 @@
-const PurchaseOrderService = require("../services/purchaseOrder/purchaseOrderService");
+const purchaseOrderService = require("../services/purchaseOrder/purchaseOrderService");
 const FinancialDocumentController = require('./financialDocumentController');
 
 
@@ -27,7 +27,7 @@ class PurchaseOrderController extends FinancialDocumentController {
   }
 }
 
-const purchaseOrderController = new PurchaseOrderController();
+const purchaseOrderController = new PurchaseOrderController(purchaseOrderService);
 module.exports = {
   PurchaseOrderController, 
   purchaseOrderController,   

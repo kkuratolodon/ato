@@ -1,5 +1,4 @@
 const InvoiceService = require('../services/invoice/invoiceService');
-const multer = require('multer');
 const FinancialDocumentController = require('./financialDocumentController');
 const validateDeletion = require('../services/validateDeletion');
 const s3Service = require('../services/s3Service');
@@ -7,8 +6,8 @@ const Sentry = require("../instrument");
 const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
 
 
-class InvoiceController extends FinancialDocumentController{
-  constructor(invoiceService){
+class InvoiceController extends FinancialDocumentController {
+  constructor(invoiceService) {
     super(invoiceService, "Invoice");
   }
 
@@ -43,7 +42,7 @@ class InvoiceController extends FinancialDocumentController{
  * Logs internal server errors to the console but provides a generic response to the client.
  */
   async uploadInvoice(req, res) {
-    return this.uploadFile(req, res) 
+    return this.uploadFile(req, res)
   }
 
   async processUpload(req) {
@@ -78,7 +77,7 @@ class InvoiceController extends FinancialDocumentController{
       return res.status(200).json(invoiceDetail);
     } catch (error) {
       return this.handleError(res, error);
-    }    
+    }
   }
 
   async validateGetRequest(req, id) {
@@ -107,19 +106,37 @@ class InvoiceController extends FinancialDocumentController{
   async deleteInvoiceById(req, res) {
     try {
       const { id } = req.params;
-      
-    // TODO: check sentry  config again for all method 
-    Sentry.addBreadcrumb({
-      category: "invoiceDeletion",
-      message: `Partner ${req.user.uuid} attempting to delete invoice ${id}`,
-      level: "info"
-    });
 
-    let invoice;
-    try {
+      // TODO: check sentry  config again for all method 
+      Sentry.addBreadcrumb({
+        category: "invoiceDeletion",
+        message: `Partner ${req.user.uuid} attempting to delete invoice ${id}`,
+        level: "info"
+      });
+
+      let invoice;
       invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, id);
+
+      if (invoice.file_url) {
+        const fileKey = invoice.file_url.split('/').pop();
+        const deleteResult = await s3Service.deleteFile(fileKey);
+        if (!deleteResult.success) {
+          // TODO: refactor this too 
+          const err = new Error("Failed to delete file from S3");
+          Sentry.captureException(err);
+          return res.status(500).json({ message: err.message, error: deleteResult.error });
+        }
+      }
+
+      await InvoiceService.deleteInvoiceById(id);
+
+      Sentry.captureMessage(`Invoice ${id} successfully deleted by ${req.user.uuid}`);
+      return res.status(200).json({ message: "Invoice successfully deleted" });
+
     } catch (error) {
+      // TODO: refactor this 
       Sentry.captureException(error);
+
       if (error.message === "Invoice not found") {
         return res.status(404).json({ message: error.message });
       }
@@ -129,23 +146,7 @@ class InvoiceController extends FinancialDocumentController{
       if (error.message === "Invoice cannot be deleted unless it is Analyzed") {
         return res.status(409).json({ message: error.message });
       }
-      return res.status(500).json({ message: "Internal server error" });
-    }
-
-    if (invoice.file_url) {
-      const fileKey = invoice.file_url.split('/').pop();
-      const deleteResult = await s3Service.deleteFile(fileKey);
-      if (!deleteResult.success) {
-        const err = new Error("Failed to delete file from S3");
-        Sentry.captureException(err);
-        return res.status(500).json({ message: err.message, error: deleteResult.error });
-      }
-    }
-
-      await InvoiceService.deleteInvoiceById(id);
-
-      return res.status(200).json({ message: "Invoice successfully deleted" });
-    } catch (error) {
+      
       return res.status(500).json({ message: "Internal server error" });
     }
   };
