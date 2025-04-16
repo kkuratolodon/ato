@@ -1,6 +1,7 @@
 const pdfValidationService = require('../services/pdfValidationService');
 const { safeResponse } = require('../utils/responseHelper');
 const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError } = require('../utils/errors');
+const Sentry = require('@sentry/node');
 
 class FinancialDocumentController {
   constructor(service, documentType) {
@@ -25,7 +26,13 @@ class FinancialDocumentController {
     }
   }
 
-  async uploadFile(req, res) {
+  async uploadFile(req, res) {   
+    Sentry.addBreadcrumb({
+      category: "fileUpload",
+      message: `Partner ${req.user.uuid} uploading ${this.documentType}`,
+      level: "info"
+    })    
+    
     try {
       await this.executeWithTimeout(async () => {
         await this.validateUploadRequest(req);

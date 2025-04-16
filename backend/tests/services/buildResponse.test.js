@@ -20,7 +20,7 @@ jest.mock('../../src/services/invoice/invoiceService', () => {
   };
 });
 
-const DocumentStatus = require('../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 // Now require the mocked module with correct path and casing
 const invoiceService = require('../../src/services/invoice/invoiceService');
 

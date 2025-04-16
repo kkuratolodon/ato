@@ -4,7 +4,7 @@ jest.mock('../../src/repositories/invoiceRepository');
 // Now import the modules
 const validateDeletion = require('../../src/services/validateDeletion');
 const InvoiceRepository = require('../../src/repositories/invoiceRepository');
-const DocumentStatus = require('../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 
 describe('ValidateDeletion Service', () => {
   let mockFindById;
