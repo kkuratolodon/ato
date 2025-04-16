@@ -26,13 +26,7 @@ class FinancialDocumentController {
     }
   }
 
-  async uploadFile(req, res) {   
-    Sentry.addBreadcrumb({
-      category: "fileUpload",
-      message: `Partner ${req.user.uuid} uploading ${this.documentType}`,
-      level: "info"
-    })    
-    
+  async uploadFile(req, res) {       
     try {
       await this.executeWithTimeout(async () => {
         await this.validateUploadRequest(req);
