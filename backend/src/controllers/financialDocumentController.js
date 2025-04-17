@@ -25,7 +25,7 @@ class FinancialDocumentController {
     }
   }
 
-  async uploadFile(req, res) {       
+  async uploadFile(req, res) {
     try {
       await this.executeWithTimeout(async () => {
         await this.validateUploadRequest(req);
