@@ -1,7 +1,6 @@
 const pdfValidationService = require('../services/pdfValidationService');
 const { safeResponse } = require('../utils/responseHelper');
 const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError } = require('../utils/errors');
-const Sentry = require('@sentry/node');
 
 class FinancialDocumentController {
   constructor(service, documentType) {
