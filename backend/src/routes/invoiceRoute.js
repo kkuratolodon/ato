@@ -11,7 +11,6 @@ router.get('/debug-sentry', () => {
 
 router.post(
     '/upload',
-    apiLimiter,
     authMiddleware,               
     uploadMiddleware,
     controller.uploadInvoice
@@ -19,7 +18,6 @@ router.post(
 
 router.get(
     '/:id', 
-    apiLimiter,
     authMiddleware,
     controller.getInvoiceById
 );

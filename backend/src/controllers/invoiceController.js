@@ -123,9 +123,9 @@ class InvoiceController extends FinancialDocumentController {
     if (!id) {
       throw new ValidationError("Invoice ID is required");
     }
-    if (isNaN(id) || parseInt(id) <= 0) {
-      throw new ValidationError("Invalid invoice ID");
-    }
+    // if (isNaN(id) || parseInt(id) <= 0) {
+    //   throw new ValidationError("Invalid invoice ID");
+    // }
     const invoicePartnerId = await this.service.getPartnerId(id);
     if (invoicePartnerId !== req.user.uuid) {
       throw new ForbiddenError("Forbidden: You do not have access to this invoice");
