@@ -1,5 +1,5 @@
 const s3Service = require("./s3Service")
-const DocumentStatus = require('../models/enums/documentStatus');
+const DocumentStatus = require('../models/enums/DocumentStatus');
 
 class FinancialDocumentService {
   constructor(documentType) {

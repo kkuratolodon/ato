@@ -2,7 +2,7 @@ const FinancialDocumentService = require('../../src/services/financialDocumentSe
 const s3Service = require('../../src/services/s3Service');
 const invoiceService = require('../../src/services/invoice/invoiceService'); // Import as singleton instance
 const { Invoice } = require('../../src/models');
-const DocumentStatus = require('../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 
 // Mock dependencies
 jest.mock('../../src/services/s3Service', () => ({

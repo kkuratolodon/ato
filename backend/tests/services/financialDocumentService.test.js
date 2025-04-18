@@ -1,4 +1,4 @@
-const DocumentStatus = require('../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 const FinancialDocumentService = require('../../src/services/financialDocumentService');
 const s3Service = require('../../src/services/s3Service');
 

@@ -1,4 +1,4 @@
-const DocumentStatus = require('../../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 const invoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock the repositories
