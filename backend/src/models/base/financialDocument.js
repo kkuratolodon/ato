@@ -127,6 +127,16 @@ class FinancialDocument extends Model {
           key: 'uuid'
         },
         defaultValue: null
+      },
+      is_deleted: {
+        type: options.DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      deleted_at: {
+        type: options.DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null
       }
     };
 

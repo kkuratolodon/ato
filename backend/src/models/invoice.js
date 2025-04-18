@@ -70,7 +70,7 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'Invoice',
     tableName: 'Invoice',
     freezeTableName: true,
-    DataTypes // Pass DataTypes to the parent class
+    DataTypes 
   });
 
   return Invoice;
