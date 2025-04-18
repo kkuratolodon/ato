@@ -6,6 +6,7 @@ jest.mock('../../src/models', () => ({
     Invoice: {
         create: jest.fn(),
         findOne: jest.fn(),
+        findByPk: jest.fn(),
         update: jest.fn(),
         destroy: jest.fn()
     }
@@ -177,27 +178,42 @@ describe('InvoiceRepository', () => {
 
     describe('delete', () => {
         test('should soft delete invoice successfully', async () => {
+            // Mock invoice instance
+            const mockInvoice = {
+                id: 1,
+                destroy: jest.fn().mockResolvedValue(true)
+            };
+            
+            Invoice.findByPk.mockResolvedValue(mockInvoice);
+            
             await invoiceRepository.delete(1);
             
-            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
+            expect(Invoice.findByPk).toHaveBeenCalledWith(1);
+            expect(mockInvoice.destroy).toHaveBeenCalled();
         });
-
+    
         test('should throw an error when delete fails', async () => {
             const mockError = new Error('Delete failed');
-            Invoice.destroy.mockRejectedValueOnce(mockError);
+            const mockInvoice = {
+                id: 1,
+                destroy: jest.fn().mockRejectedValue(mockError)
+            };
+            
+            Invoice.findByPk.mockResolvedValue(mockInvoice);
             
             await expect(invoiceRepository.delete(1))
                 .rejects.toThrow(mockError);
             
-            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
+            expect(Invoice.findByPk).toHaveBeenCalledWith(1);
+            expect(mockInvoice.destroy).toHaveBeenCalled();
         });
-
+    
         test('should handle non-existent ID gracefully', async () => {
-            Invoice.destroy.mockResolvedValueOnce(0); 
+            Invoice.findByPk.mockResolvedValue(null);
             
             await invoiceRepository.delete(999);
             
-            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 999 } });
+            expect(Invoice.findByPk).toHaveBeenCalledWith(999);
         });
     });
 
@@ -213,16 +229,17 @@ describe('InvoiceRepository', () => {
 
         test('should throw an error when hard delete fails', async () => {
             const mockError = new Error('Hard delete failed');
-            Invoice.destroy.mockRejectedValueOnce(mockError);
+            
+            Invoice.destroy = jest.fn().mockRejectedValue(mockError);
             
             await expect(invoiceRepository.hardDelete(1))
-                .rejects.toThrow(mockError);
+              .rejects.toThrow(mockError);
             
             expect(Invoice.destroy).toHaveBeenCalledWith({ 
-                where: { id: 1 },
-                force: true
+              where: { id: 1 },
+              force: true
             });
-        });
+          });
 
         test('should handle non-existent ID when hard deleting', async () => {
             Invoice.destroy.mockResolvedValueOnce(0); 
