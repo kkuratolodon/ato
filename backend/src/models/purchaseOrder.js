@@ -68,12 +68,13 @@ module.exports = (sequelize, DataTypes) => {
         paranoid: true,          
         deletedAt: 'deleted_at',  
         hooks: {
-            beforeDestroy: (instance) => {
-                instance.is_deleted = true;
+            beforeDestroy: async (instance) => {
+                 instance.is_deleted = true;
+                 await instance.save();
             },
-            afterRestore: (instance) => {
+            afterRestore: async (instance) => {
                 instance.is_deleted = false;
-                instance.save();
+                await instance.save();
             }
         },
         DataTypes
