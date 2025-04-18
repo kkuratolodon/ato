@@ -70,6 +70,17 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'Invoice',
     tableName: 'Invoice',
     freezeTableName: true,
+    paranoid: true,        
+    deletedAt: 'deleted_at',
+    hooks: {
+      beforeDestroy: (instance) => {
+        instance.is_deleted = true;
+      },
+      afterRestore: (instance) => {
+        instance.is_deleted = false;
+        instance.save();
+      }
+    },
     DataTypes 
   });
 
