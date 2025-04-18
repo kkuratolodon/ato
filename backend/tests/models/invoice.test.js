@@ -371,5 +371,101 @@ describe("Invoice Model", () => {
     
     expect(testInvoice.analysis_json_url).toBeNull();
   });
+
+  describe('Soft Delete Functionality', () => {
+    test('should set is_deleted to false by default when creating invoice', async () => {
+      const invoice = await Invoice.create({
+        invoice_date: new Date(),
+        status: 'Processing',
+        partner_id: 'partner-uuid-123'
+      });
+      
+      expect(invoice.is_deleted).toBe(false);
+      expect(invoice.deleted_at).toBeNull();
+    });
+    
+    test('should update is_deleted flag and deleted_at when performing soft delete', async () => {
+      const invoice = await Invoice.create({
+        invoice_date: new Date(),
+        status: 'Analyzed',
+        partner_id: 'partner-uuid-123'
+      });
+      
+      const now = new Date();
+      
+      await invoice.update({
+        is_deleted: true,
+        deleted_at: now
+      });
+      
+      await invoice.reload();
+      
+      expect(invoice.is_deleted).toBe(true);
+      expect(invoice.deleted_at).toBeInstanceOf(Date);
+      expect(invoice.deleted_at.getTime()).toBeCloseTo(now.getTime(), -3); // Allow small time difference
+    });
+    
+    test('should exclude soft-deleted invoices when using findAll with where condition', async () => {
+      
+      await Invoice.create({
+        invoice_number: 'INV-ACTIVE',
+        invoice_date: new Date(),
+        status: 'Analyzed',
+        partner_id: 'partner-uuid-123'
+      });
+      
+      const deletedInvoice = await Invoice.create({
+        invoice_number: 'INV-DELETED',
+        invoice_date: new Date(),
+        status: 'Analyzed',
+        partner_id: 'partner-uuid-123'
+      });
+      
+      await deletedInvoice.update({
+        is_deleted: true,
+        deleted_at: new Date()
+      });
+      
+      const activeInvoices = await Invoice.findAll({
+        where: {
+          is_deleted: false
+        }
+      });
+      
+      const allInvoices = await Invoice.findAll();
+
+      expect(activeInvoices.some(inv => inv.invoice_number === 'INV-DELETED')).toBe(false);
+      expect(activeInvoices.some(inv => inv.invoice_number === 'INV-ACTIVE')).toBe(true);
+
+      expect(allInvoices.length).toBeGreaterThan(activeInvoices.length);
+      expect(allInvoices.some(inv => inv.invoice_number === 'INV-DELETED')).toBe(true);
+    });
+    
+    test('should be able to "restore" a soft-deleted invoice', async () => {
+      const invoice = await Invoice.create({
+        invoice_number: 'INV-RESTORE',
+        invoice_date: new Date(),
+        status: 'Analyzed',
+        partner_id: 'partner-uuid-123'
+      });
+      
+      await invoice.update({
+        is_deleted: true,
+        deleted_at: new Date()
+      });
+      
+      await invoice.reload();
+      expect(invoice.is_deleted).toBe(true);
+      
+      await invoice.update({
+        is_deleted: false,
+        deleted_at: null
+      });
+      
+      await invoice.reload();
+      expect(invoice.is_deleted).toBe(false);
+      expect(invoice.deleted_at).toBeNull();
+    });
+  });
   
 });
