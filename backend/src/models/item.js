@@ -39,9 +39,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true
         },
-        // Menambahkan field dari FinancialDocumentItem
         document_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID, // Ubah dari INTEGER ke UUID
             allowNull: true
         },
         document_type: {
