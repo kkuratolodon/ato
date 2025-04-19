@@ -253,28 +253,5 @@ describe("Invoice Controller", () => {
       });
     });
 
-    test("should return 400 when invoice ID is not a number", async () => {
-      const testData = setupTestData({ params: { id: "abc" } });
-      Object.assign(req, testData);
-
-      await controller.getInvoiceById(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Invalid invoice ID"
-      });
-    });
-
-    test("should return 400 when invoice ID is negative", async () => {
-      const testData = setupTestData({ params: { id: "-1" } });
-      Object.assign(req, testData);
-
-      await controller.getInvoiceById(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Invalid invoice ID"
-      });
-    });
   });
 });

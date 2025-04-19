@@ -1,6 +1,6 @@
 const PurchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
 const Sentry = require('../../../src/instrument');
-const DocumentStatus = require('../../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 
 jest.mock('../../../src/repositories/purchaseOrderRepository');
 jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');

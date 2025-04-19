@@ -1,5 +1,5 @@
 const Sentry = require('../../../src/instrument');
-const DocumentStatus = require('../../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 const InvoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock dependencies

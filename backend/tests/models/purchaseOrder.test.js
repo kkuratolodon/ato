@@ -5,7 +5,7 @@ const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require("../../src/models/customer");
 const VendorModel = require("../../src/models/vendor");
 const item = require("../../src/models/item");
-const DocumentStatus = require('../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 
 describe('PurchaseOrder Model', () => {
     let sequelize;

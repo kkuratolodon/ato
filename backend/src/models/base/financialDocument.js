@@ -1,6 +1,6 @@
 'use strict';
 const { Model } = require('sequelize');
-const DocumentStatus = require('../enums/documentStatus');
+const DocumentStatus = require('../enums/DocumentStatus');
 
 
 /**

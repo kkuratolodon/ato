@@ -10,7 +10,7 @@ const InvoiceValidator = require('./invoiceValidator');
 const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
 const InvoiceLogger = require('./invoiceLogger');
-const DocumentStatus = require('../../models/enums/documentStatus.js');
+const DocumentStatus = require('../../models/enums/DocumentStatus.js');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {
