@@ -2,7 +2,7 @@ const { DataTypes, Sequelize } = require('sequelize');
 const ItemModel = require('../../src/models/item');
 const InvoiceModel = require('../../src/models/invoice');
 const PurchaseOrderModel = require('../../src/models/purchaseOrder');
-const FinancialDocumentItemModel = require('../../src/models/FinancialDocumentItem');
+// Hapus import FinancialDocumentItemModel karena sudah digabung ke Item
 const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require('../../src/models/customer');
 const VendorModel = require('../../src/models/vendor');
@@ -13,7 +13,7 @@ describe('Item Model', () => {
     let Item;
     let Invoice;
     let PurchaseOrder;
-    let FinancialDocumentItem;
+    // Hapus FinancialDocumentItem karena tidak digunakan lagi
     let Partner;
     let Customer;
     let Vendor;
@@ -26,7 +26,7 @@ describe('Item Model', () => {
         Item = ItemModel(sequelize, DataTypes);
         Invoice = InvoiceModel(sequelize, DataTypes);
         PurchaseOrder = PurchaseOrderModel(sequelize, DataTypes);
-        FinancialDocumentItem = FinancialDocumentItemModel(sequelize, DataTypes);
+        // Hapus inisialisasi FinancialDocumentItem
         Partner = PartnerModel(sequelize, DataTypes);
         Customer = CustomerModel(sequelize, DataTypes);
         Vendor = VendorModel(sequelize, DataTypes);
@@ -37,21 +37,7 @@ describe('Item Model', () => {
         Partner.associate?.({ Invoice, PurchaseOrder });
         Customer.associate && Customer.associate({ Invoice, PurchaseOrder });
         Vendor.associate && Vendor.associate({ Invoice, PurchaseOrder });
-
-        // Set up Item associations manually
-        Item.belongsToMany(Invoice, {
-            through: FinancialDocumentItem,
-            foreignKey: 'item_id',
-            otherKey: 'document_id',
-            as: 'invoices'
-        });
-
-        Item.belongsToMany(PurchaseOrder, {
-            through: FinancialDocumentItem,
-            foreignKey: 'item_id',
-            otherKey: 'document_id',
-            as: 'purchase_orders'
-        });
+        Item.associate && Item.associate({ Invoice, PurchaseOrder });
 
         // Sync models to database
         await sequelize.sync({ force: true });
@@ -62,39 +48,69 @@ describe('Item Model', () => {
     test('it should have required item attributes', () => {
         expect(Item.rawAttributes).toHaveProperty('uuid');
         expect(Item.rawAttributes).toHaveProperty('description');
+        // Tambahkan pengujian untuk atribut baru
+        expect(Item.rawAttributes).toHaveProperty('document_id');
+        expect(Item.rawAttributes).toHaveProperty('document_type');
+        expect(Item.rawAttributes).toHaveProperty('quantity');
+        expect(Item.rawAttributes).toHaveProperty('unit');
+        expect(Item.rawAttributes).toHaveProperty('unit_price');
+        expect(Item.rawAttributes).toHaveProperty('amount');
     });
 
     describe('Positive Cases', () => {
         test('should create an item with all fields populated', async () => {
             const item = await Item.create({
                 description: 'Test item',
+                document_id: 1,
+                document_type: 'invoice',
+                quantity: 5,
+                unit: 'pcs',
+                unit_price: 10.50,
+                amount: 52.50
             });
 
             const retrievedItem = await Item.findByPk(item.uuid);
 
             expect(retrievedItem).toBeDefined();
             expect(retrievedItem.description).toBe('Test item');
+            expect(retrievedItem.document_id).toBe(1);
+            expect(retrievedItem.document_type).toBe('invoice');
+            expect(retrievedItem.quantity).toBe(5);
+            expect(retrievedItem.unit).toBe('pcs');
+            expect(retrievedItem.unit_price).toBe(10.50);
+            expect(retrievedItem.amount).toBe(52.50);
         });
 
         test('should handle null values for optional fields', async () => {
             const item = await Item.create({
                 description: null,
                 quantity: null,
+                unit: null,
+                unit_price: null,
+                amount: null
             });
 
             expect(item).toHaveProperty('uuid');
             expect(item.description).toBeNull();
+            expect(item.quantity).toBeNull();
+            expect(item.unit).toBeNull();
+            expect(item.unit_price).toBeNull();
+            expect(item.amount).toBeNull();
         });
 
         test('should correctly create and retrieve an item with decimal values', async () => {
             const item = await Item.create({
                 description: 'Test item with decimals',
+                unit_price: 99.99,
+                amount: 999.99
             });
 
             const retrievedItem = await Item.findByPk(item.uuid);
 
             expect(retrievedItem).toBeDefined();
             expect(retrievedItem.description).toBe('Test item with decimals');
+            expect(retrievedItem.unit_price).toBe(99.99);
+            expect(retrievedItem.amount).toBe(999.99);
         });
     });
 
@@ -116,12 +132,14 @@ describe('Item Model', () => {
         test('should handle empty string values', async () => {
             const item = await Item.create({
                 description: '',
+                unit: ''
             });
 
             const retrievedItem = await Item.findByPk(item.uuid);
 
             expect(retrievedItem).toBeDefined();
             expect(retrievedItem.description).toBe('');
+            expect(retrievedItem.unit).toBe('');
         });
 
         test('should handle very long description text', async () => {
@@ -139,7 +157,7 @@ describe('Item Model', () => {
         });
     });
 
-    // Add this new test section within the 'Association Tests' describe block:
+    // Update Associate Method Tests untuk relasi yang baru
     describe('Associate Method Tests', () => {
         test('should properly call associate with Invoice model', () => {
             // Create a fresh instance to avoid state from previous tests
@@ -152,11 +170,11 @@ describe('Item Model', () => {
 
             // Verify the association was created correctly
             expect(LocalItem.associations).toBeDefined();
-            expect(LocalItem.associations.invoices).toBeDefined();
-            expect(LocalItem.associations.invoices.associationType).toBe('BelongsToMany');
-            expect(LocalItem.associations.invoices.options.through.model).toBe('FinancialDocumentItem');
-            expect(LocalItem.associations.invoices.options.foreignKey).toBe('item_id');
-            expect(LocalItem.associations.invoices.options.otherKey).toBe('document_id');
+            expect(LocalItem.associations.Invoice).toBeDefined();
+            expect(LocalItem.associations.Invoice.associationType).toBe('BelongsTo');
+            expect(LocalItem.associations.Invoice.options.foreignKey).toBe('document_id');
+            expect(LocalItem.associations.Invoice.options.constraints).toBe(false);
+            expect(LocalItem.associations.Invoice.options.scope.document_type).toBe('invoice');
         });
 
         test('should properly call associate with PurchaseOrder model', () => {
@@ -170,11 +188,11 @@ describe('Item Model', () => {
 
             // Verify the association was created correctly
             expect(LocalItem.associations).toBeDefined();
-            expect(LocalItem.associations.purchase_orders).toBeDefined();
-            expect(LocalItem.associations.purchase_orders.associationType).toBe('BelongsToMany');
-            expect(LocalItem.associations.purchase_orders.options.through.model).toBe('FinancialDocumentItem');
-            expect(LocalItem.associations.purchase_orders.options.foreignKey).toBe('item_id');
-            expect(LocalItem.associations.purchase_orders.options.otherKey).toBe('document_id');
+            expect(LocalItem.associations.PurchaseOrder).toBeDefined();
+            expect(LocalItem.associations.PurchaseOrder.associationType).toBe('BelongsTo');
+            expect(LocalItem.associations.PurchaseOrder.options.foreignKey).toBe('document_id');
+            expect(LocalItem.associations.PurchaseOrder.options.constraints).toBe(false);
+            expect(LocalItem.associations.PurchaseOrder.options.scope.document_type).toBe('purchase_order');
         });
 
         test('should handle edge cases in associate method', () => {
@@ -216,8 +234,8 @@ describe('Item Model', () => {
             });
 
             // Verify both associations
-            expect(LocalItem.associations.invoices).toBeDefined();
-            expect(LocalItem.associations.purchase_orders).toBeDefined();
+            expect(LocalItem.associations.Invoice).toBeDefined();
+            expect(LocalItem.associations.PurchaseOrder).toBeDefined();
         });
     });
 });
