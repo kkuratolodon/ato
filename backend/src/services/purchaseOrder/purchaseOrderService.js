@@ -75,6 +75,7 @@ class PurchaseOrderService extends FinancialDocumentService {
       
       // 2. Upload OCR results to S3 as JSON and get the URL
       const jsonUrl = await this.uploadAnalysisResults(analysisResult, purchaseOrderId);
+      console.log(`Analysis JSON URL for purchase order ${purchaseOrderId}: ${jsonUrl}`);
       await this.purchaseOrderRepository.updateStatus(purchaseOrderId, DocumentStatus.ANALYZED);
 
       Sentry.captureMessage(`Successfully completed processing purchase order ${purchaseOrderId}`);
