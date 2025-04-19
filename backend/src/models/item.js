@@ -6,22 +6,24 @@ module.exports = (sequelize, DataTypes) => {
         static associate(models) {
             if (!models) return;
             if (models.Invoice) {
-                Item.belongsToMany(models.Invoice, {
-                    through: 'FinancialDocumentItem',
-                    foreignKey: 'item_id',
-                    otherKey: 'document_id',
-                    as: 'invoices',
-                    constraints: false
+                // Perhatikan perubahan dari belongsToMany menjadi belongsTo
+                Item.belongsTo(models.Invoice, {
+                    foreignKey: 'document_id',
+                    constraints: false,
+                    scope: {
+                        document_type: 'invoice'
+                    }
                 });
             }
             
             if (models.PurchaseOrder) {
-                Item.belongsToMany(models.PurchaseOrder, {
-                    through: 'FinancialDocumentItem',
-                    foreignKey: 'item_id',
-                    otherKey: 'document_id',
-                    as: 'purchase_orders',
-                    constraints: false
+                // Perhatikan perubahan dari belongsToMany menjadi belongsTo
+                Item.belongsTo(models.PurchaseOrder, {
+                    foreignKey: 'document_id',
+                    constraints: false,
+                    scope: {
+                        document_type: 'purchase_order'
+                    }
                 });
             }
         }
@@ -37,6 +39,31 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true
         },
+        // Menambahkan field dari FinancialDocumentItem
+        document_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
+        document_type: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        quantity: {
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
+        unit: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        unit_price: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: true
+        },
+        amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: true
+        }
     }, {
         sequelize,
         modelName: 'Item',
