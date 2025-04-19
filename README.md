@@ -10,6 +10,73 @@ Panduan Cara Melakukan Seeding untuk menghindari konflik di local dapat diakses 
 https://docs.google.com/document/d/1jIPcekKenMaD4r7-JySo-d9YlO77fbYdLEcN-Smpc1A
 
 <details>
+  <summary><strong>Tutorial Menambahkan Sample File dan Menggunakan Script</strong></summary>
+
+## Tutorial: Menambahkan Sample File dan Menggunakan Script
+
+Tutorial ini menjelaskan cara menambahkan sample file baru (invoice/purchase order) dan cara menggunakan script untuk menganalisisnya.
+
+### 1. Menambahkan Sample File Baru
+
+**Untuk Invoice:**
+1. Simpan file PDF invoice di folder `sample_file/invoice/`
+2. Pastikan file memiliki nama yang unik dan deskriptif (misalnya `invoice_company_date.pdf`)
+
+**Untuk Purchase Order:**
+1. Simpan file PDF purchase order di folder `sample_file/purchase_order/`
+2. Pastikan file memiliki nama yang unik dan deskriptif (misalnya `po_project_date.pdf`)
+
+### 2. Menggunakan Script Analisis
+
+Kami telah menyediakan script untuk menganalisis sample file purchase order. Script ini akan menggunakan Azure Document Intelligence untuk menganalisis dokumen dan menyimpan hasilnya dalam format JSON.
+
+**Untuk Menganalisis Purchase Order:**
+
+Dari direktori root proyek, jalankan:
+
+```bash
+# Menganalisis semua file purchase order
+node backend/process-purchase-order-samples.js
+
+# Menganalisis file tertentu
+node backend/process-purchase-order-samples.js NamaFile.pdf
+```
+
+**Hasil Analisis:**
+- Hasil analisis akan disimpan di folder `sample_file_result/purchase_order/`
+- Setiap file hasil berupa JSON dengan nama yang sama dengan file aslinya
+- JSON hasil berisi data mentah dari Azure dan data terstruktur hasil mapping
+
+### 3. Struktur File Hasil
+
+File JSON hasil analisis akan memiliki struktur berikut:
+
+```json
+{
+  "metadata": {
+    "filename": "Sample1_PO.pdf",
+    "processedAt": "2025-04-19T10:15:30.123Z",
+    "analysisType": "purchase_order"
+  },
+  "analysisResult": {
+    // Hasil lengkap dari Azure Document Intelligence
+  },
+  "mappedData": {
+    // Data yang sudah dipetakan ke struktur terstandarisasi
+  }
+}
+```
+
+### 4. Tips Penggunaan
+
+- Gunakan file PDF yang jelas dan berkualitas baik untuk hasil analisis optimal
+- Verifikasi hasil analisis untuk memastikan data dipetakan dengan benar
+- Bandingkan hasil antara dokumen yang berbeda untuk memahami kemampuan analisis
+- Gunakan hasil analisis untuk mengembangkan dan meningkatkan kemampuan mapping
+
+</details>
+
+<details>
   <summary><strong>Tutorial Penggunaan Winston Logger</strong></summary>
 
 ## Tutorial: Menggunakan Winston Logger
