@@ -67,7 +67,7 @@ describe('Item Model', () => {
             });
         
             // Buat invoice dengan partner_id dan status yang valid
-            const invoice = await Invoice.create({
+            await Invoice.create({
                 uuid: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
                 invoice_number: 'INV-001',
                 date: new Date(),
