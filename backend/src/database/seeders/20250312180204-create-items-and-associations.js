@@ -61,54 +61,31 @@ module.exports = {
       
       console.log(`Found ${invoices.length} invoices, ${purchaseOrders.length} POs, and ${items.length} items`);
       
-      // Create associations using the correct field names
-      const associations = [];
-      
-      // Associate items with invoices
+      // Associate items directly by updating Item records (no separate FinancialDocumentItem table)
+      console.log('Associating items to invoices...');
       for (const invoice of invoices) {
         const randomItem = items[Math.floor(Math.random() * items.length)];
-        
-        associations.push({
+        await queryInterface.bulkUpdate('Item', {
           document_type: 'Invoice',
           document_id: invoice.id,
-          item_id: randomItem.uuid,
           quantity: Math.floor(Math.random() * 5) + 1,
-          unit_price: (Math.random() * 100 + 50).toFixed(2),
-          amount: (Math.random() * 500 + 100).toFixed(2),
-          unit: 'pcs',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
+          unit_price: (Math.random() * 100 + 50),
+          amount: (Math.random() * 500 + 100),
+          unit: 'pcs'
+        }, { uuid: randomItem.uuid });
       }
-      
-      // Associate items with purchase orders
+
+      console.log('Associating items to purchase orders...');
       for (const po of purchaseOrders) {
         const randomItem = items[Math.floor(Math.random() * items.length)];
-        
-        associations.push({
+        await queryInterface.bulkUpdate('Item', {
           document_type: 'PurchaseOrder',
           document_id: po.id,
-          item_id: randomItem.uuid,
           quantity: Math.floor(Math.random() * 5) + 1,
-          unit_price: (Math.random() * 100 + 50).toFixed(2),
-          amount: (Math.random() * 500 + 100).toFixed(2),
-          unit: 'pcs',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-      }
-      
-      // Insert the associations
-      console.log(`Inserting ${associations.length} item associations...`);
-      
-      for (let i = 0; i < associations.length; i++) {
-        try {
-          await queryInterface.bulkInsert('FinancialDocumentItem', [associations[i]], {});
-          console.log(`Inserted association ${i+1}/${associations.length}`);
-        } catch (error) {
-          console.error(`Error inserting association ${i+1}:`, error.message);
-          console.log('Problematic record:', JSON.stringify(associations[i], null, 2));
-        }
+          unit_price: (Math.random() * 100 + 50),
+          amount: (Math.random() * 500 + 100),
+          unit: 'pcs'
+        }, { uuid: randomItem.uuid });
       }
       
       console.log('Seeding completed successfully');
