@@ -178,6 +178,7 @@ class InvoiceService extends FinancialDocumentService {
   }
 
   async saveInvoiceItems(invoiceId, itemsData) {
+    console.log("Saving invoice items...", itemsData);
     if (!itemsData || !Array.isArray(itemsData) || itemsData.length === 0) {
       console.log("No items to save");
       return;
@@ -185,12 +186,9 @@ class InvoiceService extends FinancialDocumentService {
 
     try {
       for (const itemData of itemsData) {
-        const item = await this.itemRepository.findOrCreateItem(itemData.description);
-
         await this.itemRepository.createDocumentItem(
           'Invoice',
           invoiceId,
-          item.uuid,
           {
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,

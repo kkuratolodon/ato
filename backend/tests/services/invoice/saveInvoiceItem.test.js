@@ -71,7 +71,6 @@ describe('saveInvoiceItems', () => {
     expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
       'Invoice',
       invoiceId,
-      'item-123',
       {
         quantity: 2,
         unit: 'pcs',
@@ -85,7 +84,6 @@ describe('saveInvoiceItems', () => {
     expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
       'Invoice',
       invoiceId,
-      'item-123',
       {
         quantity: 1,
         unit: 'kg',
@@ -169,7 +167,7 @@ describe('saveInvoiceItems', () => {
     expect(invoiceService.itemRepository.findOrCreateItem).toHaveBeenCalledTimes(3);
 
     // Check first call (missing values)
-    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[0][3]).toEqual({
+    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[0][2]).toEqual({
       quantity: 0,            // Default value applied
       unit: null,             // Default value applied
       unit_price: 0,          // Default value applied
@@ -177,7 +175,7 @@ describe('saveInvoiceItems', () => {
     });
 
     // Check second call (null values)
-    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[1][3]).toEqual({
+    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[1][2]).toEqual({
       quantity: 0,            // Default value applied
       unit: null,             // Null preserved
       unit_price: 0,          // Default value applied
@@ -185,7 +183,7 @@ describe('saveInvoiceItems', () => {
     });
 
     // Check third call (zero values)
-    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[2][3]).toEqual({
+    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[2][2]).toEqual({
       quantity: 0,            // Zero preserved
       unit: null,             // Default value applied
       unit_price: 0,          // Zero preserved
@@ -215,7 +213,6 @@ describe('saveInvoiceItems', () => {
     expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
       'Invoice',
       invoiceId,
-      'item-123',
       {
         quantity: 5,
         unit: 'kg',
