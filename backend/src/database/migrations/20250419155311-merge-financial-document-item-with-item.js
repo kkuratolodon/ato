@@ -45,7 +45,7 @@ module.exports = {
     }
   },
 
-  async down (queryInterface, Sequelize) {
+  async down (queryInterface) {
     try {
       // Hapus kolom-kolom yang ditambahkan
       await queryInterface.removeColumn('Item', 'document_id');
