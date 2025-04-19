@@ -1,15 +1,13 @@
 const ItemRepository = require('../../src/repositories/itemRepository');
-const { Item, FinancialDocumentItem } = require('../../src/models');
+const { Item } = require('../../src/models');
 
 jest.mock('../../src/models', () => ({
     Item: {
         findOrCreate: jest.fn(),
-        findByPk: jest.fn()
-    },
-    FinancialDocumentItem: {
+        findByPk: jest.fn(),
         create: jest.fn(),
         findAll: jest.fn()
-    }
+    },
 }));
 
 jest.mock('uuid', () => ({
@@ -82,48 +80,42 @@ describe('ItemRepository', () => {
         test('should create a document item successfully', async () => {
             const docType = 'invoice';
             const docId = 'doc-123';
-            const itemId = 'item-456';
             const itemData = {
+                description: 'desc',
                 quantity: 2,
                 unit: 'pcs',
                 unit_price: 100,
                 amount: 200
             };
-            
-            await itemRepository.createDocumentItem(docType, docId, itemId, itemData);
-            
-            expect(FinancialDocumentItem.create).toHaveBeenCalledWith({
-                id: 'mock-uuid',
+            await itemRepository.createDocumentItem(docType, docId, itemData);
+            expect(Item.create).toHaveBeenCalledWith({
+                uuid: 'mock-uuid',
                 document_type: docType,
                 document_id: docId,
-                item_id: itemId,
-                quantity: itemData.quantity,
-                unit: itemData.unit,
-                unit_price: itemData.unit_price,
-                amount: itemData.amount
+                description: 'desc',
+                quantity: 2,
+                unit: 'pcs',
+                unit_price: 100,
+                amount: 200
             });
         });
 
         test('should handle undefined or null values in itemData', async () => {
             const docType = 'invoice';
             const docId = 'doc-123';
-            const itemId = 'item-456';
-            
-            // Test with undefined values
             const itemData = {
+                description: undefined,
                 quantity: undefined,
                 unit: null,
                 unit_price: undefined,
                 amount: null
             };
-            
-            await itemRepository.createDocumentItem(docType, docId, itemId, itemData);
-            
-            expect(FinancialDocumentItem.create).toHaveBeenCalledWith({
-                id: 'mock-uuid',
+            await itemRepository.createDocumentItem(docType, docId, itemData);
+            expect(Item.create).toHaveBeenCalledWith({
+                uuid: 'mock-uuid',
                 document_type: docType,
                 document_id: docId,
-                item_id: itemId,
+                description: undefined,
                 quantity: undefined,
                 unit: null,
                 unit_price: undefined,
@@ -133,9 +125,8 @@ describe('ItemRepository', () => {
 
         // Negative case
         test('should throw error when create fails', async () => {
-            FinancialDocumentItem.create.mockRejectedValue(new Error('Creation failed'));
-            
-            await expect(itemRepository.createDocumentItem('invoice', 'doc-123', 'item-456', {}))
+            Item.create.mockRejectedValue(new Error('Creation failed'));
+            await expect(itemRepository.createDocumentItem('invoice', 'doc-123', {}))
                 .rejects.toThrow('Creation failed');
         });
     });
@@ -145,13 +136,15 @@ describe('ItemRepository', () => {
         test('should return items for a document', async () => {
             const docItems = [
                 {
-                    item_id: 'item-1',
+                    uuid: 'item-1',
+                    description: 'Test Item',
                     quantity: 2,
                     unit: 'pcs',
                     unit_price: 100,
                     amount: 200,
                     get: jest.fn().mockReturnValue({
-                        item_id: 'item-1',
+                        uuid: 'item-1',
+                        description: 'Test Item',
                         quantity: 2,
                         unit: 'pcs',
                         unit_price: 100,
@@ -159,129 +152,38 @@ describe('ItemRepository', () => {
                     })
                 }
             ];
-            
-            const itemDetails = {
-                description: 'Test Item',
-                get: jest.fn().mockReturnValue({ description: 'Test Item' })
-            };
-            
-            FinancialDocumentItem.findAll.mockResolvedValue(docItems);
-            Item.findByPk.mockResolvedValue(itemDetails);
-            
+            Item.findAll.mockResolvedValue(docItems);
             const result = await itemRepository.findItemsByDocumentId('doc-123', 'invoice');
-            
-            expect(FinancialDocumentItem.findAll).toHaveBeenCalledWith({
+            expect(Item.findAll).toHaveBeenCalledWith({
                 where: {
                     document_type: 'invoice',
                     document_id: 'doc-123'
                 }
             });
-            
-            expect(Item.findByPk).toHaveBeenCalledWith('item-1');
-            expect(result).toEqual([{
-                amount: 200,
-                description: 'Test Item',
-                quantity: 2,
-                unit: 'pcs',
-                unit_price: 100
-            }]);
+            expect(result).toEqual([
+                {
+                    uuid: 'item-1',
+                    description: 'Test Item',
+                    quantity: 2,
+                    unit: 'pcs',
+                    unit_price: 100,
+                    amount: 200
+                }
+            ]);
         });
 
         // Edge case
         test('should return empty array when no document items found', async () => {
-            FinancialDocumentItem.findAll.mockResolvedValue([]);
-            
+            Item.findAll.mockResolvedValue([]);
             const result = await itemRepository.findItemsByDocumentId('nonexistent-doc', 'invoice');
-            
-            expect(result).toEqual([]);
-            expect(Item.findByPk).not.toHaveBeenCalled();
-        });
-
-        // Edge case
-        test('should skip items when item details not found', async () => {
-            const docItems = [
-                {
-                    item_id: 'item-1',
-                    quantity: 2,
-                    unit: 'pcs',
-                    unit_price: 100,
-                    amount: 200,
-                    get: jest.fn().mockReturnValue({
-                        item_id: 'item-1',
-                        quantity: 2,
-                        unit: 'pcs',
-                        unit_price: 100,
-                        amount: 200
-                    })
-                }
-            ];
-            
-            FinancialDocumentItem.findAll.mockResolvedValue(docItems);
-            Item.findByPk.mockResolvedValue(null);
-            
-            const result = await itemRepository.findItemsByDocumentId('doc-123', 'invoice');
-            
             expect(result).toEqual([]);
         });
-
-        
-        test('should handle null description in item details', async () => {
-            // Setup document item
-            const docItems = [
-                {
-                    item_id: 'item-1',
-                    quantity: 2,
-                    unit: 'pcs',
-                    unit_price: 100,
-                    amount: 200,
-                    get: jest.fn().mockReturnValue({
-                        item_id: 'item-1',
-                        quantity: 2,
-                        unit: 'pcs',
-                        unit_price: 100,
-                        amount: 200
-                    })
-                }
-            ];
-            
-            // Setup item with undefined description
-            const itemDetails = {
-                description: undefined, // This will trigger the || null fallback
-                get: jest.fn().mockReturnValue({ description: undefined })
-            };
-            
-            FinancialDocumentItem.findAll.mockResolvedValue(docItems);
-            Item.findByPk.mockResolvedValue(itemDetails);
-            
-            const result = await itemRepository.findItemsByDocumentId('doc-123', 'invoice');
-            
-            expect(FinancialDocumentItem.findAll).toHaveBeenCalledWith({
-                where: {
-                    document_type: 'invoice',
-                    document_id: 'doc-123'
-                }
-            });
-            
-            expect(Item.findByPk).toHaveBeenCalledWith('item-1');
-            
-            // The important part - checking that description is null
-            expect(result).toEqual([{
-                amount: 200,
-                description: null, // This should be null because of the fallback
-                quantity: 2,
-                unit: 'pcs',
-                unit_price: 100
-            }]);
-        });
-    
 
         // Negative case
         test('should throw error when findAll fails', async () => {
-            FinancialDocumentItem.findAll.mockRejectedValue(new Error('Query failed'));
-            
+            Item.findAll.mockRejectedValue(new Error('Query failed'));
             await expect(itemRepository.findItemsByDocumentId('doc-123', 'invoice'))
                 .rejects.toThrow('Query failed');
         });
-
     });
 });
