@@ -1,13 +1,13 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { controller: invoiceController } = require("../../src/controllers/invoiceController");
-const validateDeletion = require("../../src/services/validateDeletion");
-const InvoiceService = require("../../src/services/invoice/invoiceService");
-const s3Service = require("../../src/services/s3Service");
+const { controller: invoiceController } = require("@controllers/invoiceController");
+const validateDeletion = require("@services/validateDeletion");
+const InvoiceService = require("@services/invoice/invoiceService");
+const s3Service = require("@services/s3Service");
 const Sentry = require("../../src/instrument");
 
-jest.mock("../../src/services/validateDeletion");
-jest.mock("../../src/services/invoice/invoiceService");
-jest.mock("../../src/services/s3Service");
+jest.mock("@services/validateDeletion");
+jest.mock("@services/invoice/invoiceService");
+jest.mock("@services/s3Service");
 jest.mock("../../src/instrument");
 
 describe("Invoice Controller - deleteInvoiceById (Unit Test)", () => {

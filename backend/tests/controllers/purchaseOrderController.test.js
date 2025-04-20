@@ -1,10 +1,10 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { PurchaseOrderController } = require("../../src/controllers/purchaseOrderController");
-const purchaseOrderService = require("../../src/services/purchaseOrder/purchaseOrderService");
-const pdfValidationService = require("../../src/services/pdfValidationService");
+const { PurchaseOrderController } = require("@controllers/purchaseOrderController");
+const purchaseOrderService = require("@services/purchaseOrder/purchaseOrderService");
+const pdfValidationService = require("@services/pdfValidationService");
 
-jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
-jest.mock("../../src/services/pdfValidationService");
+jest.mock("@services/purchaseOrder/purchaseOrderService");
+jest.mock("@services/pdfValidationService");
 
 describe("Purchase Order Controller", () => {
   let req, res, controller;

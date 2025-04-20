@@ -1,4 +1,4 @@
-const FinancialDocumentController = require("../../src/controllers/financialDocumentController");
+const FinancialDocumentController = require("@controllers/financialDocumentController");
 
 describe("FinancialDocumentController", () => {
   let controller;

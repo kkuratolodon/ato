@@ -1,11 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 const { DataTypes, Sequelize } = require('sequelize');
-const PurchaseOrderFactory = require('../../src/models/purchaseOrder');
-const PartnerModel = require('../../src/models/partner');
-const CustomerModel = require("../../src/models/customer");
-const VendorModel = require("../../src/models/vendor");
-const item = require("../../src/models/item");
-const DocumentStatus = require('../../src/models/enums/DocumentStatus');
+const PurchaseOrderFactory = require('@models/purchaseOrder');
+const PartnerModel = require('@models/partner');
+const CustomerModel = require("@models/customer");
+const VendorModel = require("@models/vendor");
+const item = require("@models/item");
+const DocumentStatus = require('@models/enums/DocumentStatus');
 
 describe('PurchaseOrder Model', () => {
     let sequelize;

@@ -1,7 +1,7 @@
-const invoiceService = require('../../../src/services/invoice/invoiceService');
+const invoiceService = require('@services/invoice/invoiceService');
 
 // Mock repositories directly
-jest.mock('../../../src/repositories/itemRepository', () => {
+jest.mock('@repositories/itemRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findOrCreateItem: jest.fn(),
     createDocumentItem: jest.fn(),
@@ -9,17 +9,17 @@ jest.mock('../../../src/repositories/itemRepository', () => {
   }));
 });
 
-jest.mock('../../../src/repositories/invoiceRepository');
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('@repositories/invoiceRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
 
 // Mock other dependencies
 jest.mock('@azure/ai-form-recognizer');
-jest.mock('../../../src/services/s3Service', () => ({ uploadFile: jest.fn() }));
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/invoice/invoiceValidator');
-jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
+jest.mock('@services/s3Service', () => ({ uploadFile: jest.fn() }));
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/invoice/invoiceValidator');
+jest.mock('@services/invoice/invoiceResponseFormatter');
+jest.mock('@services/invoiceMapperService/invoiceMapperService');
 
 // Mock uuid
 jest.mock('uuid', () => ({

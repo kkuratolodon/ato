@@ -1,7 +1,7 @@
-const invoiceService = require('../../../src/services/invoice/invoiceService');
+const invoiceService = require('@services/invoice/invoiceService');
 
 // Mock repositories
-jest.mock('../../../src/repositories/invoiceRepository', () => {
+jest.mock('@repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
     delete: jest.fn()
   }));

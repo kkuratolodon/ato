@@ -1,7 +1,7 @@
-const ItemRepository = require('../../src/repositories/itemRepository');
-const { Item, FinancialDocumentItem } = require('../../src/models');
+const ItemRepository = require('@repositories/itemRepository');
+const { Item, FinancialDocumentItem } = require('@models/');
 
-jest.mock('../../src/models', () => ({
+jest.mock('@models/', () => ({
     Item: {
         findOrCreate: jest.fn(),
         findByPk: jest.fn()

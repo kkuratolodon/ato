@@ -1,8 +1,8 @@
-const { PurchaseOrder } = require('../../src/models');
-const PurchaseOrderRepository = require('../../src/repositories/purchaseOrderRepository');
+const { PurchaseOrder } = require('@models/');
+const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
 
 // Mock the models
-jest.mock('../../src/models', () => ({
+jest.mock('@models/', () => ({
     PurchaseOrder: {
         create: jest.fn(),
         findByPk: jest.fn(),

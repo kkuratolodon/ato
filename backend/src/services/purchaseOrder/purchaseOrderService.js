@@ -1,10 +1,10 @@
 const { v4: uuidv4 } = require('uuid');
 const FinancialDocumentService = require('../financialDocumentService');
 const Sentry = require("../../instrument");
-const PurchaseOrderRepository = require('../../repositories/purchaseOrderRepository');
+const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
 const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
-const DocumentStatus = require('../../models/enums/DocumentStatus');
+const DocumentStatus = require('@models/enums/DocumentStatus');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {

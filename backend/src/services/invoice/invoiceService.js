@@ -1,16 +1,16 @@
 const { v4: uuidv4 } = require('uuid');
 const FinancialDocumentService = require("../financialDocumentService");
 const Sentry = require("../../instrument");
-const InvoiceRepository = require('../../repositories/invoiceRepository.js');
-const CustomerRepository = require('../../repositories/customerRepository.js');
-const VendorRepository = require('../../repositories/vendorRepository.js');
-const ItemRepository = require('../../repositories/itemRepository.js');
+const InvoiceRepository = require('@repositories/invoiceRepository.js');
+const CustomerRepository = require('@repositories/customerRepository.js');
+const VendorRepository = require('@repositories/vendorRepository.js');
+const ItemRepository = require('@repositories/itemRepository.js');
 const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
 const InvoiceValidator = require('./invoiceValidator');
 const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
 const InvoiceLogger = require('./invoiceLogger');
-const DocumentStatus = require('../../models/enums/DocumentStatus.js');
+const DocumentStatus = require('@models/enums/DocumentStatus.js');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {

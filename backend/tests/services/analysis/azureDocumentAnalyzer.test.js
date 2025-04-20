@@ -1,5 +1,5 @@
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
-const AzureDocumentAnalyzer = require('../../../src/services/analysis/azureDocumentAnalyzer');
+const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
 const Sentry = require("../../../src/instrument");
 
 // Mocking dependencies
