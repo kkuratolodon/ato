@@ -10,9 +10,9 @@ Panduan Cara Melakukan Seeding untuk menghindari konflik di local dapat diakses 
 https://docs.google.com/document/d/1jIPcekKenMaD4r7-JySo-d9YlO77fbYdLEcN-Smpc1A
 
 <details>
-  <summary><strong>Tutorial Menambahkan Sample File dan Menggunakan Script</strong></summary>
+  <summary><strong>Tutorial Menambahkan Sample File dan Menggunakan Script Analisis Documents</strong></summary>
 
-## Tutorial: Menambahkan Sample File dan Menggunakan Script
+## Tutorial: Menambahkan Sample File dan Menggunakan Script Analisis Documents
 
 Tutorial ini menjelaskan cara menambahkan sample file baru (invoice/purchase order) dan cara menggunakan script untuk menganalisisnya.
 
