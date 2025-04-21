@@ -133,12 +133,12 @@ jobs:
         run: |
           case "$SEEDER_TABLE" in
             all) CMD="npx sequelize-cli db:seed:all" ;; 
-            partner) CMD="npx sequelize-cli db:seed:all --seed 20250307134936-seed-partner.js" ;; 
-            invoice) CMD="npx sequelize-cli db:seed:all --seed 20250307135227-seed-invoice.js" ;; 
-            purchase_order) CMD="npx sequelize-cli db:seed:all --seed 20250309094054-seed-purchase-order.js" ;; 
-            customer) CMD="npx sequelize-cli db:seed:all --seed 20250309164526-seed-customer.js && npx sequelize-cli db:seed:all --seed 20250309164541-update-documents-with-customer.js" ;; 
-            vendors) CMD="npx sequelize-cli db:seed:all --seed 20250310013133-seed-vendors.js && npx sequelize-cli db:seed:all --seed 20250310013229-update-documents-with-vendor.js" ;; 
-            items) CMD="npx sequelize-cli db:seed:all --seed 20250312180204-create-items-and-associations.js" ;; 
+            partner) CMD="npx sequelize-cli db:seed --seed 20250307134936-seed-partner.js" ;; 
+            invoice) CMD="npx sequelize-cli db:seed --seed 20250307135227-seed-invoice.js" ;; 
+            purchase_order) CMD="npx sequelize-cli db:seed --seed 20250309094054-seed-purchase-order.js" ;; 
+            customer) CMD="npx sequelize-cli db:seed --seed 20250309164526-seed-customer.js && npx sequelize-cli db:seed --seed 20250309164541-update-documents-with-customer.js" ;; 
+            vendors) CMD="npx sequelize-cli db:seed --seed 20250310013133-seed-vendors.js && npx sequelize-cli db:seed --seed 20250310013229-update-documents-with-vendor.js" ;; 
+            items) CMD="npx sequelize-cli db:seed --seed 20250312180204-create-items-and-associations.js" ;; 
             *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
           esac
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} \
