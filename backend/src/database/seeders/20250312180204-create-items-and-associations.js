@@ -96,6 +96,16 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    await queryInterface.bulkDelete('FinancialDocumentItem', null, {});
+    // Revert item associations
+    await queryInterface.bulkUpdate('Item', {
+      document_type: null,
+      document_id: null,
+      quantity: null,
+      unit_price: null,
+      amount: null,
+      unit: null
+    }, {});
+    // Remove all seeded items
+    await queryInterface.bulkDelete('Item', null, {});
   }
 };
