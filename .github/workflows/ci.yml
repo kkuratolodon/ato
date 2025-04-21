@@ -193,8 +193,8 @@ jobs:
       - name: Check for test files
         run: |
           ls -la functional_test_files/
-          if [ ! -f functional_test_files/functional-test-1.json ]; then
-            echo "Error: functional-test-1.json not found in functional_test_files directory"
+          if [ ! -f functional_test_files/functional-test.json ]; then
+            echo "Error: functional-test.json not found in functional_test_files directory"
             exit 1
           fi
 
@@ -225,7 +225,7 @@ jobs:
         working-directory: functional_test_files
         run: |
           echo "Starting Newman tests..."
-          newman run functional-test-1.json -e staging-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html || {
+          newman run functional-test.json -e staging-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html || {
             echo "Newman tests failed with exit code $?"
             if [ -f ./reports/functional-test-report.html ]; then
               echo "Test report was generated despite failure"

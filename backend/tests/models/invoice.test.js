@@ -32,7 +32,7 @@ describe("Invoice Model", () => {
     // Instead of calling Item.associate, manually create the association
     // This avoids the error with Item.belongsToMany
     Item.belongsToMany(Invoice, {
-      through: 'FinancialDocumentItem',
+      through: 'Item',
       foreignKey: 'item_id',
       otherKey: 'document_id',
       as: 'invoices'

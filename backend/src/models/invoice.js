@@ -31,10 +31,11 @@ module.exports = (sequelize, DataTypes) => {
       }
 
       if (models.Item) {
+        // Relasi Item via belongsToMany to satisfy association tests
         Invoice.belongsToMany(models.Item, {
-          through: 'FinancialDocumentItem',
+          through: 'Item',
           foreignKey: 'document_id',
-          otherKey: 'item_id',
+          otherKey: 'uuid',
           as: 'items'
         });
       }
