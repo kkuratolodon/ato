@@ -315,4 +315,46 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder.file_url).toBe('');
         });
     });
+
+    describe('Virtual Fields', () => {
+        test('due_date getter should always return null', async () => {
+            // Create a purchase order
+            const purchaseOrder = await PurchaseOrder.create({
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+
+            // Verify the due_date getter returns null
+            expect(purchaseOrder.due_date).toBeNull();
+        });
+
+        test('due_date setter should not change the value', async () => {
+            // Create a purchase order
+            const purchaseOrder = await PurchaseOrder.create({
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+
+            // Attempt to set a value to due_date
+            purchaseOrder.due_date = new Date('2024-12-31');
+            
+            // Verify it still returns null
+            expect(purchaseOrder.due_date).toBeNull();
+            
+            // Save and reload to confirm it wasn't saved
+            await purchaseOrder.save();
+            const reloadedPO = await PurchaseOrder.findByPk(purchaseOrder.id);
+            expect(reloadedPO.due_date).toBeNull();
+        });
+
+        test('due_date should be defined as a VIRTUAL field', () => {
+            // Check the field definition type
+            const dueDate = PurchaseOrder.rawAttributes.due_date;
+            expect(dueDate).toBeDefined();
+            expect(dueDate.type).toBeInstanceOf(DataTypes.VIRTUAL);
+            // Check that the field has getter and setter functions
+            expect(typeof dueDate.get).toBe('function');
+            expect(typeof dueDate.set).toBe('function');
+        });
+    });
 });

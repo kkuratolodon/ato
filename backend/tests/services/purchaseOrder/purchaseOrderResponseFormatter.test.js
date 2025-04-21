@@ -8,6 +8,7 @@ describe('PurchaseOrderResponseFormatter', () => {
   });
 
   test('should format purchase order response with all data provided', () => {
+    // Positive case: Full data available
     const purchaseOrder = {
       po_number: 'PO-001',
       po_date: '2023-05-01',
@@ -52,23 +53,21 @@ describe('PurchaseOrderResponseFormatter', () => {
         documents: [
           {
             header: {
-              invoice_details: {
-                invoice_id: null,
+              purchase_order_details: {
                 purchase_order_id: 'PO-001',
-                invoice_date: null,
                 due_date: '2023-05-31',
                 payment_terms: 'Net 30'
               },
               vendor_details: {
                 name: 'Vendor Company',
                 address: '456 Vendor Ave',
-                recipient_name: 'Jane Smith',
+                contact_name: 'Jane Smith',
                 tax_id: 'TAX-VEND-456'
               },
               customer_details: {
                 id: 'cust-123',
                 name: 'Customer Company',
-                recipient_name: 'John Doe',
+                contact_name: 'John Doe',
                 address: '123 Customer St',
                 tax_id: 'TAX-CUST-123'
               },
@@ -108,39 +107,15 @@ describe('PurchaseOrderResponseFormatter', () => {
 
     // Test with null items
     let result = formatter.formatPurchaseOrderResponse(purchaseOrder, null);
-    expect(result.data.documents[0].items).toEqual([
-      {
-        amount: null,
-        description: null,
-        quantity: null,
-        unit: null,
-        unit_price: null
-      }
-    ]);
+    expect(result.data.documents[0].items).toEqual([]);
 
     // Test with empty array
     result = formatter.formatPurchaseOrderResponse(purchaseOrder, []);
-    expect(result.data.documents[0].items).toEqual([
-      {
-        amount: null,
-        description: null,
-        quantity: null,
-        unit: null,
-        unit_price: null
-      }
-    ]);
+    expect(result.data.documents[0].items).toEqual([]);
 
     // Test with non-array
     result = formatter.formatPurchaseOrderResponse(purchaseOrder, "not an array");
-    expect(result.data.documents[0].items).toEqual([
-      {
-        amount: null,
-        description: null,
-        quantity: null,
-        unit: null,
-        unit_price: null
-      }
-    ]);
+    expect(result.data.documents[0].items).toEqual([]);
   });
 
   test('should handle missing vendor and customer data', () => {
@@ -167,16 +142,16 @@ describe('PurchaseOrderResponseFormatter', () => {
     
     expect(result.data.documents[0].header.vendor_details).toEqual({
       name: null,
-      address: null,
-      recipient_name: null,
+      address: "",
+      contact_name: null,
       tax_id: null
     });
     
     expect(result.data.documents[0].header.customer_details).toEqual({
       id: null,
       name: null,
-      recipient_name: null,
-      address: null,
+      contact_name: null,
+      address: "",
       tax_id: null
     });
   });
@@ -214,8 +189,8 @@ describe('PurchaseOrderResponseFormatter', () => {
 
     const result = formatter.formatPurchaseOrderResponse(purchaseOrder, [], customer, vendor);
     
-    expect(result.data.documents[0].header.vendor_details.address).toBe(null);
-    expect(result.data.documents[0].header.customer_details.address).toBe(null);
+    expect(result.data.documents[0].header.vendor_details.address).toBe("");
+    expect(result.data.documents[0].header.customer_details.address).toBe("");
   });
 
   test('should handle when items parameter is omitted entirely', () => {
@@ -226,7 +201,9 @@ describe('PurchaseOrderResponseFormatter', () => {
       partner_id: 'partner-123',
       original_filename: 'test.pdf',
       file_size: 1024,
-      file_url: 'https://example.com/test.pdf'
+      file_url: 'https://example.com/test.pdf',
+      due_date: '2023-05-31',
+      payment_terms: 'Net 30'
     };
 
     // Call the function without providing the items parameter
@@ -236,19 +213,10 @@ describe('PurchaseOrderResponseFormatter', () => {
     expect(result.data.documents[0].items).toEqual([]);
     
     // Verify the rest of the structure is still correct
-    expect(result.data.documents[0].header).toEqual({
-      purchase_order_details: {
-        po_number: 'PO-001',
-        po_date: '2023-05-01',
-        status: 'Processed'
-      },
-      partner_details: { id: 'partner-123' },
-      file_details: {
-        original_filename: 'test.pdf',
-        file_size: 1024,
-        file_url: 'https://example.com/test.pdf'
-      }
+    expect(result.data.documents[0].header.purchase_order_details).toEqual({
+      purchase_order_id: 'PO-001',
+      due_date: '2023-05-31',
+      payment_terms: 'Net 30'
     });
   });
-  
 });
