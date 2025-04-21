@@ -30,10 +30,11 @@ module.exports = (sequelize, DataTypes) => {
             }
             
             if (models.Item) {
+                // Update Item association via belongsToMany for consistent many-to-many relations
                 PurchaseOrder.belongsToMany(models.Item, {
-                    through: 'FinancialDocumentItem',
+                    through: 'Item',
                     foreignKey: 'document_id',
-                    otherKey: 'item_id',
+                    otherKey: 'uuid',
                     as: 'items'
                 });
             }

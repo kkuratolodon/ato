@@ -29,12 +29,12 @@ class FinancialDocument extends Model {
       as: 'vendor'
     });
 
+    // Handle Item association for many-to-many
     models?.Item && this.belongsToMany(models.Item, {
-      through: 'FinancialDocumentItem',
+      through: 'Item',
       foreignKey: 'document_id',
-      otherKey: 'item_id',
-      as: 'items',
-      onDelete: 'CASCADE'
+      otherKey: 'uuid',
+      as: 'items'
     });
   }
 
