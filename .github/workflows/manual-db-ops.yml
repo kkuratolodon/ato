@@ -107,7 +107,7 @@ jobs:
           MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
         run: |
           if [ -z "$MIGRATION_NAME" ]; then
-            CMD="npx sequelize-cli db:migrate:undo:all"
+            CMD="npx sequelize-cli db:migrate:undo"
           else
             CMD="npx sequelize-cli db:migrate:undo --to $MIGRATION_NAME"
           fi
