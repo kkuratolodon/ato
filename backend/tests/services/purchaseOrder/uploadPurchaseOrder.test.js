@@ -1,4 +1,3 @@
-const { v4: uuidv4 } = require('uuid');
 const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
 

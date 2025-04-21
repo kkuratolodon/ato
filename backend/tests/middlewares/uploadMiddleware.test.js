@@ -1,4 +1,3 @@
-const multer = require('multer');
 const handleMulterError = require('../../src/middlewares/multerErrorHandler');
 
 // Mock dependencies

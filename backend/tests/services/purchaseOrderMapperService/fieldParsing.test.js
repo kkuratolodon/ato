@@ -1,4 +1,3 @@
-const { AzurePurchaseOrderMapper } = require('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
 const { getMapper, partnerId } = require('./setupAzurePurchaseOrderMapper');
 
 describe('PO Field Parsing', () => {
