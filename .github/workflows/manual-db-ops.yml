@@ -1,10 +1,9 @@
 name: Manual Migration and Seeding
-
 on:
   workflow_dispatch:
     inputs:
       operation:
-        description: 'Tipe operasi'
+        description: 'Type of operation'
         required: true
         type: choice
         options:
@@ -13,11 +12,11 @@ on:
           - seed
           - undo_seed
       migration_name:
-        description: 'Nama file migration (opsional)'
+        description: 'Migration file name (optional)'
         required: false
         default: ''
       seeder_table:
-        description: 'Tabel untuk seeding (opsional)'
+        description: 'Table to seed (optional, default all)'
         required: false
         type: choice
         options:
@@ -31,9 +30,23 @@ on:
         default: 'all'
 
 jobs:
-  placeholder:
+  migrate:
+    if: ${{ github.event.inputs.operation == 'migrate' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Placeholder Step
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Migrate
+        env:
+          MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
         run: |
-          echo "🚧 Ini hanya placeholder—belum ada fungsionalitas 🎉"
+          if [ -z "$MIGRATION_NAME" ]; then
+            npx sequelize-cli db:migrate
+          else
+            npx sequelize-cli db:migrate --to $MIGRATION_NAME
+          fi
