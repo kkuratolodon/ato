@@ -50,3 +50,24 @@ jobs:
           else
             npx sequelize-cli db:migrate --to $MIGRATION_NAME
           fi
+
+  rollback_migration:
+    if: ${{ github.event.inputs.operation == 'rollback_migration' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Rollback Migration
+        env:
+          MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
+        run: |
+          if [ -z "$MIGRATION_NAME" ]; then
+            npx sequelize-cli db:migrate:undo:all
+          else
+            npx sequelize-cli db:migrate:undo --to $MIGRATION_NAME
+          fi
