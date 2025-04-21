@@ -97,3 +97,29 @@ jobs:
             items) npx sequelize-cli db:seed:all --seed 20250312180204-create-items-and-associations.js ;; 
             *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
           esac
+
+  undo_seed:
+    if: ${{ github.event.inputs.operation == 'undo_seed' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Undo Seed
+        env:
+          SEEDER_TABLE: ${{ github.event.inputs.seeder_table }}
+        run: |
+          case "$SEEDER_TABLE" in
+            all) npx sequelize-cli db:seed:undo:all ;; 
+            partner) npx sequelize-cli db:seed:undo --seed 20250307134936-seed-partner.js ;; 
+            invoice) npx sequelize-cli db:seed:undo --seed 20250307135227-seed-invoice.js ;; 
+            purchase_order) npx sequelize-cli db:seed:undo --seed 20250309094054-seed-purchase-order.js ;; 
+            customer) npx sequelize-cli db:seed:undo --seed 20250309164541-update-documents-with-customer.js && npx sequelize-cli db:seed:undo --seed 20250309164526-seed-customer.js ;; 
+            vendors) npx sequelize-cli db:seed:undo --seed 20250310013229-update-documents-with-vendor.js && npx sequelize-cli db:seed:undo --seed 20250310013133-seed-vendors.js ;; 
+            items) npx sequelize-cli db:seed:undo --seed 20250312180204-create-items-and-associations.js ;; 
+            *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
+          esac
