@@ -1,4 +1,4 @@
-name: Manual Migration and Seeding (Placeholder)
+name: Manual Migration and Seeding
 
 on:
   workflow_dispatch:
