@@ -68,6 +68,10 @@ describe('mapAnalysisResult method for Purchase Orders', () => {
     // Arrange
     const analysisResult = { data: { someProperty: 'value' } };
     
+    // Act
+    const result = purchaseOrderService.mapAnalysisResult(analysisResult, partnerId, originalname, fileSize);
+    result.purchaseOrderData;
+    
     // Assert
     expect(purchaseOrderService.azureMapper.mapToPurchaseOrderModel).toHaveBeenCalledWith(
       analysisResult.data, partnerId
