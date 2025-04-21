@@ -40,49 +40,55 @@ class FieldParser {
             console.warn('Date field missing, using current date as fallback');
             return new Date();
         }
-
-        // dd/mm/yy atau dd/mm/yyyy format
+        
+        // Handle 2-digit year format (dd/mm/yy)
         const ddmmyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
         if (ddmmyyRegex.test(dateStr)) {
             const [, day, month, year] = ddmmyyRegex.exec(dateStr);
-            // Ensure month is between 1-12
-            if (parseInt(month) <= 12) {
             const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
             const formattedDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
             return new Date(formattedDate);
-            }
         }
 
-        const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-        if (ddmmyyyyRegex.test(dateStr)) {
-            const [, day, month, year] = ddmmyyyyRegex.exec(dateStr);
-            // Ensure month is between 1-12
-            if (parseInt(month) <= 12) {
+        // Handle 4-digit year formats (dd/mm/yyyy or mm/dd/yyyy)
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+        if (dateRegex.test(dateStr)) {
+            const [, first, second, year] = dateRegex.exec(dateStr);
+            
+            // Determine if it's dd/mm/yyyy or mm/dd/yyyy
+            // If first number is > 12, assume dd/mm/yyyy
+            // If second number is > 12, assume mm/dd/yyyy
+            // Otherwise, default to dd/mm/yyyy format
+            
+            const firstNum = parseInt(first, 10);
+            const secondNum = parseInt(second, 10);
+            
+            let day, month;
+            
+            if (firstNum > 12 && secondNum <= 12) {
+                // dd/mm/yyyy format
+                day = first;
+                month = second;
+            } else if (firstNum <= 12 && secondNum > 12) {
+                // mm/dd/yyyy format
+                month = first;
+                day = second;
+            } else {
+                // Ambiguous case, default to dd/mm/yyyy
+                day = first;
+                month = second;
+            }
+            
             const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
             return new Date(formattedDate);
-            }
         }
-
-        // mm/dd/yy atau mm/dd/yyyy format
-        const mmddyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
-        if (mmddyyRegex.test(dateStr)) {
-            const [, month, day, year] = mmddyyRegex.exec(dateStr);
-            // Ensure month is between 1-12
-            if (parseInt(month) > 12) {
-                const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
-                const formattedDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                return new Date(formattedDate);
-            }
-        }
-
-        const mmddyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-        if (mmddyyyyRegex.test(dateStr)) {
-            const [, month, day, year] = mmddyyyyRegex.exec(dateStr);
-            // Ensure month is between 1-12
-            if (parseInt(month) > 12) {
-                const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                return new Date(formattedDate);
-            }
+        
+        // Handle ISO format (yyyy-mm-dd)
+        const isoRegex = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+        if (isoRegex.test(dateStr)) {
+            const [, year, month, day] = isoRegex.exec(dateStr);
+            const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            return new Date(formattedDate);
         }
 
         const date = new Date(dateStr);
