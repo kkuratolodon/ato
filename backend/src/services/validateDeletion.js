@@ -1,9 +1,14 @@
-const Invoice = require("../models/invoice");
+const DocumentStatus = require("../models/enums/DocumentStatus");
+const InvoiceRepository = require("../repositories/invoiceRepository");
 
 /**
  * Class for handling invoice deletion validation logic
  */
 class ValidateDeletion {
+  constructor() {
+    this.invoiceRepository = new InvoiceRepository();
+  }
+
   /**
    * Validates if an invoice can be deleted by a partner.
    * 
@@ -17,7 +22,7 @@ class ValidateDeletion {
       throw new Error("Invalid invoice ID");
     }
 
-    const invoice = await Invoice.findByPk(invoiceId);
+    const invoice = await this.invoiceRepository.findById(invoiceId);
 
     if (!invoice) {
       throw new Error("Invoice not found");
@@ -27,7 +32,7 @@ class ValidateDeletion {
       throw new Error("Unauthorized: You do not own this invoice");
     }
 
-    if (invoice.status !== "Analyzed") {
+    if (invoice.status !== DocumentStatus.ANALYZED) {
       throw new Error("Invoice cannot be deleted unless it is Analyzed");
     }
 

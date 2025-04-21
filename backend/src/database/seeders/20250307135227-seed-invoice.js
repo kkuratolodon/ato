@@ -1,5 +1,6 @@
 'use strict';
 const { v4: uuidv4 } = require('uuid');
+const DocumentStatus = require('../../models/enums/DocumentStatus');
 
 module.exports = {
   up: async (queryInterface) => {
@@ -27,7 +28,7 @@ module.exports = {
         payment_terms: "Net 30",
         file_url: "https://example.com/invoice1.pdf",
         analysis_json_url: "https://example.com/analysis/invoice1.json",
-        status: "Analyzed",
+        status: DocumentStatus.ANALYZED,
         partner_id: partner.uuid,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -44,7 +45,7 @@ module.exports = {
         payment_terms: "Net 30",
         file_url: "https://example.com/invoice2.pdf",
         analysis_json_url: null, 
-        status: "Processing",
+        status: DocumentStatus.PROCESSING,
         partner_id: partner.uuid,
         createdAt: new Date(),
         updatedAt: new Date()

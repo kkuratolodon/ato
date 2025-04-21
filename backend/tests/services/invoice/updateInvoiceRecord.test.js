@@ -1,3 +1,4 @@
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 const invoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock the repository instead of the model
@@ -278,7 +279,7 @@ describe('updateInvoiceRecord method', () => {
       notes: 'A very long note with lots of details about this invoice that might cause issues if not handled properly...' + 
              'Continuing with more text to ensure the string is quite long and potentially problematic for some systems.' +
              'This is to test how the system handles large text fields in the database update operation.',
-      status: 'Pending',
+      status: DocumentStatus.PENDING,
       currency: 'USD',
       payment_terms: 'Net 30',
       analysis_json_url: 'https://example.com/very/long/path/to/some/json/file/with/analysis/results.json',

@@ -1,5 +1,6 @@
 const PurchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
 const Sentry = require('../../../src/instrument');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 
 jest.mock('../../../src/repositories/purchaseOrderRepository');
 jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');
@@ -25,7 +26,7 @@ describe('PurchaseOrderService', () => {
     // Setup general mocks
     service.uploadFile = jest.fn().mockResolvedValue({ 
       file_url: 'https://example.com/file.pdf',
-      analysis_json_url: 'https://example.com/analysis.json'
+      analysisJsonUrl: 'https://example.com/analysis.json'
     });
     service.purchaseOrderRepository.createInitial = jest.fn().mockResolvedValue();
     service.purchaseOrderRepository.updateStatus = jest.fn().mockResolvedValue();
@@ -131,7 +132,7 @@ describe('PurchaseOrderService', () => {
     expect(service.uploadFile).toHaveBeenCalledWith(fileData);
     expect(service.purchaseOrderRepository.createInitial).toHaveBeenCalledWith({
       id: 'test-uuid-1234',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: 'partner-123',
       file_url: 'https://example.com/file.pdf',
       original_filename: 'test.pdf',
@@ -150,7 +151,7 @@ describe('PurchaseOrderService', () => {
     expect(result).toEqual({
       message: 'Purchase Order upload initiated',
       id: 'test-uuid-1234',
-      status: 'Processing'
+      status: DocumentStatus.PROCESSING
     });
   });
 

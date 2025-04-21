@@ -8,7 +8,7 @@ const ItemRepository = require('../../repositories/itemRepository.js');
 const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
 const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
-const { AzurePurchaseOrderMapper } = require('../purchaseOrderMapperService/purchaseOrderMapperService');
+const DocumentStatus = require('../../models/enums/DocumentStatus');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {
@@ -43,7 +43,7 @@ class PurchaseOrderService extends FinancialDocumentService {
       // Create basic purchase order record with UUID
       await this.purchaseOrderRepository.createInitial({
         id: purchaseOrderId,
-        status: "Processing",
+        status: DocumentStatus.PROCESSING,
         partner_id: partnerId,
         file_url: s3Result.file_url,
         original_filename: originalname,
@@ -59,11 +59,11 @@ class PurchaseOrderService extends FinancialDocumentService {
       return {
         message: "Purchase Order upload initiated",
         id: purchaseOrderId,
-        status: "Processing"
+        status: DocumentStatus.PROCESSING
       };
     } catch (error) {
       if (purchaseOrderId) {
-        await this.purchaseOrderRepository.updateStatus(purchaseOrderId, "Failed");
+        await this.purchaseOrderRepository.updateStatus(purchaseOrderId, DocumentStatus.FAILED);
       }
       console.error("Error processing purchase order:", error);
       throw new Error("Failed to process purchase order: " + error.message);
@@ -101,7 +101,7 @@ class PurchaseOrderService extends FinancialDocumentService {
       await this.saveInvoiceItems(purchaseOrderId, itemsData);
 
       // 7. Update status to "Analyzed"
-      await this.purchaseOrderRepository.updateStatus(purchaseOrderId, "Analyzed");
+      await this.purchaseOrderRepository.updateStatus(purchaseOrderId, DocumentStatus.ANALYZED);
 
       Sentry.captureMessage(`Successfully completed processing purchase order ${uuid}`);
     } catch (error) {

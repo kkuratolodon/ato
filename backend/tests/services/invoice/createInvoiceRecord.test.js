@@ -1,3 +1,4 @@
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 const invoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock repositories instead of models
@@ -57,7 +58,7 @@ describe('createInvoiceRecord', () => {
     
     const invoiceData = {
       id: 'mocked-uuid-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url,
       original_filename: originalFilename,
@@ -66,7 +67,7 @@ describe('createInvoiceRecord', () => {
     
     const mockCreatedInvoice = {
       id: 'mocked-uuid-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url,
       original_filename: originalFilename,
@@ -92,7 +93,7 @@ describe('createInvoiceRecord', () => {
     
     const invoiceData = {
       id: 'mocked-uuid-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url,
       original_filename: originalFilename,
@@ -112,7 +113,7 @@ describe('createInvoiceRecord', () => {
     // Arrange
     const invoiceData = {
       id: 'mocked-uuid-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: null,
       file_url: null,
       original_filename: null,
@@ -121,7 +122,7 @@ describe('createInvoiceRecord', () => {
     
     const mockCreatedInvoice = {
       id: 'mocked-uuid-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: null,
       file_url: null,
       original_filename: null,
@@ -154,7 +155,7 @@ describe('createInvoiceRecord', () => {
     
     const mockCreatedInvoice = {
       id: 'mocked-uuid-123',
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url,
       original_filename: originalFilename,
@@ -182,7 +183,7 @@ describe('createInvoiceRecord', () => {
     // Assert
     expect(invoiceService.invoiceRepository.createInitial).toHaveBeenCalledWith(expect.objectContaining({
       id: 'mocked-uuid-123', // UUID is now mocked
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       partner_id: partnerId,
       file_url: s3Url,
       original_filename: originalFilename,
@@ -193,7 +194,7 @@ describe('createInvoiceRecord', () => {
     expect(result).toEqual({
       message: "Invoice upload initiated",
       id: 'mocked-uuid-123',
-      status: "Processing"
+      status: DocumentStatus.PROCESSING
     });
   });
 });

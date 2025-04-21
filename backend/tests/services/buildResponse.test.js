@@ -20,6 +20,7 @@ jest.mock('../../src/services/invoice/invoiceService', () => {
   };
 });
 
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 // Now require the mocked module with correct path and casing
 const invoiceService = require('../../src/services/invoice/invoiceService');
 
@@ -33,7 +34,7 @@ describe('buildResponse method', () => {
       invoice_date: '2023-07-15',
       due_date: '2023-08-15',
       total_amount: 1250.50,
-      status: 'Analyzed',
+      status: DocumentStatus.ANALYZED,
       created_at: new Date('2023-07-10T12:30:45Z')
     };
 
@@ -50,7 +51,7 @@ describe('buildResponse method', () => {
         invoice_date: '2023-07-15',
         due_date: '2023-08-15',
         total_amount: 1250.50,
-        status: 'Analyzed',
+        status: DocumentStatus.ANALYZED,
         created_at: mockInvoice.created_at
       }
     });
@@ -63,7 +64,7 @@ describe('buildResponse method', () => {
       invoice_number: 'INV-002',
       // Missing invoice_date, due_date
       total_amount: 750.25,
-      status: 'Processing',
+      status: DocumentStatus.PROCESSING,
       // Missing created_at
     };
 
@@ -80,7 +81,7 @@ describe('buildResponse method', () => {
         invoice_date: undefined,
         due_date: undefined,
         total_amount: 750.25,
-        status: 'Processing',
+        status: DocumentStatus.PROCESSING,
         created_at: undefined
       }
     });
