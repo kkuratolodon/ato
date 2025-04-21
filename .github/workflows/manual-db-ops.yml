@@ -1,0 +1,39 @@
+name: Manual Migration and Seeding (Placeholder)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Tipe operasi'
+        required: true
+        type: choice
+        options:
+          - migrate
+          - rollback_migration
+          - seed
+          - undo_seed
+      migration_name:
+        description: 'Nama file migration (opsional)'
+        required: false
+        default: ''
+      seeder_table:
+        description: 'Tabel untuk seeding (opsional)'
+        required: false
+        type: choice
+        options:
+          - all
+          - partner
+          - invoice
+          - purchase_order
+          - customer
+          - vendors
+          - items
+        default: 'all'
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder Step
+        run: |
+          echo "🚧 Ini hanya placeholder—belum ada fungsionalitas 🎉"
