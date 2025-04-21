@@ -74,6 +74,8 @@ jobs:
         with:
           name: ssh-key
           path: .
+      - name: Set SSH key permission
+        run: chmod 400 ssh-key.pem
 
       - name: Run Migrate
         env:
@@ -97,6 +99,8 @@ jobs:
         with:
           name: ssh-key
           path: .
+      - name: Set SSH key permission
+        run: chmod 400 ssh-key.pem
 
       - name: Run Rollback Migration
         env:
@@ -120,6 +124,8 @@ jobs:
         with:
           name: ssh-key
           path: .
+      - name: Set SSH key permission
+        run: chmod 400 ssh-key.pem
 
       - name: Run Seed
         env:
@@ -148,6 +154,8 @@ jobs:
         with:
           name: ssh-key
           path: .
+      - name: Set SSH key permission
+        run: chmod 400 ssh-key.pem
 
       - name: Run Undo Seed
         env:
