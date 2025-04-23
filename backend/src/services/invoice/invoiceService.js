@@ -11,6 +11,7 @@ const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
 const InvoiceLogger = require('./invoiceLogger');
 const DocumentStatus = require('../../models/enums/DocumentStatus.js');
+const { NotFoundError } = require('../../utils/errors.js');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {
@@ -209,7 +210,7 @@ class InvoiceService extends FinancialDocumentService {
     const invoice = await this.invoiceRepository.findById(id);
 
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
     return invoice.partner_id;
   }
@@ -219,7 +220,7 @@ class InvoiceService extends FinancialDocumentService {
       const invoice = await this.invoiceRepository.findById(id);
       
       if (!invoice) {
-        throw new Error("Invoice not found");
+        throw new NotFoundError("Invoice not found");
       }
 
       // Check invoice status first
