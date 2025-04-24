@@ -206,8 +206,8 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
-  async getPartnerId(id) {
-    const invoice = await this.invoiceRepository.findById(id);
+  async getPartnerId(invoiceId) {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
 
     if (!invoice) {
       throw new NotFoundError("Invoice not found");
@@ -215,9 +215,9 @@ class InvoiceService extends FinancialDocumentService {
     return invoice.partner_id;
   }
 
-  async getInvoiceById(id) {
+  async getInvoiceById(invoiceId) {
     try {
-      const invoice = await this.invoiceRepository.findById(id);
+      const invoice = await this.invoiceRepository.findById(invoiceId);
       
       if (!invoice) {
         throw new NotFoundError("Invoice not found");
@@ -238,7 +238,7 @@ class InvoiceService extends FinancialDocumentService {
         };
       }
 
-      const items = await this.itemRepository.findItemsByDocumentId(id, 'Invoice');
+      const items = await this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice');
 
       let customer = null;
       if (invoice.customer_id) {
