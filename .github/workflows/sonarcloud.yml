@@ -85,10 +85,6 @@ jobs:
           DUPLICATION=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="duplicated_lines_density") | .value')
           SECURITY=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="security_hotspots") | .value')
 
-          echo "Coverage         = $COVERAGE%"
-          echo "Duplication      = $DUPLICATION%"
-          echo "Security Hotspot = $SECURITY"
-
           # Add default values if metrics are empty
           COVERAGE=${COVERAGE:-0}
           DUPLICATION=${DUPLICATION:-0}
