@@ -1,4 +1,4 @@
-name: SonarQube
+name: Check Local Coverage & Run SonarQube
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build:
-    name: Build and analyze
+  build_and_analyze:
+    name: Build, Test (100% Coverage Guard), Analyze
     runs-on: ubuntu-latest
 
     steps:
@@ -23,13 +23,26 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Cache npm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         working-directory: backend
-        run: npm install
+        run: npm ci
+
+      - name: Install required tools (jq, bc)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc
 
       - name: Run tests with coverage
         working-directory: backend
-        run: npm test -- --coverage --watchAll=false
+        run: npm test -- --coverage --watchAll=false --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text
         env:
           NODE_ENV: ${{ secrets.NODE_ENV }}
           DB_HOST: ${{ secrets.DB_HOST }}
@@ -47,6 +60,36 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
+      - name: Verify 100% Local Code Coverage
+        id: verify_coverage
+        working-directory: backend
+        run: |
+          echo "Verifying local test coverage meets 100% requirement..."
+          COVERAGE_FILE="coverage/coverage-summary.json"
+
+          if [ ! -f "$COVERAGE_FILE" ]; then
+            echo "::error::Coverage summary file '$COVERAGE_FILE' not found! Ensure tests ran and produced the summary."
+            exit 1
+          fi
+
+          COVERAGE_PCT=$(jq '.total.lines.pct' $COVERAGE_FILE || echo "0")
+
+          if ! [[ "$COVERAGE_PCT" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+             echo "::error::Could not parse coverage percentage from $COVERAGE_FILE. Value found: '$COVERAGE_PCT'"
+             exit 1
+          fi
+
+          echo "Current local line coverage: $COVERAGE_PCT%"
+
+          IS_LESS_THAN_100=$(echo "$COVERAGE_PCT < 100" | bc -l)
+
+          if [ "$IS_LESS_THAN_100" -eq 1 ]; then
+            echo "::error::Local code coverage is $COVERAGE_PCT%, which is less than the required 100%."
+            exit 1
+          else
+            echo "Local code coverage requirement (100%) met. Proceeding..."
+          fi
+
       - name: Run build script
         working-directory: backend
         run: npm run build
@@ -56,79 +99,12 @@ jobs:
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+          restore-keys: |
+            ${{ runner.os }}-sonar
 
       - name: Run SonarQube analysis
+        working-directory: backend
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarqube.cs.ui.ac.id
         run: npx sonar-scanner
-        working-directory: ./backend
-
-      - name: Install required tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq bc
-
-      - name: Wait for SonarCloud processing
-        run: sleep 30
-          
-      - name: Check SonarQube metrics manually
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          PROJECT_KEY="fin-invoice-ocr-team6"
-          COMPONENT_KEY="$PROJECT_KEY"
-          # Perhatikan perubahan URL di sini
-          BASE_URL="https://sonarqube.cs.ui.ac.id"
-          
-          echo "Checking coverage, duplication, and security..."
-          echo "Project key: $PROJECT_KEY"
-          echo "Base URL: $BASE_URL"
-          
-          # Test token validity with projects API
-          echo "Testing API access with token..."
-          PROJECTS_RESPONSE=$(curl -s -u $SONAR_TOKEN: "$BASE_URL/api/projects/search")
-          echo "Projects API response: $PROJECTS_RESPONSE"
-          
-          # Get metrics
-          echo "Fetching metrics..."
-          RESPONSE=$(curl -s -u $SONAR_TOKEN: "$BASE_URL/api/measures/component?component=$COMPONENT_KEY&metricKeys=coverage,duplicated_lines_density,security_hotspots")
-          
-          echo "Debug - Raw API Response:"
-          echo "$RESPONSE"
-          
-          # Validate if we got valid responses
-          if [[ ! "$RESPONSE" == *"component"* ]]; then
-            echo "Invalid response from SonarQube API. Check component key and credentials."
-            exit 1
-          fi
-      
-          COVERAGE=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="coverage") | .value')
-          DUPLICATION=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="duplicated_lines_density") | .value')
-          SECURITY=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="security_hotspots") | .value')
-      
-          echo "Coverage: $COVERAGE%"
-          echo "Duplication: $DUPLICATION%"
-          echo "Security Hotspots: $SECURITY"
-      
-          # Add default values if metrics are empty
-          COVERAGE=${COVERAGE:-0}
-          DUPLICATION=${DUPLICATION:-0}
-          SECURITY=${SECURITY:-0}
-      
-          if [ "$(echo "$COVERAGE < 90" | bc 2>/dev/null)" -eq 1 ]; then
-            echo "Coverage less than 90%: $COVERAGE%"
-            exit 1
-          fi
-      
-          if [ "$(echo "$DUPLICATION > 3" | bc 2>/dev/null)" -eq 1 ]; then
-            echo "Code duplication more than 3%: $DUPLICATION%"
-            exit 1
-          fi
-      
-          if [ "$SECURITY" != "0" ]; then
-            echo "Security hotspot detected: $SECURITY"
-            exit 1
-          fi
-      
-          echo "All custom quality checks passed!"
