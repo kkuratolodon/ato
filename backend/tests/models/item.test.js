@@ -2,7 +2,6 @@ const { DataTypes, Sequelize } = require('sequelize');
 const ItemModel = require('@models/item');
 const InvoiceModel = require('@models/invoice');
 const PurchaseOrderModel = require('@models/purchaseOrder');
-const FinancialDocumentItemModel = require('@models/FinancialDocumentItem');
 const PartnerModel = require('@models/partner');
 const CustomerModel = require('@models/customer');
 const VendorModel = require('@models/vendor');
