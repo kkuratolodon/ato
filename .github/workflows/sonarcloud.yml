@@ -49,7 +49,7 @@ jobs:
 
       - name: Run build script
         working-directory: backend
-        run: npm run build 
+        run: npm run build
 
       - name: Cache SonarQube packages
         uses: actions/cache@v3
@@ -58,15 +58,50 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node
-
       - name: Run SonarQube analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: npx sonar-scanner
         working-directory: ./backend
+
+      - name: Download jq (kalau belum ada)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Check SonarQube metrics manually
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          PROJECT_KEY="fin-invoice-ocr-team6"
+          COMPONENT_KEY="$PROJECT_KEY:backend"
+          BASE_URL="https://sonarcloud.io"  # ganti kalau pakai self-hosted
+
+          echo "🔍 Checking coverage, duplication, and security..."
+
+          RESPONSE=$(curl -s -u $SONAR_TOKEN: "$BASE_URL/api/measures/component?component=$COMPONENT_KEY&metricKeys=coverage,duplicated_lines_density,security_hotspots")
+
+          COVERAGE=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="coverage") | .value')
+          DUPLICATION=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="duplicated_lines_density") | .value')
+          SECURITY=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="security_hotspots") | .value')
+
+          echo "📊 Coverage         = $COVERAGE%"
+          echo "📊 Duplication      = $DUPLICATION%"
+          echo "📊 Security Hotspot = $SECURITY"
+
+          if [ "$(echo "$COVERAGE < 100" | bc)" -eq 1 ]; then
+            echo "Coverage less than 100%"
+            exit 1
+          fi
+
+          if [ "$(echo "$DUPLICATION > 0" | bc)" -eq 1 ]; then
+            echo "Code duplication more than 0%"
+            exit 1
+          fi
+
+          if [ "$SECURITY" != "0" ]; then
+            echo "Security hotspot detected"
+            exit 1
+          fi
+
+          echo "All custom quality checks passed!"
