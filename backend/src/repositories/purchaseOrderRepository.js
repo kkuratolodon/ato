@@ -21,6 +21,26 @@ class PurchaseOrderRepository {
             where: { id }
         });
     }
+
+    async delete(id) {  
+        await PurchaseOrder.destroy({ where: { id } });
+    }
+    
+    async hardDelete(id) {
+        await PurchaseOrder.destroy({ 
+            where: { id },
+            force: true  
+        });
+    }
+    
+    async restore(id) {
+        const purchaseOrder = await PurchaseOrder.findByPk(id, { paranoid: false });
+        if (purchaseOrder && purchaseOrder.deleted_at) {
+            await purchaseOrder.restore();
+            return true;
+        }
+        return false;
+    } 
 }
 
 module.exports = PurchaseOrderRepository;

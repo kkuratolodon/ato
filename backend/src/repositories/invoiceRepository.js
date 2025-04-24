@@ -30,6 +30,22 @@ class InvoiceRepository {
     await Invoice.destroy({ where: { id } });
   }
 
+  async hardDelete(id) {
+    await Invoice.destroy({ 
+      where: { id },
+      force: true  
+    });
+  }
+
+  async restore(id) {
+    const invoice = await Invoice.findByPk(id, { paranoid: false });
+    if (invoice && invoice.deleted_at) {
+      await invoice.restore();
+      return true;
+    }
+    return false;
+  } 
+
 }
 
 module.exports = InvoiceRepository;
