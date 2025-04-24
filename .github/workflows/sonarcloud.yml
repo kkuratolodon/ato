@@ -64,10 +64,10 @@ jobs:
         run: npx sonar-scanner
         working-directory: ./backend
 
-      - name: Download jq (kalau belum ada)
+      - name: Install required tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq
+          sudo apt-get install -y jq bc
 
       - name: Check SonarQube metrics manually
         env:
@@ -85,16 +85,21 @@ jobs:
           DUPLICATION=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="duplicated_lines_density") | .value')
           SECURITY=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="security_hotspots") | .value')
 
-          echo "📊 Coverage         = $COVERAGE%"
-          echo "📊 Duplication      = $DUPLICATION%"
-          echo "📊 Security Hotspot = $SECURITY"
+          echo "Coverage         = $COVERAGE%"
+          echo "Duplication      = $DUPLICATION%"
+          echo "Security Hotspot = $SECURITY"
 
-          if [ "$(echo "$COVERAGE < 100" | bc)" -eq 1 ]; then
+          # Add default values if metrics are empty
+          COVERAGE=${COVERAGE:-0}
+          DUPLICATION=${DUPLICATION:-0}
+          SECURITY=${SECURITY:-0}
+
+          if [ "$(echo "$COVERAGE < 100" | bc 2>/dev/null)" -eq 1 ]; then
             echo "Coverage less than 100%"
             exit 1
           fi
 
-          if [ "$(echo "$DUPLICATION > 0" | bc)" -eq 1 ]; then
+          if [ "$(echo "$DUPLICATION > 0" | bc 2>/dev/null)" -eq 1 ]; then
             echo "Code duplication more than 0%"
             exit 1
           fi
