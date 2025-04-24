@@ -26,7 +26,7 @@ global.console = {
 };
 
 // Mock Sentry
-jest.mock('../../../src/instrument', () => ({
+jest.mock('@instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),

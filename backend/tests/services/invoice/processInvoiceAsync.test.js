@@ -1,9 +1,9 @@
-const Sentry = require('../../../src/instrument');
+const Sentry = require('@instrument');
 const DocumentStatus = require('@models/enums/DocumentStatus');
 const InvoiceService = require('@services/invoice/invoiceService');
 
 // Mock dependencies
-jest.mock('../../../src/instrument', () => ({
+jest.mock('@instrument', () => ({
   addBreadcrumb: jest.fn(),
   captureMessage: jest.fn(),
   captureException: jest.fn()

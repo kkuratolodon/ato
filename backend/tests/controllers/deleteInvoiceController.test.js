@@ -3,12 +3,12 @@ const { controller: invoiceController } = require("@controllers/invoiceControlle
 const validateDeletion = require("@services/validateDeletion");
 const InvoiceService = require("@services/invoice/invoiceService");
 const s3Service = require("@services/s3Service");
-const Sentry = require("../../src/instrument");
+const Sentry = require("@instrument");
 
 jest.mock("@services/validateDeletion");
 jest.mock("@services/invoice/invoiceService");
 jest.mock("@services/s3Service");
-jest.mock("../../src/instrument");
+jest.mock("@instrument");
 
 describe("Invoice Controller - deleteInvoiceById (Unit Test)", () => {
   let req, res;

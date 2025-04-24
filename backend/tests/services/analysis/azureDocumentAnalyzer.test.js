@@ -1,10 +1,10 @@
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
 const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
-const Sentry = require("../../../src/instrument");
+const Sentry = require("@instrument");
 
 // Mocking dependencies
 jest.mock("@azure/ai-form-recognizer");
-jest.mock("../../../src/instrument", () => ({
+jest.mock("@instrument", () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),

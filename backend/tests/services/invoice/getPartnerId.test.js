@@ -17,7 +17,7 @@ jest.mock('@services/invoice/invoiceResponseFormatter');
 jest.mock('@services/invoiceMapperService/invoiceMapperService');
 
 // Sentry mock
-jest.mock('../../../src/instrument', () => ({
+jest.mock('@instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),

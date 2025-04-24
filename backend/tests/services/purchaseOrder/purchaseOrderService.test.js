@@ -1,11 +1,11 @@
 const PurchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
-const Sentry = require('../../../src/instrument');
+const Sentry = require('@instrument');
 const DocumentStatus = require('@models/enums/DocumentStatus');
 
 jest.mock('@repositories/purchaseOrderRepository');
 jest.mock('@services/purchaseOrder/purchaseOrderValidator');
 jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
-jest.mock('../../../src/instrument');
+jest.mock('@instrument');
 
 // Mock uuid to return a predictable value
 jest.mock('uuid', () => ({

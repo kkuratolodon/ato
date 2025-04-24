@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const FinancialDocumentService = require('../financialDocumentService');
-const Sentry = require("../../instrument");
+const Sentry = require("@instrument");
 const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
 const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');

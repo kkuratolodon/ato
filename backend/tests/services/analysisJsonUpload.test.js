@@ -38,7 +38,7 @@ jest.mock('@models/', () => ({
 }));
 
 jest.mock('@azure/ai-form-recognizer');
-jest.mock('../../src/instrument');
+jest.mock('@instrument');
 
 describe('S3 Analysis JSON Upload - FinancialDocumentService', () => {
   let service;
