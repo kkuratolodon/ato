@@ -9,7 +9,7 @@ on:
 
 jobs:
   build_and_analyze:
-    name: Build, Test (100% Coverage Guard), Analyze
+    name: Build and Analyze
     runs-on: ubuntu-latest
 
     steps:
