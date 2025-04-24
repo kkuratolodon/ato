@@ -77,11 +77,21 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           PROJECT_KEY="fin-invoice-ocr-team6"
-          COMPONENT_KEY="$PROJECT_KEY:backend"
-          BASE_URL="https://sonarcloud.io"
-      
-          echo "🔍 Checking coverage, duplication, and security..."
-      
+          COMPONENT_KEY="$PROJECT_KEY"
+          # Perhatikan perubahan URL di sini
+          BASE_URL="https://sonarqube.cs.ui.ac.id"
+          
+          echo "Checking coverage, duplication, and security..."
+          echo "Project key: $PROJECT_KEY"
+          echo "Base URL: $BASE_URL"
+          
+          # Test token validity with projects API
+          echo "Testing API access with token..."
+          PROJECTS_RESPONSE=$(curl -s -u $SONAR_TOKEN: "$BASE_URL/api/projects/search")
+          echo "Projects API response: $PROJECTS_RESPONSE"
+          
+          # Get metrics
+          echo "Fetching metrics..."
           RESPONSE=$(curl -s -u $SONAR_TOKEN: "$BASE_URL/api/measures/component?component=$COMPONENT_KEY&metricKeys=coverage,duplicated_lines_density,security_hotspots")
           
           echo "Debug - Raw API Response:"
@@ -89,7 +99,7 @@ jobs:
           
           # Validate if we got valid responses
           if [[ ! "$RESPONSE" == *"component"* ]]; then
-            echo "Invalid response from SonarCloud API. Check component key and credentials."
+            echo "Invalid response from SonarQube API. Check component key and credentials."
             exit 1
           fi
       
