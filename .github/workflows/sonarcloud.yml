@@ -1,4 +1,4 @@
-name: SonarQube
+name: Check Local Coverage & Run SonarQube
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build:
-    name: Build and analyze
+  build_and_analyze:
+    name: Build and Analyze
     runs-on: ubuntu-latest
 
     steps:
@@ -23,13 +23,26 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Cache npm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         working-directory: backend
-        run: npm install
+        run: npm ci
+
+      - name: Install required tools (jq, bc)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc
 
       - name: Run tests with coverage
         working-directory: backend
-        run: npm test -- --coverage --watchAll=false
+        run: npm test -- --coverage --watchAll=false --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text
         env:
           NODE_ENV: ${{ secrets.NODE_ENV }}
           DB_HOST: ${{ secrets.DB_HOST }}
@@ -47,26 +60,51 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
+      - name: Verify 100% Local Code Coverage
+        id: verify_coverage
+        working-directory: backend
+        run: |
+          echo "Verifying local test coverage meets 100% requirement..."
+          COVERAGE_FILE="coverage/coverage-summary.json"
+
+          if [ ! -f "$COVERAGE_FILE" ]; then
+            echo "::error::Coverage summary file '$COVERAGE_FILE' not found! Ensure tests ran and produced the summary."
+            exit 1
+          fi
+
+          COVERAGE_PCT=$(jq '.total.lines.pct' $COVERAGE_FILE || echo "0")
+
+          if ! [[ "$COVERAGE_PCT" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+             echo "::error::Could not parse coverage percentage from $COVERAGE_FILE. Value found: '$COVERAGE_PCT'"
+             exit 1
+          fi
+
+          echo "Current local line coverage: $COVERAGE_PCT%"
+
+          IS_LESS_THAN_100=$(echo "$COVERAGE_PCT < 100" | bc -l)
+
+          if [ "$IS_LESS_THAN_100" -eq 1 ]; then
+            echo "::error::Local code coverage is $COVERAGE_PCT%, which is less than the required 100%."
+            exit 1
+          else
+            echo "Local code coverage requirement (100%) met. Proceeding..."
+          fi
+
       - name: Run build script
         working-directory: backend
-        run: npm run build 
+        run: npm run build
 
       - name: Cache SonarQube packages
         uses: actions/cache@v3
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node
+          restore-keys: |
+            ${{ runner.os }}-sonar
 
       - name: Run SonarQube analysis
+        working-directory: backend
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarqube.cs.ui.ac.id
         run: npx sonar-scanner
-        working-directory: ./backend

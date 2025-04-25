@@ -5,6 +5,7 @@ const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository')
 const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
 const DocumentStatus = require('@models/enums/DocumentStatus');
+const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {
@@ -12,6 +13,7 @@ class PurchaseOrderService extends FinancialDocumentService {
     this.purchaseOrderRepository = new PurchaseOrderRepository();
     this.validator = new PurchaseOrderValidator();
     this.responseFormatter = new PurchaseOrderResponseFormatter();
+    this.documentAnalyzer = new AzureDocumentAnalyzer();
   }
 
   async uploadPurchaseOrder(fileData) {
@@ -38,12 +40,11 @@ class PurchaseOrderService extends FinancialDocumentService {
         partner_id: partnerId,
         file_url: s3Result.file_url,
         original_filename: originalname,
-        file_size: buffer.length,
-        analysis_json_url: s3Result.analysisJsonUrl
+        file_size: buffer.length
       });
       
       // Process in the background
-      this.processPurchaseOrderAsync(purchaseOrderId);
+      this.processPurchaseOrderAsync(purchaseOrderId, buffer);
       
       console.log(`Purchase order upload initiated with ID: ${purchaseOrderId}`);
       
@@ -61,7 +62,7 @@ class PurchaseOrderService extends FinancialDocumentService {
     }
   }
 
-  async processPurchaseOrderAsync(purchaseOrderId) {
+  async processPurchaseOrderAsync(purchaseOrderId, buffer) {
     try {
       Sentry.addBreadcrumb({
         category: "purchaseOrderProcessing",
@@ -69,9 +70,19 @@ class PurchaseOrderService extends FinancialDocumentService {
         level: "info"
       });
 
-      // Here you would add document analysis and data extraction
-      // For now, we'll just update the status to show the process completed
+      // 1. Analyze purchase order using Azure
+      const analysisResult = await this.analyzePurchaseOrder(buffer);
       
+      // 2. Upload OCR results to S3 as JSON and get the URL
+      const jsonUrl = await this.uploadAnalysisResults(analysisResult, purchaseOrderId);
+      console.log(`Analysis JSON URL for purchase order ${purchaseOrderId}: ${jsonUrl}`);
+      
+      // 3. Update purchase order record with analysis JSON URL
+      await this.purchaseOrderRepository.update(purchaseOrderId, {
+        analysis_json_url: jsonUrl
+      });
+      
+      // 4. Update status to ANALYZED
       await this.purchaseOrderRepository.updateStatus(purchaseOrderId, DocumentStatus.ANALYZED);
 
       Sentry.captureMessage(`Successfully completed processing purchase order ${purchaseOrderId}`);
@@ -96,6 +107,15 @@ class PurchaseOrderService extends FinancialDocumentService {
       console.error("Error retrieving purchase order:", error);
       throw error;
     }
+  }
+  
+  /**
+   * Analyze purchase order document using Azure Document Intelligence
+   * @param {Buffer} buffer - The document buffer
+   * @returns {Promise<Object>} - The analysis results
+   */
+  async analyzePurchaseOrder(buffer) {
+    return this.documentAnalyzer.analyzeDocument(buffer);
   }
 }
 

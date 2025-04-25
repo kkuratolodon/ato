@@ -39,12 +39,6 @@ class FinancialDocumentService {
       if (!jsonUrl) {
         throw new Error("Failed to upload analysis results to S3");
       }
-      
-      // Log untuk debug
-      console.log(`Successfully uploaded analysis for document ${documentId} to ${jsonUrl}`);
-      
-      // Return the URL without saving to database yet
-      // This URL can be saved to analysis_json_url column later
       return jsonUrl;
     } catch (error) {
       console.error("Error uploading analysis results:", error);

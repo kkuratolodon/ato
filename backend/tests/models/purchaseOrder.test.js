@@ -342,4 +342,93 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder.file_url).toBe('');
         });
     });
+
+    describe('Sequelize Paranoid Soft Delete for PurchaseOrder', () => {
+        let testPurchaseOrder;
+        
+        beforeEach(async () => {
+        testPurchaseOrder = await PurchaseOrder.create({
+            po_number: 'SOFT-DELETE-TEST',
+            po_date: new Date(),
+            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            total_amount: 1000,
+            status: DocumentStatus.PROCESSING,
+            partner_id: partnerId
+        });
+        });
+    
+        test('should mark purchase order as deleted when using destroy()', async () => {
+            await testPurchaseOrder.destroy();
+            
+            const notFound = await PurchaseOrder.findByPk(testPurchaseOrder.id);
+            expect(notFound).toBeNull();
+            
+            const foundDeleted = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            expect(foundDeleted).not.toBeNull();
+            expect(foundDeleted.id).toBe(testPurchaseOrder.id);
+            expect(foundDeleted.is_deleted).toBe(true);
+            expect(foundDeleted.deleted_at).not.toBeNull();
+        });
+    
+        test('should not retrieve soft-deleted purchase orders in findAll by default', async () => {
+            await PurchaseOrder.destroy({ where: {}, force: true });
+            
+            const testPurchaseOrder = await PurchaseOrder.create({
+                po_number: 'SOFT-DELETE-TEST',
+                po_date: new Date(),
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+              
+              const secondPurchaseOrder = await PurchaseOrder.create({
+                po_number: 'NOT-DELETED',
+                po_date: new Date(),
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+        
+            await testPurchaseOrder.destroy();
+            
+            const allPurchaseOrders = await PurchaseOrder.findAll();
+            
+            expect(allPurchaseOrders.some(po => po.id === testPurchaseOrder.id)).toBeFalsy();
+            expect(allPurchaseOrders.some(po => po.id === secondPurchaseOrder.id)).toBeTruthy();
+            
+            const allIncludingDeleted = await PurchaseOrder.findAll({ paranoid: false });
+            expect(allIncludingDeleted.some(po => po.id === testPurchaseOrder.id)).toBeTruthy();
+            
+            await secondPurchaseOrder.destroy({ force: true });
+        });
+    
+        test('should restore soft-deleted purchase order with restore() method', async () => {
+            await testPurchaseOrder.destroy();
+            
+            const notFound = await PurchaseOrder.findByPk(testPurchaseOrder.id);
+            expect(notFound).toBeNull();
+            
+            const deletedRecord = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            
+            await deletedRecord.restore();
+            
+            const restoredRecord = await PurchaseOrder.findByPk(testPurchaseOrder.id);
+            expect(restoredRecord).not.toBeNull();
+            expect(restoredRecord.id).toBe(testPurchaseOrder.id);
+            expect(restoredRecord.is_deleted).toBe(false);
+            expect(restoredRecord.deleted_at).toBeNull();
+        });
+    
+        test('should permanently delete purchase order with force: true', async () => {
+            await testPurchaseOrder.destroy({ force: true });
+        
+            const notFound = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            expect(notFound).toBeNull();
+        });
+    
+        test('should apply the beforeDestroy hook when soft deleting', async () => {
+            await testPurchaseOrder.destroy();
+        
+            const deletedRecord = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            expect(deletedRecord.is_deleted).toBe(true);
+        });
+    });
 });
