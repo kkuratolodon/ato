@@ -176,39 +176,124 @@ describe('InvoiceRepository', () => {
     });
 
     describe('delete', () => {
-        test('should delete an invoice successfully', async () => {
-            // Setup mock to return 1 (number of deleted rows)
-            Invoice.destroy.mockResolvedValue(1);
-            
-            // Call the method
+        test('should soft delete invoice successfully', async () => {
             await invoiceRepository.delete(1);
             
-            // Verify destroy was called with correct parameters
             expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
         });
 
-        test('should handle case when no invoice is deleted', async () => {
-            // Setup mock to return 0 (no rows deleted)
-            Invoice.destroy.mockResolvedValue(0);
+        test('should throw an error when delete fails', async () => {
+            const mockError = new Error('Delete failed');
+            Invoice.destroy.mockRejectedValueOnce(mockError);
             
-            // Call the method
-            await invoiceRepository.delete(999);
-            
-            // Verify destroy was called with correct parameters
-            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 999 } });
-        });
-
-        test('should throw an error when delete operation fails', async () => {
-            // Setup mock to throw an error
-            const mockError = new Error('Database error during delete');
-            Invoice.destroy.mockRejectedValue(mockError);
-            
-            // Expect the method to throw
             await expect(invoiceRepository.delete(1))
                 .rejects.toThrow(mockError);
             
-            // Verify destroy was called with correct parameters
             expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
         });
+
+        test('should handle non-existent ID gracefully', async () => {
+            Invoice.destroy.mockResolvedValueOnce(0); 
+            
+            await invoiceRepository.delete(999);
+            
+            expect(Invoice.destroy).toHaveBeenCalledWith({ where: { id: 999 } });
+        });
     });
+
+    describe('hardDelete', () => {
+        test('should permanently delete invoice', async () => {
+            await invoiceRepository.hardDelete(1);
+            
+            expect(Invoice.destroy).toHaveBeenCalledWith({ 
+                where: { id: 1 },
+                force: true
+            });
+        });
+
+        test('should throw an error when hard delete fails', async () => {
+            const mockError = new Error('Hard delete failed');
+            Invoice.destroy.mockRejectedValueOnce(mockError);
+            
+            await expect(invoiceRepository.hardDelete(1))
+                .rejects.toThrow(mockError);
+            
+            expect(Invoice.destroy).toHaveBeenCalledWith({ 
+                where: { id: 1 },
+                force: true
+            });
+        });
+
+        test('should handle non-existent ID when hard deleting', async () => {
+            Invoice.destroy.mockResolvedValueOnce(0); 
+            
+            await invoiceRepository.hardDelete(999);
+            
+            expect(Invoice.destroy).toHaveBeenCalledWith({ 
+                where: { id: 999 },
+                force: true
+            });
+        });
+    });
+
+    describe('restore', () => {
+        test('should restore soft-deleted invoice successfully', async () => {
+            const mockInvoice = {
+                id: 1,
+                deleted_at: new Date(),
+                restore: jest.fn().mockResolvedValue(true)
+            };
+            
+            Invoice.findByPk = jest.fn().mockResolvedValue(mockInvoice);
+            
+            const result = await invoiceRepository.restore(1);
+            
+            expect(Invoice.findByPk).toHaveBeenCalledWith(1, { paranoid: false });
+            expect(mockInvoice.restore).toHaveBeenCalled();
+            expect(result).toBe(true);
+        });
+
+        test('should return false when invoice is not found', async () => {
+            Invoice.findByPk = jest.fn().mockResolvedValue(null);
+            
+            const result = await invoiceRepository.restore(999);
+            
+            expect(Invoice.findByPk).toHaveBeenCalledWith(999, { paranoid: false });
+            expect(result).toBe(false);
+        });
+
+        test('should return false when invoice is not soft-deleted', async () => {
+            const mockInvoice = {
+                id: 1,
+                deleted_at: null,
+                restore: jest.fn()
+            };
+            
+            Invoice.findByPk = jest.fn().mockResolvedValue(mockInvoice);
+            
+            const result = await invoiceRepository.restore(1);
+            
+            expect(Invoice.findByPk).toHaveBeenCalledWith(1, { paranoid: false });
+            expect(mockInvoice.restore).not.toHaveBeenCalled();
+            expect(result).toBe(false);
+        });
+
+        test('should throw error when restore operation fails', async () => {
+            const mockError = new Error('Restore failed');
+            const mockInvoice = {
+                id: 1,
+                deleted_at: new Date(),
+                restore: jest.fn().mockRejectedValue(mockError)
+            };
+            
+            Invoice.findByPk = jest.fn().mockResolvedValue(mockInvoice);
+            
+            await expect(invoiceRepository.restore(1))
+                .rejects.toThrow(mockError);
+            
+            expect(Invoice.findByPk).toHaveBeenCalledWith(1, { paranoid: false });
+            expect(mockInvoice.restore).toHaveBeenCalled();
+        });
+    });
+    
 });
