@@ -203,7 +203,7 @@ describe('InvoiceRepository', () => {
             
             await expect(invoiceRepository.delete(1))
                 .rejects.toThrow(mockError);
-            
+           
             expect(Invoice.findByPk).toHaveBeenCalledWith(1);
             expect(mockInvoice.destroy).toHaveBeenCalled();
         });
@@ -307,7 +307,6 @@ describe('InvoiceRepository', () => {
             
             await expect(invoiceRepository.restore(1))
                 .rejects.toThrow(mockError);
-            
             expect(Invoice.findByPk).toHaveBeenCalledWith(1, { paranoid: false });
             expect(mockInvoice.restore).toHaveBeenCalled();
         });
