@@ -22,9 +22,12 @@ class PurchaseOrderRepository {
         });
     }
 
-    async delete(id) {  
-        await PurchaseOrder.destroy({ where: { id } });
-    }
+    async delete(id) {
+        const purchaseOrder = await PurchaseOrder.findByPk(id);
+        if (purchaseOrder) {
+          await purchaseOrder.destroy();
+        }
+      }
     
     async hardDelete(id) {
         await PurchaseOrder.destroy({ 

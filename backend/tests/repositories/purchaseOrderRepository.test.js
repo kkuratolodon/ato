@@ -141,27 +141,42 @@ describe('PurchaseOrderRepository', () => {
 
     describe('delete', () => {
         test('should soft delete purchase order successfully', async () => {
+            // Mock PurchaseOrder instance
+            const mockPurchaseOrder = {
+                id: 1,
+                destroy: jest.fn().mockResolvedValue(true)
+            };
+            
+            PurchaseOrder.findByPk.mockResolvedValue(mockPurchaseOrder);
+            
             await purchaseOrderRepository.delete(1);
             
-            expect(PurchaseOrder.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1);
+            expect(mockPurchaseOrder.destroy).toHaveBeenCalled();
         });
-
+    
         test('should throw an error when delete fails', async () => {
             const mockError = new Error('Delete failed');
-            PurchaseOrder.destroy.mockRejectedValueOnce(mockError);
+            const mockPurchaseOrder = {
+                id: 1,
+                destroy: jest.fn().mockRejectedValue(mockError)
+            };
+            
+            PurchaseOrder.findByPk.mockResolvedValue(mockPurchaseOrder);
             
             await expect(purchaseOrderRepository.delete(1))
                 .rejects.toThrow(mockError);
             
-            expect(PurchaseOrder.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1);
+            expect(mockPurchaseOrder.destroy).toHaveBeenCalled();
         });
-
+    
         test('should handle non-existent ID gracefully', async () => {
-            PurchaseOrder.destroy.mockResolvedValueOnce(0);
+            PurchaseOrder.findByPk.mockResolvedValue(null);
             
             await purchaseOrderRepository.delete(999);
             
-            expect(PurchaseOrder.destroy).toHaveBeenCalledWith({ where: { id: 999 } });
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(999);
         });
     });
 
