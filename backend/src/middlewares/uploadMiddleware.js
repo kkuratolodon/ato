@@ -9,10 +9,11 @@ const upload = multer({
   }
 }).single('file');
 
-module.exports = async (req, res, next) => {
-  try {
-    upload(req, res, next); 
-  } catch (error) {
-    handleMulterError(error, req, res, next)
-  }
-}
+module.exports = (req, res, next) => {
+  upload(req, res, function (err) {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    next();
+  });
+};

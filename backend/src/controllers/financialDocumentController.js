@@ -1,6 +1,6 @@
 const pdfValidationService = require('../services/pdfValidationService');
 const { safeResponse } = require('../utils/responseHelper');
-const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError } = require('../utils/errors');
+const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require('../utils/errors');
 
 class FinancialDocumentController {
   constructor(service, documentType) {
@@ -74,6 +74,9 @@ class FinancialDocumentController {
     }
     if (error instanceof ForbiddenError) {
       return safeResponse(res, 403, error.message);
+    }
+    if (error instanceof NotFoundError) {
+      return safeResponse(res, 404, error.message);
     }
     if (error instanceof PayloadTooLargeError) {
       return safeResponse(res, 413, error.message);

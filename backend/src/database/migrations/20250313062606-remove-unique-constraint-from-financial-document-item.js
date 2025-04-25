@@ -73,16 +73,41 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    // Recreate indexes if needed
-    await queryInterface.addIndex('FinancialDocumentItem', ['document_type', 'document_id']);
-    await queryInterface.addIndex('FinancialDocumentItem', ['item_id']);
-    
-    // Recreate the compound unique index
-    await queryInterface.addIndex('FinancialDocumentItem', 
-      ['document_type', 'document_id', 'item_id'], 
-      { unique: true }
-    );
-    
-    // Note: This doesn't recreate any foreign keys that were dropped
+    try {
+      // Cek apakah tabel masih ada sebelum melakukan operasi lain
+      const [tables] = await queryInterface.sequelize.query(
+        `SHOW TABLES LIKE 'FinancialDocumentItem';`
+      );
+      
+      if (tables.length === 0) {
+        console.log('Table FinancialDocumentItem does not exist, skipping recreation of indexes');
+        return;
+      }
+      
+      // Cek indeks yang sudah ada
+      const [indexes] = await queryInterface.sequelize.query(
+        `SHOW INDEXES FROM FinancialDocumentItem;`
+      );
+      const existingIndexes = indexes.map(idx => idx.Key_name);
+      
+      // Buat indeks hanya jika belum ada
+      if (!existingIndexes.includes('financial_document_item_document_type_document_id')) {
+        await queryInterface.addIndex('FinancialDocumentItem', ['document_type', 'document_id']);
+      }
+      
+      if (!existingIndexes.includes('financial_document_item_item_id')) {
+        await queryInterface.addIndex('FinancialDocumentItem', ['item_id']);
+      }
+      
+      if (!existingIndexes.includes('financial_document_item_document_type_document_id_item_id')) {
+        await queryInterface.addIndex('FinancialDocumentItem', 
+          ['document_type', 'document_id', 'item_id'], 
+          { unique: true }
+        );
+      }
+    } catch (error) {
+      console.error('Error in down migration:', error);
+      throw error;
+    }
   }
 };
