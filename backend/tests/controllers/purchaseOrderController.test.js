@@ -53,6 +53,34 @@ describe("Purchase Order Controller", () => {
     });
   });
 
+  // Add this new test to cover the constructor validation (line 8)
+  describe("constructor", () => {
+    test("should throw an error when an invalid service is provided", () => {
+      // Test with null
+      expect(() => new PurchaseOrderController(null)).toThrow('Invalid purchase order service provided');
+      
+      // Test with undefined
+      expect(() => new PurchaseOrderController(undefined)).toThrow('Invalid purchase order service provided');
+      
+      // Test with an object that doesn't have the required method
+      const invalidService = { 
+        someOtherMethod: () => {} 
+      };
+      expect(() => new PurchaseOrderController(invalidService)).toThrow('Invalid purchase order service provided');
+    });
+
+    test("should create controller successfully with valid service", () => {
+      // Create a mock service with the required method
+      const validService = {
+        uploadPurchaseOrder: jest.fn()
+      };
+      
+      // This should not throw an error
+      const controller = new PurchaseOrderController(validService);
+      expect(controller).toBeInstanceOf(PurchaseOrderController);
+    });
+  });
+
   describe("uploadPurchaseOrder", () => {
     test("should successfully upload when all validations pass", async () => {
       req.user = { uuid: "test-uuid" };

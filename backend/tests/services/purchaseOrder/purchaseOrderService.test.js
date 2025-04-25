@@ -6,6 +6,7 @@ jest.mock('../../../src/repositories/purchaseOrderRepository');
 jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');
 jest.mock('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
 jest.mock('../../../src/instrument');
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
 
 // Mock uuid to return a predictable value
 jest.mock('uuid', () => ({
@@ -15,26 +16,28 @@ jest.mock('uuid', () => ({
 describe('PurchaseOrderService', () => {
   let service;
   let originalProcessAsync;
+  let originalAnalyzePurchaseOrder;
 
   beforeEach(() => {
     service = PurchaseOrderService; // Use the singleton instance directly
     jest.clearAllMocks();
     
-    // Save the original implementation
+    // Save the original implementations
     originalProcessAsync = service.processPurchaseOrderAsync;
+    originalAnalyzePurchaseOrder = service.analyzePurchaseOrder;
     
     // Setup general mocks
     service.uploadFile = jest.fn().mockResolvedValue({ 
-      file_url: 'https://example.com/file.pdf',
-      analysisJsonUrl: 'https://example.com/analysis.json'
+      file_url: 'https://example.com/file.pdf'
     });
+    service.uploadAnalysisResults = jest.fn().mockResolvedValue('https://example.com/analysis.json');
+    service.analyzePurchaseOrder = jest.fn().mockResolvedValue({ result: 'Analysis result' });
     service.purchaseOrderRepository.createInitial = jest.fn().mockResolvedValue();
     service.purchaseOrderRepository.updateStatus = jest.fn().mockResolvedValue();
     service.purchaseOrderRepository.findById = jest.fn();
     service.validator.validateFileData = jest.fn();
     service.responseFormatter.formatPurchaseOrderResponse = jest.fn();
-    
-    // Don't mock processPurchaseOrderAsync by default to use the real implementation
+    service.documentAnalyzer.analyzeDocument = jest.fn().mockResolvedValue({ result: 'Analysis result' });
     
     // Sentry mocks
     Sentry.addBreadcrumb = jest.fn();
@@ -49,41 +52,41 @@ describe('PurchaseOrderService', () => {
   afterEach(() => {
     console.log.mockRestore();
     console.error.mockRestore();
-    // Restore the original implementation
+    // Restore the original implementations
     service.processPurchaseOrderAsync = originalProcessAsync;
+    service.analyzePurchaseOrder = originalAnalyzePurchaseOrder;
   });
 
   test('should handle errors during async processing', async () => {
     const purchaseOrderId = 'mock-id';
+    const buffer = Buffer.from('test content');
 
     // Create an error that will be thrown inside the method
     const testError = new Error('Processing error');
-    service.purchaseOrderRepository.updateStatus.mockImplementationOnce(() => {
-      // This will throw the first time it's called (during the normal flow)
-      throw testError;
-    });
+    
+    // Mock the analyzePurchaseOrder method to throw an error
+    service.analyzePurchaseOrder = jest.fn().mockRejectedValue(testError);
 
     // Call the actual method, which should catch the error
-    await service.processPurchaseOrderAsync(purchaseOrderId);
+    await service.processPurchaseOrderAsync(purchaseOrderId, buffer);
 
     // Verify error handling
     expect(Sentry.captureException).toHaveBeenCalledWith(testError);
-    expect(service.purchaseOrderRepository.updateStatus).toHaveBeenCalledTimes(2);
-    // First call - fails with error
-    // Second call - the error handling updates status to "Failed"
-    expect(service.purchaseOrderRepository.updateStatus.mock.calls[1][0]).toBe(purchaseOrderId);
-    expect(service.purchaseOrderRepository.updateStatus.mock.calls[1][1]).toBe('Failed');
+    expect(service.purchaseOrderRepository.updateStatus).toHaveBeenCalledWith(purchaseOrderId, DocumentStatus.FAILED);
   });
 
   test('should successfully process purchase order async', async () => {
     const purchaseOrderId = 'mock-id';
+    const buffer = Buffer.from('test content');
 
     // Call the method
-    await service.processPurchaseOrderAsync(purchaseOrderId);
+    await service.processPurchaseOrderAsync(purchaseOrderId, buffer);
 
     // Verify the expected behavior
     expect(Sentry.addBreadcrumb).toHaveBeenCalled();
-    expect(service.purchaseOrderRepository.updateStatus).toHaveBeenCalledWith(purchaseOrderId, 'Analyzed');
+    expect(service.analyzePurchaseOrder).toHaveBeenCalledWith(buffer);
+    expect(service.uploadAnalysisResults).toHaveBeenCalledWith({ result: 'Analysis result' }, purchaseOrderId);
+    expect(service.purchaseOrderRepository.updateStatus).toHaveBeenCalledWith(purchaseOrderId, DocumentStatus.ANALYZED);
     expect(Sentry.captureMessage).toHaveBeenCalledWith(`Successfully completed processing purchase order ${purchaseOrderId}`);
   });
 
@@ -110,10 +113,9 @@ describe('PurchaseOrderService', () => {
       partner_id: 'partner-123',
       file_url: 'https://example.com/file.pdf',
       original_filename: 'test.pdf',
-      file_size: fileData.buffer.length,
-      analysis_json_url: 'https://example.com/analysis.json'
+      file_size: fileData.buffer.length
     });
-    expect(service.processPurchaseOrderAsync).toHaveBeenCalledWith('test-uuid-1234');
+    expect(service.processPurchaseOrderAsync).toHaveBeenCalledWith('test-uuid-1234', fileData.buffer);
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('test-uuid-1234'));
     
     // Verify the result
@@ -219,5 +221,24 @@ describe('PurchaseOrderService', () => {
     // Call the method and expect it to throw
     await expect(service.getPurchaseOrderById(purchaseOrderId)).rejects.toThrow(dbError);
     expect(console.error).toHaveBeenCalled();
+  });
+
+  // Add a specific test for analyzePurchaseOrder method
+  test('should analyze purchase order document using document analyzer', async () => {
+    const buffer = Buffer.from('test document content');
+    const mockAnalysisResult = { result: 'Analysis result from Azure' };
+    
+    // Restore original implementation first
+    service.analyzePurchaseOrder = originalAnalyzePurchaseOrder;
+    
+    // Setup mock for document analyzer
+    service.documentAnalyzer.analyzeDocument.mockResolvedValue(mockAnalysisResult);
+    
+    // Call the method directly
+    const result = await service.analyzePurchaseOrder(buffer);
+    
+    // Verify expected behavior
+    expect(service.documentAnalyzer.analyzeDocument).toHaveBeenCalledWith(buffer);
+    expect(result).toEqual(mockAnalysisResult);
   });
 });
