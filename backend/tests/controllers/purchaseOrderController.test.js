@@ -6,6 +6,34 @@ const pdfValidationService = require("../../src/services/pdfValidationService");
 jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
 jest.mock("../../src/services/pdfValidationService");
 
+describe("PurchaseOrderController constructor", () => {
+  test("should throw error when invalid service is provided", () => {
+    // Case 1: No service provided
+    expect(() => {
+      new PurchaseOrderController();
+    }).toThrow('Invalid purchase order service provided');
+
+    // Case 2: Service without uploadPurchaseOrder function
+    const invalidService = {};
+    expect(() => {
+      new PurchaseOrderController(invalidService);
+    }).toThrow('Invalid purchase order service provided');
+    
+    // Case 3: Service with non-function uploadPurchaseOrder property
+    const invalidService2 = { uploadPurchaseOrder: 'not a function' };
+    expect(() => {
+      new PurchaseOrderController(invalidService2);
+    }).toThrow('Invalid purchase order service provided');
+  });
+
+  test("should not throw error when valid service is provided", () => {
+    const validService = { uploadPurchaseOrder: jest.fn() };
+    expect(() => {
+      new PurchaseOrderController(validService);
+    }).not.toThrow();
+  });
+});
+
 describe("Purchase Order Controller", () => {
   let req, res, controller;
 

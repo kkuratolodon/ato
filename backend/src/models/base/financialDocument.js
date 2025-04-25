@@ -29,12 +29,12 @@ class FinancialDocument extends Model {
       as: 'vendor'
     });
 
+    // Handle Item association for many-to-many
     models?.Item && this.belongsToMany(models.Item, {
-      through: 'FinancialDocumentItem',
+      through: 'Item',
       foreignKey: 'document_id',
-      otherKey: 'item_id',
-      as: 'items',
-      onDelete: 'CASCADE'
+      otherKey: 'uuid',
+      as: 'items'
     });
   }
 
@@ -126,6 +126,16 @@ class FinancialDocument extends Model {
           model: 'Vendor',
           key: 'uuid'
         },
+        defaultValue: null
+      },
+      is_deleted: {
+        type: options.DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      deleted_at: {
+        type: options.DataTypes.DATE,
+        allowNull: true,
         defaultValue: null
       }
     };

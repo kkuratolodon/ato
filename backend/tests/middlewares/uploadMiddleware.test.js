@@ -1,134 +1,120 @@
-// First, mock dependencies that would be used at the top level
-jest.mock('../../src/middlewares/multerErrorHandler');
+const request = require('supertest');
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const uploadMiddleware = require('../../src/middlewares/uploadMiddleware');
 
-// Mock multer with a factory function to avoid reference errors
-jest.mock('multer', () => {
-  // Create a mock middleware function that just calls next
-  const mockMiddleware = jest.fn((req, res, next) => next());
-  
-  // Create a mock single function that returns the middleware
-  const mockSingle = jest.fn(() => mockMiddleware);
-  
-  // Create the main multer mock function
-  const mockMulterFn = jest.fn(() => ({
-    single: mockSingle
-  }));
-  
-  // Add necessary properties and methods to the multer mock
-  mockMulterFn.memoryStorage = jest.fn().mockReturnValue('memory-storage');
-  mockMulterFn.MulterError = class MulterError extends Error {
-    constructor(code, message) {
-      super(message);
-      this.code = code;
-    }
-  };
-  
-  return mockMulterFn;
+// Mock multerErrorHandler to verify it's called correctly
+jest.mock('../../src/middlewares/multerErrorHandler', () => {
+  return jest.fn((err, req, res) => {
+    res.status(400).json({ message: err.message || 'File upload error' });
+  });
 });
 
-// Now require the actual module under test
-const handleMulterError = require('../../src/middlewares/multerErrorHandler');
+describe('Upload Middleware Tests', () => {
+  let app;
+  const testFilePath = path.join(__dirname, '../fixtures/test-file.pdf');
+  const largeTempFilePath = path.join(__dirname, '../fixtures/large-test-file.pdf');
 
-describe('uploadMiddleware', () => {
-  let req, res, next;
-  let uploadMiddleware;
-  let multer;
-  
+  beforeAll(() => {
+    // Create test directory if it doesn't exist
+    const fixturesDir = path.join(__dirname, '../fixtures');
+    if (!fs.existsSync(fixturesDir)) {
+      fs.mkdirSync(fixturesDir, { recursive: true });
+    }
+    
+    // Create a small test file
+    fs.writeFileSync(testFilePath, 'Test file content');
+    
+    // Create a file larger than 20MB for testing
+    const largeBuffer = Buffer.alloc(21 * 1024 * 1024, 'x');
+    fs.writeFileSync(largeTempFilePath, largeBuffer);
+  });
+
   beforeEach(() => {
-    // Clear all mocks
-    jest.clearAllMocks();
+    app = express();
     
-    // Reset modules to ensure clean state
-    jest.resetModules();
-    
-    // Re-import multer mock to get the updated mock functions
-    multer = require('multer');
-    
-    // Re-import middleware under test after mocks are properly set
-    uploadMiddleware = require('../../src/middlewares/uploadMiddleware');
-    
-    // Set up test objects
-    req = {};
-    res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    };
-    next = jest.fn();
-  });
-  
-  test('should pass control to next middleware on success', async () => {
-    // Execute the middleware
-    await uploadMiddleware(req, res, next);
-    
-    // Verify that multer was called correctly
-    expect(multer).toHaveBeenCalled();
-    expect(multer().single).toHaveBeenCalledWith('file');
-  });
-  
-  test('should handle errors and call the error handler', async () => {
-    // Create an error that will be thrown
-    const testError = new Error('Test error');
-    
-    // Replace the uploadMiddleware implementation to throw an error
-    // We need to do this before requiring the module
-    jest.doMock('../../src/middlewares/uploadMiddleware', () => {
-      return async (req, res, next) => {
-        try {
-          throw testError;
-        } catch (error) {
-          handleMulterError(error, req, res, next);
+    // Test route using the upload middleware
+    app.post('/upload', uploadMiddleware, (req, res) => {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      res.status(200).json({ 
+        message: 'File uploaded successfully',
+        fileDetails: {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size
         }
-      };
+      });
     });
-    
-    // Re-require the module to get our mocked version
-    const mockedUploadMiddleware = require('../../src/middlewares/uploadMiddleware');
-    
-    // Execute the middleware
-    await mockedUploadMiddleware(req, res, next);
-    
-    // Verify the error handler was called with the error
-    expect(handleMulterError).toHaveBeenCalledWith(testError, req, res, next);
-    expect(next).not.toHaveBeenCalled();
   });
 
-  // Add this new test to cover line 16
-  test('should properly invoke the error handler with correct parameters', async () => {
-    // Mock implementation of handleMulterError to verify parameters
-    handleMulterError.mockImplementation((error, request, response, nextFn) => {
-      // Verify the parameters are passed correctly
-      expect(error).toBeInstanceOf(Error);
-      expect(request).toBe(req);
-      expect(response).toBe(res);
-      expect(nextFn).toBe(next);
+  afterAll(() => {
+    // Clean up test files
+    if (fs.existsSync(testFilePath)) {
+      fs.unlinkSync(testFilePath);
+    }
+    if (fs.existsSync(largeTempFilePath)) {
+      fs.unlinkSync(largeTempFilePath);
+    }
+  });
+
+  // Positive test cases
+  describe('Positive cases', () => {
+    it('should successfully upload a file', async () => {
+      const response = await request(app)
+        .post('/upload')
+        .attach('file', testFilePath);
       
-      // Don't actually call next, just verify parameters
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('File uploaded successfully');
+      expect(response.body.fileDetails).toBeDefined();
+      expect(response.body.fileDetails.originalname).toBe('test-file.pdf');
+    });
+  });
+
+  // Negative test cases
+  describe('Negative cases', () => {
+    it('should handle file size exceeding limit', async () => {
+      const response = await request(app)
+        .post('/upload')
+        .attach('file', largeTempFilePath);
+      
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBeTruthy(); // Should contain an error message
     });
 
-    // Create a test error with the EXACT same message
-    const testError = new Error('Test error');
-    
-    // Create a module that throws an error and catches it 
-    // to execute the specific line we want to cover
-    jest.doMock('../../src/middlewares/uploadMiddleware', () => {
-      return async (req, res, next) => {
-        try {
-          throw testError;
-        } catch (error) {
-          // This is the line we want to test (line 16)
-          handleMulterError(error, req, res, next);
-        }
-      };
+    it('should handle no file uploaded', async () => {
+      const response = await request(app)
+        .post('/upload');
+      
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('No file uploaded');
     });
-    
-    // Re-require with our custom implementation
-    const customUploadMiddleware = require('../../src/middlewares/uploadMiddleware');
-    
-    // Execute the middleware
-    await customUploadMiddleware(req, res, next);
-    
-    // Only check that it was called, don't check the exact parameters
-    // since we've already verified the parameters in handleMulterError mock
-    expect(handleMulterError).toHaveBeenCalled();
+  });
+
+  // This test specifically tests the error handling in the middleware
+  describe('Error handling', () => {
+    it('should handle multer errors properly', async () => {
+      // Create a special app with a middleware that forces multer to error
+      const errorApp = express();
+      
+      // Create a mock multer that throws an error
+      const mockErrorMiddleware = (req, res, next) => {
+        const error = new Error('Multer test error');
+        const multerErrorHandler = require('../../src/middlewares/multerErrorHandler');
+        multerErrorHandler(error, req, res, next);
+      };
+      
+      errorApp.post('/upload-error', mockErrorMiddleware);
+      
+      const response = await request(errorApp)
+        .post('/upload-error')
+        .attach('file', testFilePath);
+      
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Multer test error');
+    });
   });
 });

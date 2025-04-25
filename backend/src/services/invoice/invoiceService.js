@@ -178,6 +178,7 @@ class InvoiceService extends FinancialDocumentService {
   }
 
   async saveInvoiceItems(invoiceId, itemsData) {
+    console.log("Saving invoice items...", itemsData);
     if (!itemsData || !Array.isArray(itemsData) || itemsData.length === 0) {
       console.log("No items to save");
       return;
@@ -185,12 +186,9 @@ class InvoiceService extends FinancialDocumentService {
 
     try {
       for (const itemData of itemsData) {
-        const item = await this.itemRepository.findOrCreateItem(itemData.description);
-
         await this.itemRepository.createDocumentItem(
           'Invoice',
           invoiceId,
-          item.uuid,
           {
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
@@ -207,8 +205,8 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
-  async getPartnerId(id) {
-    const invoice = await this.invoiceRepository.findById(id);
+  async getPartnerId(invoiceId) {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
 
     if (!invoice) {
       throw new Error("Invoice not found");
@@ -216,9 +214,9 @@ class InvoiceService extends FinancialDocumentService {
     return invoice.partner_id;
   }
 
-  async getInvoiceById(id) {
+  async getInvoiceById(invoiceId) {
     try {
-      const invoice = await this.invoiceRepository.findById(id);
+      const invoice = await this.invoiceRepository.findById(invoiceId);
       
       if (!invoice) {
         throw new Error("Invoice not found");
@@ -239,7 +237,7 @@ class InvoiceService extends FinancialDocumentService {
         };
       }
 
-      const items = await this.itemRepository.findItemsByDocumentId(id, 'Invoice');
+      const items = await this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice');
 
       let customer = null;
       if (invoice.customer_id) {
