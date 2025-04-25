@@ -33,10 +33,18 @@ class UnsupportedMediaTypeError extends Error {
     }
 }
 
+class NotFoundError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "NotFoundError";
+    }
+}
+
 module.exports = {
     ValidationError,
     AuthError,
     ForbiddenError,
     PayloadTooLargeError,
-    UnsupportedMediaTypeError
+    UnsupportedMediaTypeError, 
+    NotFoundError
 };

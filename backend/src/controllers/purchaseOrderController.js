@@ -8,6 +8,7 @@ class PurchaseOrderController extends FinancialDocumentController {
       throw new Error('Invalid purchase order service provided');  
     }  
     super(purchaseOrderService, "Purchase Order");
+    this.uploadPurchaseOrder = this.uploadPurchaseOrder.bind(this);
   }
 
   async uploadPurchaseOrder(req, res) {

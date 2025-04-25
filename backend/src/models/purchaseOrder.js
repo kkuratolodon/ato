@@ -30,10 +30,11 @@ module.exports = (sequelize, DataTypes) => {
             }
             
             if (models.Item) {
+                // Update Item association via belongsToMany for consistent many-to-many relations
                 PurchaseOrder.belongsToMany(models.Item, {
-                    through: 'FinancialDocumentItem',
+                    through: 'Item',
                     foreignKey: 'document_id',
-                    otherKey: 'item_id',
+                    otherKey: 'uuid',
                     as: 'items'
                 });
             }
@@ -65,6 +66,18 @@ module.exports = (sequelize, DataTypes) => {
         modelName: 'PurchaseOrder',
         tableName: 'PurchaseOrder',
         freezeTableName: true,
+        paranoid: true,          
+        deletedAt: 'deleted_at',  
+        hooks: {
+            beforeDestroy: async (instance) => {
+                 instance.is_deleted = true;
+                 await instance.save();
+            },
+            afterRestore: async (instance) => {
+                instance.is_deleted = false;
+                await instance.save();
+            }
+        },
         DataTypes
     });
 

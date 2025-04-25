@@ -9,6 +9,11 @@ const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors'
 class InvoiceController extends FinancialDocumentController {
   constructor(invoiceService) {
     super(invoiceService, "Invoice");
+
+    // Bind methods to ensure correct context
+    this.uploadInvoice = this.uploadInvoice.bind(this);
+    this.getInvoiceById = this.getInvoiceById.bind(this);
+    this.deleteInvoiceById = this.deleteInvoiceById.bind(this);
   }
 
   /**
@@ -42,19 +47,50 @@ class InvoiceController extends FinancialDocumentController {
  * Logs internal server errors to the console but provides a generic response to the client.
  */
   async uploadInvoice(req, res) {
-    return this.uploadFile(req, res)
+    return await this.uploadFile(req, res)
   }
 
   async processUpload(req) {
     const { buffer, originalname, mimetype } = req.file;
     const partnerId = req.user.uuid;
 
-    return await this.service.uploadInvoice({
-      buffer,
-      originalname,
-      mimetype,
-      partnerId
-    })
+    Sentry.addBreadcrumb({
+      category: 'upload',
+      message: 'Starting invoice upload process',
+      data: {
+        filename: originalname,
+        partnerId,
+        fileSize: buffer.length
+      }
+    });
+
+    try {
+      const result = await this.service.uploadInvoice({
+        buffer,
+        originalname,
+        mimetype,
+        partnerId
+      });
+
+      Sentry.captureMessage('Invoice upload successful', {
+        level: 'info',
+        extra: { 
+          invoiceId: result.invoiceId,
+          partnerId 
+        }
+      });
+
+      return result;
+    } catch (error) {
+      Sentry.captureException(error, {
+        extra: {
+          filename: originalname,
+          partnerId,
+          fileSize: buffer.length
+        }
+      });
+      throw error;
+    }
   }
 
   /**
@@ -87,9 +123,9 @@ class InvoiceController extends FinancialDocumentController {
     if (!id) {
       throw new ValidationError("Invoice ID is required");
     }
-    if (isNaN(id) || parseInt(id) <= 0) {
-      throw new ValidationError("Invalid invoice ID");
-    }
+    // if (isNaN(id) || parseInt(id) <= 0) {
+    //   throw new ValidationError("Invalid invoice ID");
+    // }
     const invoicePartnerId = await this.service.getPartnerId(id);
     if (invoicePartnerId !== req.user.uuid) {
       throw new ForbiddenError("Forbidden: You do not have access to this invoice");

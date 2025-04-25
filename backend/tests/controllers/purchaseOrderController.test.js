@@ -6,6 +6,34 @@ const pdfValidationService = require("../../src/services/pdfValidationService");
 jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
 jest.mock("../../src/services/pdfValidationService");
 
+describe("PurchaseOrderController constructor", () => {
+  test("should throw error when invalid service is provided", () => {
+    // Case 1: No service provided
+    expect(() => {
+      new PurchaseOrderController();
+    }).toThrow('Invalid purchase order service provided');
+
+    // Case 2: Service without uploadPurchaseOrder function
+    const invalidService = {};
+    expect(() => {
+      new PurchaseOrderController(invalidService);
+    }).toThrow('Invalid purchase order service provided');
+    
+    // Case 3: Service with non-function uploadPurchaseOrder property
+    const invalidService2 = { uploadPurchaseOrder: 'not a function' };
+    expect(() => {
+      new PurchaseOrderController(invalidService2);
+    }).toThrow('Invalid purchase order service provided');
+  });
+
+  test("should not throw error when valid service is provided", () => {
+    const validService = { uploadPurchaseOrder: jest.fn() };
+    expect(() => {
+      new PurchaseOrderController(validService);
+    }).not.toThrow();
+  });
+});
+
 describe("Purchase Order Controller", () => {
   let req, res, controller;
 
@@ -22,6 +50,34 @@ describe("Purchase Order Controller", () => {
     purchaseOrderService.uploadPurchaseOrder.mockResolvedValue({
       message: "Purchase order uploaded successfully",
       id: "123"
+    });
+  });
+
+  // Add this new test to cover the constructor validation (line 8)
+  describe("constructor", () => {
+    test("should throw an error when an invalid service is provided", () => {
+      // Test with null
+      expect(() => new PurchaseOrderController(null)).toThrow('Invalid purchase order service provided');
+      
+      // Test with undefined
+      expect(() => new PurchaseOrderController(undefined)).toThrow('Invalid purchase order service provided');
+      
+      // Test with an object that doesn't have the required method
+      const invalidService = { 
+        someOtherMethod: () => {} 
+      };
+      expect(() => new PurchaseOrderController(invalidService)).toThrow('Invalid purchase order service provided');
+    });
+
+    test("should create controller successfully with valid service", () => {
+      // Create a mock service with the required method
+      const validService = {
+        uploadPurchaseOrder: jest.fn()
+      };
+      
+      // This should not throw an error
+      const controller = new PurchaseOrderController(validService);
+      expect(controller).toBeInstanceOf(PurchaseOrderController);
     });
   });
 
