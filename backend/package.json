@@ -6,7 +6,14 @@
     "start": "node server.js",
     "test": "jest",
     "build": "echo 'No build step needed'",
-    "lint": "eslint ."
+    "lint": "eslint .", 
+    "test:db:create": "NODE_ENV=test sequelize-cli db:create",
+    "test:db:drop": "NODE_ENV=test sequelize-cli db:drop",
+    "test:db:migrate": "NODE_ENV=test sequelize-cli db:migrate",
+    "test:db:seed": "NODE_ENV=test sequelize-cli db:seed:all",
+    "test:db:reset": "NODE_ENV=test sequelize-cli db:migrate:undo:all && npm run test:db:migrate", 
+    "debug:env": "NODE_ENV=test node -e \"console.log(require('./src/database/config.js').test)\"",
+    "test:functional": "dotenv -e .env.test -- node scripts/seedTestDb.js && newman run tests/functional/collection.json --env-var baseUrl=http://localhost:3000"
   },
   "keywords": [],
   "author": "",
