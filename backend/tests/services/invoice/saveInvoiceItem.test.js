@@ -146,6 +146,12 @@ describe('saveInvoiceItems', () => {
         quantity: 0,
         unitPrice: 0,
         amount: 0
+      },
+      {
+        description: null,
+        quantity: 0,
+        unitPrice: 0,
+        amount: 0
       }
     ];
     console.log(`itemsWithMissingValues: ${JSON.stringify(itemsWithMissingValues)}`);
@@ -153,7 +159,7 @@ describe('saveInvoiceItems', () => {
     await invoiceService.saveInvoiceItems(invoiceId, itemsWithMissingValues);
     console.log(`masuk: ${JSON.stringify(itemsWithMissingValues)}`);
     // Assert
-    expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledTimes(3);
+    expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledTimes(4);
 
     // Check first call (missing values)
     expect(invoiceService.itemRepository.createDocumentItem.mock.calls[0][2]).toEqual({
@@ -176,6 +182,13 @@ describe('saveInvoiceItems', () => {
     // Check third call (zero values)
     expect(invoiceService.itemRepository.createDocumentItem.mock.calls[2][2]).toEqual({
       description: 'Item with zero values',
+      quantity: 0,            // Zero preserved
+      unit: null,             // Default value applied
+      unit_price: 0,          // Zero preserved
+      amount: 0               // Zero preserved
+    });
+    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[3][2]).toEqual({
+      description: null,
       quantity: 0,            // Zero preserved
       unit: null,             // Default value applied
       unit_price: 0,          // Zero preserved
