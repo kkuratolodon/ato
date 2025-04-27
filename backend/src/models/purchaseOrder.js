@@ -51,14 +51,12 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
         },
         due_date: {
-            type: DataTypes.DATE,
-            allowNull: true,
-            validate: {
-                isAfterPoDate(value) {
-                    if (this.po_date && new Date(value) < new Date(this.po_date)) {
-                        throw new Error('due_date must not be earlier than po_date');
-                    }
-                }
+            type: DataTypes.VIRTUAL, // This makes the field virtual (not stored in DB)
+            get: function() {
+                return null; // Always returns null when accessed
+            },
+            set: function() {
+                // Do nothing when attempted to set
             }
         }
     }, {

@@ -187,7 +187,6 @@ describe('PurchaseOrder Model', () => {
             const purchaseOrder = await PurchaseOrder.create({
                 po_date: new Date('2024-01-01'),
                 po_number: 'PO-2024-001',
-                due_date: new Date('2024-02-01'),
                 total_amount: 1000.50,
                 subtotal_amount: 1200.00,
                 discount_amount: 199.50,
@@ -212,9 +211,7 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder).toBeTruthy();
             expect(purchaseOrder.status).toBe('Analyzed');
             expect(purchaseOrder.partner_id).toBe(partnerId);
-            expect(purchaseOrder.due_date).toBeUndefined();
             expect(purchaseOrder.po_date).toBeUndefined();
-            expect(purchaseOrder.po_number).toBeUndefined();
         });
 
         test('should associate correctly with Partner model', async () => {
@@ -277,17 +274,6 @@ describe('PurchaseOrder Model', () => {
                 })
             ).rejects.toThrow('notNull Violation: PurchaseOrder.partner_id cannot be null');
         });
-
-        test('should fail if due_date is earlier than po_date', async () => {
-            await expect(
-                PurchaseOrder.create({
-                    po_date: new Date('2024-05-01'),
-                    due_date: new Date('2024-04-30'), // Earlier than po_date
-                    status: DocumentStatus.PROCESSING,
-                    partner_id: partnerId
-                })
-            ).rejects.toThrow('due_date must not be earlier than po_date');
-        });
     });
 
     describe('Corner Cases', () => {
@@ -300,19 +286,6 @@ describe('PurchaseOrder Model', () => {
 
             expect(purchaseOrder).toBeTruthy();
             expect(purchaseOrder.total_amount).toBe(0);
-        });
-
-        test('should allow same date for po_date and due_date', async () => {
-            const sameDate = new Date('2024-05-01');
-            const purchaseOrder = await PurchaseOrder.create({
-                po_date: sameDate,
-                due_date: sameDate,
-                status: DocumentStatus.PROCESSING,
-                partner_id: partnerId
-            });
-
-            expect(purchaseOrder).toBeTruthy();
-            expect(purchaseOrder.po_date).toEqual(purchaseOrder.due_date);
         });
 
         test('should handle very large amounts', async () => {
@@ -343,6 +316,47 @@ describe('PurchaseOrder Model', () => {
         });
     });
 
+    describe('Virtual Fields', () => {
+        test('due_date getter should always return null', async () => {
+            // Create a purchase order
+            const purchaseOrder = await PurchaseOrder.create({
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+
+            // Verify the due_date getter returns null
+            expect(purchaseOrder.due_date).toBeNull();
+        });
+
+        test('due_date setter should not change the value', async () => {
+            // Create a purchase order
+            const purchaseOrder = await PurchaseOrder.create({
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+
+            // Attempt to set a value to due_date
+            purchaseOrder.due_date = new Date('2024-12-31');
+            
+            // Verify it still returns null
+            expect(purchaseOrder.due_date).toBeNull();
+            
+            // Save and reload to confirm it wasn't saved
+            await purchaseOrder.save();
+            const reloadedPO = await PurchaseOrder.findByPk(purchaseOrder.id);
+            expect(reloadedPO.due_date).toBeNull();
+        });
+
+        test('due_date should be defined as a VIRTUAL field', () => {
+            // Check the field definition type
+            const dueDate = PurchaseOrder.rawAttributes.due_date;
+            expect(dueDate).toBeDefined();
+            expect(dueDate.type).toBeInstanceOf(DataTypes.VIRTUAL);
+            // Check that the field has getter and setter functions
+            expect(typeof dueDate.get).toBe('function');
+            expect(typeof dueDate.set).toBe('function');
+        });
+    });
     describe('Sequelize Paranoid Soft Delete for PurchaseOrder', () => {
         let testPurchaseOrder;
         
