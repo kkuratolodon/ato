@@ -28,17 +28,33 @@ describe("Invoice Controller", () => {
   beforeEach(() => {
     req = mockRequest();
     res = mockResponse();
-
+  
     mockInvoiceService = {
       uploadInvoice: jest.fn().mockResolvedValue({
         message: "Invoice upload success",
         invoiceId: "123"
       }),
       getInvoiceById: jest.fn(),
-      getPartnerId: jest.fn()
+      getPartnerId: jest.fn(),
+      deleteInvoiceById: jest.fn()  // Add this method that might be needed
     };
-
-    controller = new InvoiceController(mockInvoiceService);
+  
+    // Create mock services for other dependencies
+    const mockValidateDeletionService = {
+      validateInvoiceDeletion: jest.fn()
+    };
+    
+    const mockStorageService = {
+      deleteFile: jest.fn().mockResolvedValue({ success: true })
+    };
+  
+    // Change this line to pass a dependencies object
+    controller = new InvoiceController({
+      invoiceService: mockInvoiceService,
+      validateDeletionService: mockValidateDeletionService,
+      storageService: mockStorageService
+    });
+    
     pdfValidationService.allValidations.mockResolvedValue(true);
     jest.clearAllMocks();
   });
