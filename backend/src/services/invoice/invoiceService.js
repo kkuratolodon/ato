@@ -191,6 +191,7 @@ class InvoiceService extends FinancialDocumentService {
           'Invoice',
           invoiceId,
           {
+            description: itemData.description || null,
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
             unit_price: itemData.unitPrice || 0,
