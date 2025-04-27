@@ -111,7 +111,6 @@ describe('Upload Middleware Tests', () => {
       
       const response = await request(errorApp)
         .post('/upload-error')
-        .attach('file', testFilePath);
       
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('Multer test error');
