@@ -1,6 +1,4 @@
 const multer = require('multer');
-const handleMulterError = require('./multerErrorHandler');
-
 // Basic multer setup
 const upload = multer({
   storage: multer.memoryStorage(),
