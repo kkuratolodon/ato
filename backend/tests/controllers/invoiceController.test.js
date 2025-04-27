@@ -12,23 +12,23 @@ jest.mock("../../src/services/pdfValidationService");
 describe("Invoice Controller", () => {
   let req, res, controller, mockInvoiceService;
 
-  const setupTestData = (overrides = {}) => {  
-    return {  
-      user: { uuid: "test-uuid" },  
-      file: {  
-        buffer: Buffer.from("test"),  
-        originalname: "test.pdf",  
-        mimetype: "application/pdf"  
+  const setupTestData = (overrides = {}) => {
+    return {
+      user: { uuid: "test-uuid" },
+      file: {
+        buffer: Buffer.from("test"),
+        originalname: "test.pdf",
+        mimetype: "application/pdf"
       },
-      params: { id: "1" },  
-      ...overrides  
-    };  
-  };  
-  
+      params: { id: "1" },
+      ...overrides
+    };
+  };
+
   beforeEach(() => {
     req = mockRequest();
     res = mockResponse();
-  
+
     mockInvoiceService = {
       uploadInvoice: jest.fn().mockResolvedValue({
         message: "Invoice upload success",
@@ -38,27 +38,61 @@ describe("Invoice Controller", () => {
       getPartnerId: jest.fn(),
       deleteInvoiceById: jest.fn()  // Add this method that might be needed
     };
-  
+
     // Create mock services for other dependencies
     const mockValidateDeletionService = {
       validateInvoiceDeletion: jest.fn()
     };
-    
+
     const mockStorageService = {
       deleteFile: jest.fn().mockResolvedValue({ success: true })
     };
-  
+
     // Change this line to pass a dependencies object
     controller = new InvoiceController({
       invoiceService: mockInvoiceService,
       validateDeletionService: mockValidateDeletionService,
       storageService: mockStorageService
     });
-    
+
     pdfValidationService.allValidations.mockResolvedValue(true);
     jest.clearAllMocks();
   });
+  // Add this at the beginning of your tests in invoiceController.test.js
+  describe("Invoice Controller constructor", () => {
+    test("should throw error when invalid service is provided", () => {
+      // Case 1: No dependencies provided
+      expect(() => {
+        new InvoiceController();
+      }).toThrow('Invalid invoice service provided');
 
+      // Case 2: No invoiceService provided
+      expect(() => {
+        new InvoiceController({});
+      }).toThrow('Invalid invoice service provided');
+
+      // Case 3: invoiceService with non-function uploadInvoice
+      expect(() => {
+        new InvoiceController({
+          invoiceService: { uploadInvoice: "not a function" }
+        });
+      }).toThrow('Invalid invoice service provided');
+    });
+
+    test("should not throw error when valid service is provided", () => {
+      const validService = {
+        uploadInvoice: jest.fn()
+      };
+
+      expect(() => {
+        new InvoiceController({
+          invoiceService: validService,
+          validateDeletionService: {},
+          s3Service: {}
+        });
+      }).not.toThrow();
+    });
+  });
   describe("uploadInvoice", () => {
     test("should successfully upload when all validations pass", async () => {
       const testData = setupTestData();
@@ -118,7 +152,7 @@ describe("Invoice Controller", () => {
       Object.assign(req, testData);
 
       // Simulate timeout
-      mockInvoiceService.uploadInvoice.mockImplementation(() => 
+      mockInvoiceService.uploadInvoice.mockImplementation(() =>
         new Promise(resolve => setTimeout(resolve, 4000))
       );
 
@@ -141,7 +175,7 @@ describe("Invoice Controller", () => {
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         message: "Internal server error"
-      }); 
+      });
     });
 
     test("should return 413 when file is too large", async () => {

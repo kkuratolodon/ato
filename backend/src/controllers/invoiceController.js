@@ -9,16 +9,16 @@ class InvoiceController extends FinancialDocumentController {
    * @param {Object} dependencies.validateDeletionService - Service for validation deletion
    * @param {Object} dependencies.s3Service - Service for file s3 operations
    */
-  constructor(dependencies) {
+  constructor(dependencies = {}) {  // Add default empty object here
     if (!dependencies.invoiceService || typeof dependencies.invoiceService.uploadInvoice !== 'function') {
       throw new Error('Invalid invoice service provided');
     }
-    
+
     super(dependencies.invoiceService, "Invoice");
-    
+
     this.validateDeletionService = dependencies.validateDeletionService;
     this.s3Service = dependencies.s3Service;
-    
+
     // Bind methods to ensure correct context
     this.uploadInvoice = this.uploadInvoice.bind(this);
     this.getInvoiceById = this.getInvoiceById.bind(this);
@@ -53,9 +53,9 @@ class InvoiceController extends FinancialDocumentController {
 
       Sentry.captureMessage('Invoice upload successful', {
         level: 'info',
-        extra: { 
+        extra: {
           invoiceId: result.invoiceId,
-          partnerId 
+          partnerId
         }
       });
 
@@ -141,7 +141,7 @@ class InvoiceController extends FinancialDocumentController {
       if (error.message === "Invoice cannot be deleted unless it is Analyzed") {
         return res.status(409).json({ message: error.message });
       }
-      
+
       return res.status(500).json({ message: "Internal server error" });
     }
   }
