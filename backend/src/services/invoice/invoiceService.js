@@ -14,32 +14,40 @@ const DocumentStatus = require('../../models/enums/DocumentStatus.js');
 const { NotFoundError } = require('../../utils/errors.js');
 
 class InvoiceService extends FinancialDocumentService {
-  constructor() {
-    super("Invoice");
-    this.invoiceRepository = new InvoiceRepository();
-    this.customerRepository = new CustomerRepository();
-    this.vendorRepository = new VendorRepository();
-    this.itemRepository = new ItemRepository();
-    this.documentAnalyzer = new AzureDocumentAnalyzer();
-    this.validator = new InvoiceValidator();
-    this.responseFormatter = new InvoiceResponseFormatter();
-    this.azureMapper = new AzureInvoiceMapper();
+  constructor(dependencies = {}) {
+    // Panggil konstruktor parent dengan type dokumen dan s3Service
+    super("Invoice", dependencies.s3Service);
+    
+    // Inisialisasi repositories
+    this.invoiceRepository = dependencies.invoiceRepository || new InvoiceRepository();
+    this.customerRepository = dependencies.customerRepository || new CustomerRepository();
+    this.vendorRepository = dependencies.vendorRepository || new VendorRepository();
+    this.itemRepository = dependencies.itemRepository || new ItemRepository();
+    
+    // Inisialisasi services
+    this.documentAnalyzer = dependencies.documentAnalyzer || new AzureDocumentAnalyzer();
+    this.validator = dependencies.validator || new InvoiceValidator();
+    this.responseFormatter = dependencies.responseFormatter || new InvoiceResponseFormatter();
+    this.azureMapper = dependencies.azureMapper || new AzureInvoiceMapper();
+    
+    // Logger menggunakan nilai default jika tidak ada
+    this.logger = dependencies.logger || this.logger;
   }
-
+  
   async uploadInvoice(fileData) {
     try {
       this.validator.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
 
       const invoiceUuid = uuidv4();
-      InvoiceLogger.logUploadStart(invoiceUuid, partnerId, originalname);
+      this.logger.logUploadStart(invoiceUuid, partnerId, originalname);
 
       let s3Result;
       try {
         s3Result = await this.uploadFile(fileData);
-        InvoiceLogger.logUploadSuccess(invoiceUuid, s3Result.file_url);
+        this.logger.logUploadSuccess(invoiceUuid, s3Result.file_url);
       } catch (error) {
-        InvoiceLogger.logError(invoiceUuid, error, 'S3_UPLOAD');
+        this.logger.logError(invoiceUuid, error, 'S3_UPLOAD');
         throw new Error("Failed to upload file to S3");
       }
 
@@ -60,7 +68,7 @@ class InvoiceService extends FinancialDocumentService {
         status: DocumentStatus.PROCESSING
       };
     } catch (error) {
-      InvoiceLogger.logError(null, error, 'UPLOAD_INITIATION');
+      this.logger.logError(null, error, 'UPLOAD_INITIATION');
       throw new Error(`Failed to process invoice: ${error.message}`);
     }
   }
@@ -71,7 +79,7 @@ class InvoiceService extends FinancialDocumentService {
      */
   async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid) {
     try {
-      InvoiceLogger.logProcessingStart(invoiceId);
+      this.logger.logProcessingStart(invoiceId);
       Sentry.addBreadcrumb({
         category: "invoiceProcessing",
         message: `Starting async processing for invoice ${uuid}`,
@@ -83,13 +91,13 @@ class InvoiceService extends FinancialDocumentService {
 
       // 2. Upload hasil OCR ke S3 sebagai JSON dan dapatkan URL-nya
       const jsonUrl = await this.uploadAnalysisResults(analysisResult, invoiceId);
-      InvoiceLogger.logAnalysisComplete(invoiceId, jsonUrl);
+      this.logger.logAnalysisComplete(invoiceId, jsonUrl);
 
       // 3. Map hasil analisis ke model data
       const { invoiceData, customerData, vendorData, itemsData } =
         this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
 
-      InvoiceLogger.logDataMappingComplete(invoiceId, {
+      this.logger.logDataMappingComplete(invoiceId, {
         hasCustomerData: !!customerData,
         hasVendorData: !!vendorData,
         itemsCount: itemsData?.length
@@ -110,10 +118,10 @@ class InvoiceService extends FinancialDocumentService {
       // 7. Update status menjadi "Analyzed"
       await this.invoiceRepository.update(invoiceId, { status: DocumentStatus.ANALYZED });
 
-      InvoiceLogger.logProcessingComplete(invoiceId);
+      this.logger.logProcessingComplete(invoiceId);
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
     } catch (error) {
-      InvoiceLogger.logError(invoiceId, error, 'PROCESSING');
+      this.logger.logError(invoiceId, error, 'PROCESSING');
       Sentry.captureException(error);
 
       // Update status menjadi "Failed" jika processing gagal
@@ -285,4 +293,47 @@ class InvoiceService extends FinancialDocumentService {
   }
 }
 
-module.exports = new InvoiceService();
+/**
+ * Factory function untuk membuat instance InvoiceService yang dikonfigurasi dengan benar
+ * @param {Object} customDependencies - Custom dependencies untuk mengganti default
+ * @returns {InvoiceService} Instance InvoiceService yang dikonfigurasi
+ */
+function createInvoiceService(customDependencies = {}) {
+  // Import default dependencies
+  const InvoiceRepository = require('../../repositories/invoiceRepository.js');
+  const CustomerRepository = require('../../repositories/customerRepository.js');
+  const VendorRepository = require('../../repositories/vendorRepository.js');
+  const ItemRepository = require('../../repositories/itemRepository.js');
+  const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
+  const InvoiceValidator = require('./invoiceValidator');
+  const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
+  const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
+  const InvoiceLogger = require('./invoiceLogger');
+  const s3Service = require('../s3Service');
+  
+  // Gabungkan default dependencies dengan custom dependencies
+  const dependencies = {
+    invoiceRepository: new InvoiceRepository(),
+    customerRepository: new CustomerRepository(),
+    vendorRepository: new VendorRepository(),
+    itemRepository: new ItemRepository(),
+    documentAnalyzer: new AzureDocumentAnalyzer(),
+    validator: new InvoiceValidator(),
+    responseFormatter: new InvoiceResponseFormatter(),
+    azureMapper: new AzureInvoiceMapper(),
+    logger: InvoiceLogger,
+    s3Service: s3Service,
+    ...customDependencies
+  };
+  
+  return new InvoiceService(dependencies);
+}
+// Buat instance default untuk kompatibilitas
+const defaultInstance = createInvoiceService();
+
+// Export instance default sebagai export utama
+module.exports = defaultInstance;
+
+// Juga export class dan factory function untuk penggunaan yang lebih fleksibel
+module.exports.InvoiceService = InvoiceService;
+module.exports.createInvoiceService = createInvoiceService;
