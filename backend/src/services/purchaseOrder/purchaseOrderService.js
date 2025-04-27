@@ -51,7 +51,7 @@ class PurchaseOrderService extends FinancialDocumentService {
       });
 
       this.processPurchaseOrderAsync(purchaseOrderId, buffer, partnerId, originalname, purchaseOrderId);
-
+      console.log(`Purchase order upload initiated with ID: ${purchaseOrderId}`);
       return {
         message: "Purchase Order upload initiated",
         id: purchaseOrderId,
@@ -211,6 +211,20 @@ class PurchaseOrderService extends FinancialDocumentService {
   
   async analyzePurchaseOrder(documentUrl) {
     return this.documentAnalyzer.analyzeDocument(documentUrl);
+  }
+  async getPurchaseOrderById(id) {
+    try {
+      const purchaseOrder = await this.purchaseOrderRepository.findById(id);
+      
+      if (!purchaseOrder) {
+        throw new Error("Purchase order not found");
+      }
+      
+      return this.responseFormatter.formatPurchaseOrderResponse(purchaseOrder);
+    } catch (error) {
+      console.error("Error retrieving purchase order:", error);
+      throw error;
+    }
   }
 }
 

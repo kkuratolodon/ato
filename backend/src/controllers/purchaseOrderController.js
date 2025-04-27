@@ -4,10 +4,18 @@ const Sentry = require("../instrument");
 
 class PurchaseOrderController extends FinancialDocumentController {
   constructor(purchaseOrderService) {
+    // Enhanced validation for the purchaseOrderService parameter
+    if (!purchaseOrderService || 
+        !purchaseOrderService.uploadPurchaseOrder || 
+        typeof purchaseOrderService.uploadPurchaseOrder !== 'function') {
+      throw new Error('Invalid purchase order service provided');
+    }
+    
     super(purchaseOrderService, "Purchase Order");
     
     // Bind methods to ensure correct context
     this.uploadPurchaseOrder = this.uploadPurchaseOrder.bind(this);
+    this.purchaseOrderService = purchaseOrderService;
   }
 
   /**

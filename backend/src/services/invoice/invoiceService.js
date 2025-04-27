@@ -11,6 +11,7 @@ const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
 const InvoiceLogger = require('./invoiceLogger');
 const DocumentStatus = require('../../models/enums/DocumentStatus.js');
+const { NotFoundError } = require('../../utils/errors.js');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {
@@ -190,6 +191,7 @@ class InvoiceService extends FinancialDocumentService {
           'Invoice',
           invoiceId,
           {
+            description: itemData.description || null,
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
             unit_price: itemData.unitPrice || 0,
@@ -205,21 +207,21 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
-  async getPartnerId(id) {
-    const invoice = await this.invoiceRepository.findById(id);
+  async getPartnerId(invoiceId) {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
 
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
     return invoice.partner_id;
   }
 
-  async getInvoiceById(id) {
+  async getInvoiceById(invoiceId) {
     try {
-      const invoice = await this.invoiceRepository.findById(id);
+      const invoice = await this.invoiceRepository.findById(invoiceId);
       
       if (!invoice) {
-        throw new Error("Invoice not found");
+        throw new NotFoundError("Invoice not found");
       }
 
       // Check invoice status first
@@ -237,7 +239,7 @@ class InvoiceService extends FinancialDocumentService {
         };
       }
 
-      const items = await this.itemRepository.findItemsByDocumentId(id, 'Invoice');
+      const items = await this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice');
 
       let customer = null;
       if (invoice.customer_id) {

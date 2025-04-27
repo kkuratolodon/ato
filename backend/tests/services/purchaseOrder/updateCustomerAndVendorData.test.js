@@ -261,4 +261,65 @@ describe('updateCustomerAndVendorData for purchase orders', () => {
     expect(purchaseOrderService.vendorRepository.create).toHaveBeenCalled();
     expect(purchaseOrderService.purchaseOrderRepository.updateVendorId).not.toHaveBeenCalled();
   });
+  test('should include address in vendor where clause when address is provided', async () => {
+    // Arrange
+    const purchaseOrderId = 'test-purchase-order-address';
+    const vendorData = {
+      name: 'Vendor With Address',
+      tax_id: 'V-ADDRESS-123',
+      address: '789 Vendor Boulevard, Business District'
+    };
+    
+    const mockVendor = {
+      uuid: 'vendor-uuid-with-address',
+      name: vendorData.name
+    };
+    
+    purchaseOrderService.vendorRepository.findByAttributes.mockResolvedValue(mockVendor);
+    
+    // Act
+    await purchaseOrderService.updateCustomerAndVendorData(purchaseOrderId, null, vendorData);
+    
+    // Assert
+    expect(purchaseOrderService.vendorRepository.findByAttributes).toHaveBeenCalledWith({
+      name: vendorData.name,
+      tax_id: vendorData.tax_id,
+      address: vendorData.address
+    });
+    expect(purchaseOrderService.purchaseOrderRepository.updateVendorId).toHaveBeenCalledWith(
+      purchaseOrderId,
+      mockVendor.uuid
+    );
+  });
+  
+  test('should NOT include address in vendor where clause when address is null', async () => {
+    // Arrange
+    const purchaseOrderId = 'test-purchase-order-no-address';
+    const vendorData = {
+      name: 'Vendor Without Address',
+      tax_id: 'V-NO-ADDRESS-456',
+      address: null
+    };
+    
+    const mockVendor = {
+      uuid: 'vendor-uuid-without-address',
+      name: vendorData.name
+    };
+    
+    purchaseOrderService.vendorRepository.findByAttributes.mockResolvedValue(mockVendor);
+    
+    // Act
+    await purchaseOrderService.updateCustomerAndVendorData(purchaseOrderId, null, vendorData);
+    
+    // Assert
+    expect(purchaseOrderService.vendorRepository.findByAttributes).toHaveBeenCalledWith({
+      name: vendorData.name,
+      tax_id: vendorData.tax_id
+      // address should not be included when null
+    });
+    expect(purchaseOrderService.purchaseOrderRepository.updateVendorId).toHaveBeenCalledWith(
+      purchaseOrderId,
+      mockVendor.uuid
+    );
+  });
 });
