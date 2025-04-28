@@ -10,7 +10,7 @@ const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
 const { AzurePurchaseOrderMapper } = require('../purchaseOrderMapperService/purchaseOrderMapperService');
 const DocumentStatus = require('../../models/enums/DocumentStatus');
-const { ValidationError, NotFoundError } = require('../../utils/errors');
+const {NotFoundError } = require('../../utils/errors');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {
