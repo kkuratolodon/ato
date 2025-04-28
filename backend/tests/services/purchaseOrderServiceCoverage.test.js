@@ -65,6 +65,37 @@ describe('Purchase Order Service Coverage Tests', () => {
       // Cleanup
       consoleSpy.mockRestore();
     });
+
+    // Additional direct test specifically for line 271, using different approach
+    test('line 271 - should throw plain Error when purchase order not found (using direct implementation)', async () => {
+      // Create a spy on console.error to prevent logging in tests
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      
+      // Direct implementation - forcing the execution of line 271
+      // Setting up the exact condition that would cause line 271 to be executed
+      purchaseOrderService.purchaseOrderRepository = {
+        findById: jest.fn().mockResolvedValue(null) // This will cause !purchaseOrder to be true
+      };
+      
+      try {
+        // This should hit line 271 directly
+        await purchaseOrderService.getPurchaseOrderById('test-id');
+        fail('Should have thrown an error');
+      } catch (error) {
+        // Verify it's the specific error from line 271
+        expect(error.message).toBe('Purchase order not found');
+      }
+      
+      // Verify the repository was called with the correct ID
+      expect(purchaseOrderService.purchaseOrderRepository.findById).toHaveBeenCalledWith('test-id');
+      
+      // Verify the console.error was called (from line 297)
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(consoleSpy.mock.calls[0][0]).toBe('Error retrieving purchase order:');
+      
+      // Restore console.error
+      consoleSpy.mockRestore();
+    });
   });
   
   // Direct test for lines 290-294 - error handling in getPurchaseOrderStatus
