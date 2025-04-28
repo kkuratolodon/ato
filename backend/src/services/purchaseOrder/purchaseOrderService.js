@@ -264,9 +264,6 @@ class PurchaseOrderService extends FinancialDocumentService {
    */
   async getPurchaseOrderStatus(id) {
     try {
-      if (!id) {
-        throw new ValidationError("Purchase order ID is required");
-      }
       
       const purchaseOrder = await this.purchaseOrderRepository.findById(id);
       
