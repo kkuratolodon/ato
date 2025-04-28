@@ -11,15 +11,16 @@ router.post(
     uploadMiddleware,
     controller.uploadPurchaseOrder
 );
+// More specific routes should be placed before general routes
+router.get(
+    '/status/:id',
+    authMiddleware,
+    controller.getPurchaseOrderStatus
+);
 router.get(
     '/:id', 
     authMiddleware,
     controller.getPurchaseOrderById
-);
-router.get(
-    '/:id/status',
-    authMiddleware,
-    controller.getPurchaseOrderStatus
 );
 
 module.exports = router;
