@@ -16,16 +16,17 @@ router.post(
     controller.uploadInvoice
 );
 
+// More specific routes should be placed before general routes
+router.get(
+    '/:id/status',
+    authMiddleware,
+    controller.getInvoiceStatus
+);
 
 router.get(
     '/:id', 
     authMiddleware,
     controller.getInvoiceById
-);
-router.get(
-    '/:id/status',
-    authMiddleware,
-    controller.getInvoiceStatus
 );
 
 // TODO: tanya ini apakah ga mau dikasih api limiter juga? 

@@ -126,17 +126,9 @@ class InvoiceController extends FinancialDocumentController {
       throw new ValidationError("Invoice ID is required");
     }
     
-    try {
-      const invoicePartnerId = await this.service.getPartnerId(id);
-      if (invoicePartnerId !== req.user.uuid) {
-        throw new ForbiddenError("Forbidden: You do not have access to this invoice");
-      }
-    } catch (error) {
-      // Rethrow NotFoundError or any other error
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new Error(`Error validating access: ${error.message}`);
+    const invoicePartnerId = await this.service.getPartnerId(id);
+    if (invoicePartnerId !== req.user.uuid) {
+      throw new ForbiddenError("Forbidden: You do not have access to this invoice");
     }
   }
 

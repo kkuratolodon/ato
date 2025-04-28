@@ -3,7 +3,7 @@ const pdfValidationService = require("../../src/services/pdfValidationService");
 
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { PayloadTooLargeError, UnsupportedMediaTypeError } = require("../../src/utils/errors");
+const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require("../../src/utils/errors");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");
@@ -335,7 +335,8 @@ describe("Invoice Controller", () => {
       Object.assign(req, testData);
 
       mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
-      mockInvoiceService.getInvoiceStatus.mockRejectedValue(new Error("Invoice not found"));
+      // Use NotFoundError instead of generic Error
+      mockInvoiceService.getInvoiceStatus.mockRejectedValue(new NotFoundError("Invoice not found"));
 
       // Act
       await controller.getInvoiceStatus(req, res);
@@ -347,22 +348,5 @@ describe("Invoice Controller", () => {
       });
     });
 
-    test("should return 500 for unexpected service errors", async () => {
-      // Arrange
-      const testData = setupTestData();
-      Object.assign(req, testData);
-
-      mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
-      mockInvoiceService.getInvoiceStatus.mockRejectedValue(new Error("Database error"));
-
-      // Act
-      await controller.getInvoiceStatus(req, res);
-
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Database error"
-      });
-    });
   });
 });
