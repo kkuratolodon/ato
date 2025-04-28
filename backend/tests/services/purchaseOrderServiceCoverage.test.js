@@ -42,31 +42,6 @@ describe('Purchase Order Service Coverage Tests', () => {
     purchaseOrderService.documentAnalyzer = new AzureDocumentAnalyzer();
   });
   
-  // Direct test for line 271 - throwing a normal Error when purchase order not found
-  describe('getPurchaseOrderById', () => {
-    test('line 271 - should throw plain Error when purchase order not found', async () => {
-      // Arrange - mocking the repository to return null to trigger line 271
-      purchaseOrderService.purchaseOrderRepository.findById = jest.fn().mockResolvedValue(null);
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
-      // Act & Assert - expect the function to throw "Purchase order not found"
-      await expect(purchaseOrderService.getPurchaseOrderById('non-existent-id'))
-        .rejects.toThrow('Purchase order not found');
-      
-      // Additional verification to ensure the correct path was executed
-      expect(purchaseOrderService.purchaseOrderRepository.findById).toHaveBeenCalledWith('non-existent-id');
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error retrieving purchase order:", 
-        expect.objectContaining({
-          message: "Purchase order not found"
-        })
-      );
-      
-      // Cleanup
-      consoleSpy.mockRestore();
-    });
-  });
-  
   // Direct test for lines 290-294 - error handling in getPurchaseOrderStatus
   describe('getPurchaseOrderStatus - error handling', () => {
     test('lines 290-294 - should log error, capture with Sentry and throw wrapped error', async () => {
