@@ -281,6 +281,7 @@ class InvoiceService extends FinancialDocumentService {
           throw new Error("Failed to delete invoice: " + error.message);
         })
       );
+  }
     
   async getInvoiceStatus(invoiceId) {
     const invoice = await this.invoiceRepository.findById(invoiceId);
