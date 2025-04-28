@@ -21,7 +21,8 @@ export const options = {
 const pdfData = open('./sample1.pdf', 'b');
 
 export default function() {
-    const url = 'http://stg-team6.api.fineksi.com/api/invoices/upload';
+    const baseUrl = __ENV.API_BASE_URL;
+    const url = `${baseUrl}/api/invoices/upload`;
     
     const payload = {
         file: http.file(pdfData, 'sample1.pdf', 'application/pdf')
@@ -29,10 +30,12 @@ export default function() {
     
     const headers = {
         // eslint-disable-next-line no-undef
-        'client_id': __ENV.LOAD_CLIENT_ID,
+        'client_id': __ENV.LOAD_CLIENT_ID ,
+        // 'client_id':"surya" ,
         // eslint-disable-next-line no-undef
-        'client_secret': __ENV.LOAD_CLIENT_SECRET 
-    };
+        'client_secret': __ENV.LOAD_CLIENT_SECRET
+        // 'client_secret':"suryasecret"
+      };
     
     const startTime = new Date().getTime();
     

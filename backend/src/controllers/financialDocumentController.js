@@ -1,125 +1,155 @@
 const pdfValidationService = require('../services/pdfValidationService');
+const PdfDecryptionService = require('../services/pdfDecryptionService');
+const QpdfDecryption = require('../strategies/qpdfDecryption');
 const { safeResponse } = require('../utils/responseHelper');
+const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require('../utils/errors');
 
 class FinancialDocumentController {
-    constructor(service, documentType) {
-      this.service = service;
-      this.documentType = documentType;
-    }
-    async executeWithTimeout(fn, timeoutMs = 3000) {
-      let timeoutId;
-      const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error("Timeout")), timeoutMs);
-      });
-  
-      try {
-        return await Promise.race([
-          fn().finally(() => clearTimeout(timeoutId)),
-          timeoutPromise
-        ]);
-      } catch (error) {
-        console.error(error)
-        throw error;
-      }
-    }
-  
-    async uploadFile(req, res) {
-      if (res.headersSent) return; //  Prevent sending a duplicate response
+  constructor(service, documentType) {
+    this.service = service;
+    this.documentType = documentType;
+      // Initialize PDF decryption service with QPDF strategy
+      this.pdfDecryptionService = new PdfDecryptionService(new QpdfDecryption());
+  }
 
-      if (req.query && req.query.simulateTimeout === "true") {
-        return safeResponse(res, 504, "Server timeout - upload processing timed out" );
+  async executeWithTimeout(fn, timeoutMs = process.env.UPLOAD_TIMEOUT || 3000) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("Timeout")), timeoutMs);
+    });
 
-      }
-      if (!req.user) {
-        return safeResponse(res, 401, "Unauthorized");
-      }
-  
-      if (!req.file) {
-        return safeResponse(res, 400, "No file uploaded");
-      }
-  
-      const { buffer, originalname, mimetype } = req.file;
-      const partnerId = req.user.uuid;
-      
-      try {
-        // Check file size first - outside of the timeout to immediately reject large files
-        try {
-          await pdfValidationService.validateSizeFile(buffer);
-        } catch (error) {
-          return safeResponse(res, 413, "File size exceeds maximum limit");
-        }
-
-        await this.executeWithTimeout(async () => {
-        // File type validation
-        try {
-          await pdfValidationService.validatePDF(buffer, mimetype, originalname);
-        } catch (error) {
-          return safeResponse(res, 415, "File format is not PDF");
-        }
-
-        // Encryption check
-        const isEncrypted = await pdfValidationService.isPdfEncrypted(buffer);
-        if (isEncrypted) {
-          return safeResponse(res, 400, "PDF is encrypted");
-        }
-
-      // Page count validation
-      try {
-        await pdfValidationService.validatePdfPageCount(buffer);
-        
-      } catch (error) {
-        console.error("PDF Validation Error:", error); 
-        if (error.message === "PDF has no pages.") {
-            return safeResponse(res, 400, "PDF has no pages.");
-        }
-
-        if (error.message === "PDF exceeds the maximum allowed pages (100).") {
-            return safeResponse(res, 400, "PDF exceeds the maximum allowed pages (100).");
-        }
-
-        return safeResponse(res, 400, "Failed to determine PDF page count.");
-      }
-
-        try{
-          let result;
-          if (this.documentType === "Invoice") {
-            result = await this.service.uploadInvoice({
-                originalname, buffer, mimetype, partnerId,
-            });
-            return safeResponse(res, 200, { 
-                  message: result.message,
-                  id: result.id, 
-                  status: result.status
-                });
-          } 
-          else if (this.documentType === "Purchase Order") {
-            result = await this.service.uploadPurchaseOrder({
-                originalname, buffer, mimetype, partnerId,
-            });
-            return safeResponse(res, 200, result);
-          }
-          else{
-            throw new Error("document type unknown")
-          }
-        }catch(error){
-          console.error("Unhandled error in upload process:", error);
-            if (error.message.includes("Failed to upload file to S3")) {
-              return safeResponse(res, 500, "Failed to upload document. Please try again.");
-            }
-          if(error.message === "document type unknown"){
-            return safeResponse(res, 400, "Invalid document type provided" );
-          }
-          return safeResponse(res, 500, "Internal server error");
-        }
-      });
+    try {
+      return await Promise.race([
+        fn().finally(() => clearTimeout(timeoutId)),
+        timeoutPromise
+      ]);
     } catch (error) {
-      if (error.message === "Timeout") {
-        return safeResponse(res, 504, "Server timeout - upload processing timed out");
+      // Don't log validation errors to console, they're expected errors
+      if (!(error instanceof ValidationError)) {
+        console.error(error);
       }
-      console.error("Unexpected error:", error);
-      return safeResponse(res, 500, "Internal server error");
+      throw error;
     }
   }
+
+  async uploadFile(req, res) {
+    try {
+      await this.executeWithTimeout(async () => {
+        await this.validateUploadRequest(req);
+        
+        // Check if the file is encrypted
+        const validationResult = await this.validateUploadFile(req.file);
+        
+        // If file is encrypted
+        if (validationResult && validationResult.isEncrypted) {
+          // If password is provided in the request body, try to decrypt
+          if (req.body && req.body.password) {
+            try {
+              // Attempt to decrypt the PDF with the provided password
+              const decryptedBuffer = await this.pdfDecryptionService.decrypt(
+                validationResult.buffer, 
+                req.body.password
+              );
+              
+              // Replace the encrypted buffer with the decrypted one
+              req.file.buffer = decryptedBuffer;
+              
+              // Continue with normal processing using decrypted file
+              const result = await this.processUpload(req);
+              return safeResponse(res, 200, result);
+            } catch (error) {
+              // Handle decryption errors
+              if (error.message.includes("Incorrect password")) {
+                throw new ValidationError("Incorrect password for encrypted PDF");
+              }
+              throw new ValidationError(`Failed to decrypt PDF: ${error.message}`);
+            }
+          } else {
+            // No password provided, inform client that password is required
+            return safeResponse(res, 403, {
+              message: "PDF is encrypted and requires a password",
+              requiresPassword: true
+            });
+          }
+        }
+        
+        // Process non-encrypted file normally
+        const result = await this.processUpload(req);
+        return safeResponse(res, 200, result);
+      });
+    } catch (error) {
+      return this.handleError(res, error);
+    }
+  }
+
+  async validateUploadRequest(req) {
+    if (!req.user) {
+      throw new AuthError("Unauthorized");
+    }
+    if (!req.file) {
+      throw new ValidationError("No file uploaded");
+    }
+  }
+
+  async validateUploadFile(file) {
+    const { buffer, mimetype, originalname } = file;
+    try {
+      const validationResult = await pdfValidationService.allValidations(buffer, mimetype, originalname);
+      
+      // If PDF is encrypted, store the buffer and return encrypted status
+      if (validationResult.isEncrypted) {
+        return { isEncrypted: true, buffer, filename: originalname };
+      }
+      
+      return { isEncrypted: false };
+    } catch (error) {
+      if (error instanceof UnsupportedMediaTypeError || error instanceof PayloadTooLargeError) {
+        throw error; 
+      }
+      throw new ValidationError(error.message);
+    } 
+  }
+
+  // make sure to implement this method in child
+  // eslint-disable-next-line no-unused-vars
+  async processUpload(_req) {
+    throw new Error('processUpload must be implemented by child classes');
+  }
+
+  handleError(res, error) {
+    if (error instanceof ValidationError) {
+      // Special case for password errors - don't log these
+      if (error.message.includes("Incorrect password for encrypted PDF") || 
+          error.message.includes("PDF is encrypted")) {
+        // Just send the response without logging
+        return safeResponse(res, 400, error.message);
+      }
+      
+      return safeResponse(res, 400, error.message);
+    }
+    
+    if (error instanceof AuthError) {
+      return safeResponse(res, 401, error.message);
+    }
+    if (error instanceof ForbiddenError) {
+      return safeResponse(res, 403, error.message);
+    }
+    if (error instanceof NotFoundError) {
+      return safeResponse(res, 404, error.message);
+    }
+    if (error instanceof PayloadTooLargeError) {
+      return safeResponse(res, 413, error.message);
+    }
+    if (error instanceof UnsupportedMediaTypeError) {
+      return safeResponse(res, 415, error.message);
+    }
+    if (error.message === "Timeout") {
+      return safeResponse(res, 504, "Server timeout - upload processing timed out");
+    }    
+    console.error("Unexpected error:", error);
+    return safeResponse(res, 500, "Internal server error");
+  }
+
 }
-  
+
 module.exports = FinancialDocumentController;

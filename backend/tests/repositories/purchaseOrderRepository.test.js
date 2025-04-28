@@ -6,7 +6,8 @@ jest.mock('../../src/models', () => ({
     PurchaseOrder: {
         create: jest.fn(),
         findByPk: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        destroy: jest.fn()  // Added mock for destroy method
     }
 }));
 
@@ -137,4 +138,204 @@ describe('PurchaseOrderRepository', () => {
             expect(PurchaseOrder.update).toHaveBeenCalledWith({ status: 'APPROVED' }, { where: { id: 1 } });
         });
     });
+
+    describe('updateCustomerId', () => {
+        test('should update customer_id successfully', async () => {
+            await purchaseOrderRepository.updateCustomerId(1, 123);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { customer_id: 123 }, 
+                { where: { id: 1 } }
+            );
+        });
+
+        test('should throw an error when customer_id update fails', async () => {
+            const mockError = new Error('Database error');
+            PurchaseOrder.update.mockRejectedValue(mockError);
+            
+            await expect(purchaseOrderRepository.updateCustomerId(1, 123))
+                .rejects.toThrow(mockError);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { customer_id: 123 }, 
+                { where: { id: 1 } }
+            );
+        });
+    });
+
+    describe('updateVendorId', () => {
+        test('should update vendor_id successfully', async () => {
+            await purchaseOrderRepository.updateVendorId(1, 456);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { vendor_id: 456 }, 
+                { where: { id: 1 } }
+            );
+        });
+
+        test('should throw an error when vendor_id update fails', async () => {
+            const mockError = new Error('Database error');
+            PurchaseOrder.update.mockRejectedValue(mockError);
+            
+            await expect(purchaseOrderRepository.updateVendorId(1, 456))
+                .rejects.toThrow(mockError);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { vendor_id: 456 }, 
+                { where: { id: 1 } }
+            );
+        });
+    });
+
+    describe('delete', () => {
+        test('should soft delete purchase order successfully', async () => {
+            // Mock PurchaseOrder instance
+            const mockPurchaseOrder = {
+                id: 1,
+                destroy: jest.fn().mockResolvedValue(true)
+            };
+            
+            PurchaseOrder.findByPk.mockResolvedValue(mockPurchaseOrder);
+            
+            await purchaseOrderRepository.delete(1);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1);
+            expect(mockPurchaseOrder.destroy).toHaveBeenCalled();
+        });
+    
+        test('should throw an error when delete fails', async () => {
+            const mockError = new Error('Delete failed');
+            const mockPurchaseOrder = {
+                id: 1,
+                destroy: jest.fn().mockRejectedValue(mockError)
+            };
+            
+            PurchaseOrder.findByPk.mockResolvedValue(mockPurchaseOrder);
+            await expect(purchaseOrderRepository.delete(1))
+                .rejects.toThrow(mockError);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1);
+            expect(mockPurchaseOrder.destroy).toHaveBeenCalled();
+        });
+    
+        test('should handle non-existent ID gracefully', async () => {
+            PurchaseOrder.findByPk.mockResolvedValue(null);
+            
+            await purchaseOrderRepository.delete(999);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(999);
+        });
+    });
+
+    describe('hardDelete', () => {
+        test('should permanently delete purchase order', async () => {
+            await purchaseOrderRepository.hardDelete(1);
+            
+            expect(PurchaseOrder.destroy).toHaveBeenCalledWith({ 
+                where: { id: 1 },
+                force: true
+            });
+        });
+
+        test('should throw an error when hard delete fails', async () => {
+            const mockError = new Error('Hard delete failed');
+            PurchaseOrder.destroy.mockRejectedValueOnce(mockError);
+            
+            await expect(purchaseOrderRepository.hardDelete(1))
+                .rejects.toThrow(mockError);
+            
+            expect(PurchaseOrder.destroy).toHaveBeenCalledWith({ 
+                where: { id: 1 },
+                force: true
+            });
+        });
+
+        test('should handle non-existent ID when hard deleting', async () => {
+            PurchaseOrder.destroy.mockResolvedValueOnce(0);
+            
+            await purchaseOrderRepository.hardDelete(999);
+            
+            expect(PurchaseOrder.destroy).toHaveBeenCalledWith({ 
+                where: { id: 999 },
+                force: true
+            });
+        });
+    });
+
+    describe('restore', () => {
+        beforeEach(() => {
+            PurchaseOrder.findByPk = jest.fn();
+        });
+
+        test('should restore soft-deleted purchase order successfully', async () => {
+            const mockPurchaseOrder = {
+                id: 1,
+                deleted_at: new Date(), 
+                restore: jest.fn().mockResolvedValueOnce(true)
+            };
+            
+            PurchaseOrder.findByPk.mockResolvedValueOnce(mockPurchaseOrder);
+            
+            const result = await purchaseOrderRepository.restore(1);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1, { paranoid: false });
+            expect(mockPurchaseOrder.restore).toHaveBeenCalled();
+            expect(result).toBe(true);
+        });
+
+        test('should return false when purchase order is not found', async () => {
+            PurchaseOrder.findByPk.mockResolvedValueOnce(null);
+            
+            const result = await purchaseOrderRepository.restore(999);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(999, { paranoid: false });
+            expect(result).toBe(false);
+        });
+
+        test('should return false when purchase order is not soft-deleted', async () => {
+
+            const mockPurchaseOrder = {
+                id: 1,
+                deleted_at: null, 
+                restore: jest.fn()
+            };
+            
+            PurchaseOrder.findByPk.mockResolvedValueOnce(mockPurchaseOrder);
+            
+            const result = await purchaseOrderRepository.restore(1);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1, { paranoid: false });
+            expect(mockPurchaseOrder.restore).not.toHaveBeenCalled();
+            expect(result).toBe(false);
+        });
+
+        test('should throw error when restore operation fails', async () => {
+            const mockError = new Error('Restore failed');
+            const mockPurchaseOrder = {
+                id: 1,
+                deleted_at: new Date(),
+                restore: jest.fn().mockRejectedValueOnce(mockError)
+            };
+            
+            PurchaseOrder.findByPk.mockResolvedValueOnce(mockPurchaseOrder);
+            
+            await expect(purchaseOrderRepository.restore(1))
+                .rejects.toThrow(mockError);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1, { paranoid: false });
+            expect(mockPurchaseOrder.restore).toHaveBeenCalled();
+        });
+
+        test('should handle invalid ID type', async () => {
+            const mockError = new Error('Invalid input');
+            PurchaseOrder.findByPk.mockRejectedValueOnce(mockError);
+            
+            await expect(purchaseOrderRepository.restore('invalid-id'))
+                .rejects.toThrow(mockError);
+                
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith('invalid-id', { paranoid: false });
+        });
+    });
+
+
 });

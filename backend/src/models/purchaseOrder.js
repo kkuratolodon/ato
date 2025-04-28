@@ -30,10 +30,11 @@ module.exports = (sequelize, DataTypes) => {
             }
             
             if (models.Item) {
+                // Update Item association via belongsToMany for consistent many-to-many relations
                 PurchaseOrder.belongsToMany(models.Item, {
-                    through: 'FinancialDocumentItem',
+                    through: 'Item',
                     foreignKey: 'document_id',
-                    otherKey: 'item_id',
+                    otherKey: 'uuid',
                     as: 'items'
                 });
             }
@@ -41,30 +42,31 @@ module.exports = (sequelize, DataTypes) => {
     }
 
     PurchaseOrder.init({
-        po_date: { 
+        due_date: { 
             type: DataTypes.DATE, 
             allowNull: true 
         },
         po_number: { 
             type: DataTypes.STRING, 
             allowNull: true,
-        },
-        due_date: {
-            type: DataTypes.DATE,
-            allowNull: true,
-            validate: {
-                isAfterPoDate(value) {
-                    if (this.po_date && new Date(value) < new Date(this.po_date)) {
-                        throw new Error('due_date must not be earlier than po_date');
-                    }
-                }
-            }
         }
     }, {
         sequelize,
         modelName: 'PurchaseOrder',
         tableName: 'PurchaseOrder',
         freezeTableName: true,
+        paranoid: true,          
+        deletedAt: 'deleted_at',  
+        hooks: {
+            beforeDestroy: async (instance) => {
+                 instance.is_deleted = true;
+                 await instance.save();
+            },
+            afterRestore: async (instance) => {
+                instance.is_deleted = false;
+                await instance.save();
+            }
+        },
         DataTypes
     });
 

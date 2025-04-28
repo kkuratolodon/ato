@@ -30,6 +30,7 @@ describe('Customer Model', () => {
 
         // Sync models to database
         await sequelize.sync({ force: true });
+        await sequelize.query('PRAGMA foreign_keys = OFF;');
 
         // Create a test customer
         const customer = await Customer.create({

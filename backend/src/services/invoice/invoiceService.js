@@ -1,15 +1,19 @@
 const { v4: uuidv4 } = require('uuid');
-const FinancialDocumentService = require("../financialDocumentService");
-const Sentry = require("../../instrument");
+const { from } = require('rxjs');
+const { catchError, map, switchMap } = require('rxjs/operators');
+const FinancialDocumentService = require("../financialDocumentService.js");
+const Sentry = require("../../instrument.js");
 const InvoiceRepository = require('../../repositories/invoiceRepository.js');
 const CustomerRepository = require('../../repositories/customerRepository.js');
 const VendorRepository = require('../../repositories/vendorRepository.js');
 const ItemRepository = require('../../repositories/itemRepository.js');
-const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
-const InvoiceValidator = require('./invoiceValidator');
-const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
-const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
-const DocumentStatus = require('../../models/enums/documentStatus.js');
+const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer.js');
+const InvoiceValidator = require('./invoiceValidator.js');
+const InvoiceResponseFormatter = require('./invoiceResponseFormatter.js');
+const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService.js');
+const InvoiceLogger = require('./invoiceLogger.js');
+const DocumentStatus = require('../../models/enums/DocumentStatus.js');
+const { NotFoundError } = require('../../utils/errors.js');
 
 class InvoiceService extends FinancialDocumentService {
   constructor() {
@@ -30,12 +34,14 @@ class InvoiceService extends FinancialDocumentService {
       const { buffer, originalname, partnerId } = fileData;
 
       const invoiceUuid = uuidv4();
+      InvoiceLogger.logUploadStart(invoiceUuid, partnerId, originalname);
 
       let s3Result;
       try {
         s3Result = await this.uploadFile(fileData);
+        InvoiceLogger.logUploadSuccess(invoiceUuid, s3Result.file_url);
       } catch (error) {
-        console.error("Error uploading to S3:", error);
+        InvoiceLogger.logError(invoiceUuid, error, 'S3_UPLOAD');
         throw new Error("Failed to upload file to S3");
       }
 
@@ -56,7 +62,7 @@ class InvoiceService extends FinancialDocumentService {
         status: DocumentStatus.PROCESSING
       };
     } catch (error) {
-      console.error("Error in uploadInvoice:", error);
+      InvoiceLogger.logError(null, error, 'UPLOAD_INITIATION');
       throw new Error(`Failed to process invoice: ${error.message}`);
     }
   }
@@ -67,6 +73,7 @@ class InvoiceService extends FinancialDocumentService {
      */
   async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid) {
     try {
+      InvoiceLogger.logProcessingStart(invoiceId);
       Sentry.addBreadcrumb({
         category: "invoiceProcessing",
         message: `Starting async processing for invoice ${uuid}`,
@@ -78,20 +85,22 @@ class InvoiceService extends FinancialDocumentService {
 
       // 2. Upload hasil OCR ke S3 sebagai JSON dan dapatkan URL-nya
       const jsonUrl = await this.uploadAnalysisResults(analysisResult, invoiceId);
-
-      // Print URL JSON yang berhasil diupload
-      console.log("=============================================");
-      console.log(`JSON Analysis URL: ${jsonUrl}`);
-      console.log("=============================================");
+      InvoiceLogger.logAnalysisComplete(invoiceId, jsonUrl);
 
       // 3. Map hasil analisis ke model data
       const { invoiceData, customerData, vendorData, itemsData } =
         this.mapAnalysisResult(analysisResult, partnerId, originalname, buffer.length);
 
+      InvoiceLogger.logDataMappingComplete(invoiceId, {
+        hasCustomerData: !!customerData,
+        hasVendorData: !!vendorData,
+        itemsCount: itemsData?.length
+      });
+
       // 4. Update record invoice dengan data hasil analisis dan URL JSON
       await this.updateInvoiceRecord(invoiceId, {
         ...invoiceData,
-        analysis_json_url: jsonUrl // Store the JSON URL in the database
+        analysis_json_url: jsonUrl
       });
 
       // 5. Update data customer dan vendor
@@ -103,9 +112,10 @@ class InvoiceService extends FinancialDocumentService {
       // 7. Update status menjadi "Analyzed"
       await this.invoiceRepository.update(invoiceId, { status: DocumentStatus.ANALYZED });
 
+      InvoiceLogger.logProcessingComplete(invoiceId);
       Sentry.captureMessage(`Successfully completed processing invoice ${uuid}`);
     } catch (error) {
-      console.error(`Error in async processing for invoice ${uuid}:`, error);
+      InvoiceLogger.logError(invoiceId, error, 'PROCESSING');
       Sentry.captureException(error);
 
       // Update status menjadi "Failed" jika processing gagal
@@ -171,6 +181,7 @@ class InvoiceService extends FinancialDocumentService {
   }
 
   async saveInvoiceItems(invoiceId, itemsData) {
+    console.log("Saving invoice items...", itemsData);
     if (!itemsData || !Array.isArray(itemsData) || itemsData.length === 0) {
       console.log("No items to save");
       return;
@@ -178,13 +189,11 @@ class InvoiceService extends FinancialDocumentService {
 
     try {
       for (const itemData of itemsData) {
-        const item = await this.itemRepository.findOrCreateItem(itemData.description);
-
         await this.itemRepository.createDocumentItem(
           'Invoice',
           invoiceId,
-          item.uuid,
           {
+            description: itemData.description || null,
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
             unit_price: itemData.unitPrice || 0,
@@ -200,24 +209,39 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
-  async getPartnerId(id) {
-    const invoice = await this.invoiceRepository.findById(id);
+  async getPartnerId(invoiceId) {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
 
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
     return invoice.partner_id;
   }
 
-  async getInvoiceById(id) {
+  async getInvoiceById(invoiceId) {
     try {
-      const invoice = await this.invoiceRepository.findById(id);
-
+      const invoice = await this.invoiceRepository.findById(invoiceId);
+      
       if (!invoice) {
-        throw new Error("Invoice not found");
+        throw new NotFoundError("Invoice not found");
       }
 
-      const items = await this.itemRepository.findItemsByDocumentId(id, 'Invoice');
+      // Check invoice status first
+      if (invoice.status === DocumentStatus.PROCESSING) {
+        return {
+          message: "Invoice is still being processed. Please try again later.",
+          data: { documents: [] }
+        };
+      }
+
+      if (invoice.status === DocumentStatus.FAILED) {
+        return {
+          message: "Invoice processing failed. Please re-upload the document.",
+          data: { documents: [] }
+        };
+      }
+
+      const items = await this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice');
 
       let customer = null;
       if (invoice.customer_id) {
@@ -240,22 +264,38 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
-  async deleteInvoiceById(id) {
-    try {
-      const result = await this.invoiceRepository.delete(id);
-  
-      if (result === 0) {
-        const err = new Error(`Failed to delete invoice with ID: ${id}`);;
-        Sentry.captureException(err);
-        throw err;
-      }
-  
-      return { message: "Invoice successfully deleted" };
-    } catch (error) {
-      Sentry.captureException(error);
-      throw new Error("Failed to delete invoice: " + error.message);
-    }
+  deleteInvoiceById(id) {
+    return from(Promise.resolve())
+      .pipe(
+        switchMap(() => from(this.invoiceRepository.delete(id))),
+        map(result => {
+          if (result === 0) {
+            const err = new Error(`Failed to delete invoice with ID: ${id}`);
+            Sentry.captureException(err);
+            throw err;
+          }
+          return { message: "Invoice successfully deleted" };
+        }),
+        catchError(error => {
+          Sentry.captureException(error);
+          throw new Error("Failed to delete invoice: " + error.message);
+        })
+      );
   }
+    
+  async getInvoiceStatus(invoiceId) {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+
+    if (!invoice) {
+      throw new NotFoundError("Invoice not found");
+    }
+
+    return {
+      id: invoice.id,
+      status: invoice.status
+    };
+  }
+
   
 
   async analyzeInvoice(documentUrl) {

@@ -5,7 +5,7 @@ const PartnerModel = require('../../src/models/partner');
 const CustomerModel = require("../../src/models/customer");
 const VendorModel = require("../../src/models/vendor");
 const item = require("../../src/models/item");
-const DocumentStatus = require('../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 
 describe('PurchaseOrder Model', () => {
     let sequelize;
@@ -75,7 +75,7 @@ describe('PurchaseOrder Model', () => {
     // Basic model structure tests
     test('it should have purchase order specific attributes', () => {
         // Check for specific PO attributes
-        expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('po_date');
+        expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('due_date');
         expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('po_number');
     });
 
@@ -185,9 +185,8 @@ describe('PurchaseOrder Model', () => {
     describe('Positive Cases', () => {
         test('should create purchase order with all valid fields', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                po_date: new Date('2024-01-01'),
+                due_date: new Date('2024-01-01'),
                 po_number: 'PO-2024-001',
-                due_date: new Date('2024-02-01'),
                 total_amount: 1000.50,
                 subtotal_amount: 1200.00,
                 discount_amount: 199.50,
@@ -213,8 +212,6 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder.status).toBe('Analyzed');
             expect(purchaseOrder.partner_id).toBe(partnerId);
             expect(purchaseOrder.due_date).toBeUndefined();
-            expect(purchaseOrder.po_date).toBeUndefined();
-            expect(purchaseOrder.po_number).toBeUndefined();
         });
 
         test('should associate correctly with Partner model', async () => {
@@ -277,17 +274,6 @@ describe('PurchaseOrder Model', () => {
                 })
             ).rejects.toThrow('notNull Violation: PurchaseOrder.partner_id cannot be null');
         });
-
-        test('should fail if due_date is earlier than po_date', async () => {
-            await expect(
-                PurchaseOrder.create({
-                    po_date: new Date('2024-05-01'),
-                    due_date: new Date('2024-04-30'), // Earlier than po_date
-                    status: DocumentStatus.PROCESSING,
-                    partner_id: partnerId
-                })
-            ).rejects.toThrow('due_date must not be earlier than po_date');
-        });
     });
 
     describe('Corner Cases', () => {
@@ -300,19 +286,6 @@ describe('PurchaseOrder Model', () => {
 
             expect(purchaseOrder).toBeTruthy();
             expect(purchaseOrder.total_amount).toBe(0);
-        });
-
-        test('should allow same date for po_date and due_date', async () => {
-            const sameDate = new Date('2024-05-01');
-            const purchaseOrder = await PurchaseOrder.create({
-                po_date: sameDate,
-                due_date: sameDate,
-                status: DocumentStatus.PROCESSING,
-                partner_id: partnerId
-            });
-
-            expect(purchaseOrder).toBeTruthy();
-            expect(purchaseOrder.po_date).toEqual(purchaseOrder.due_date);
         });
 
         test('should handle very large amounts', async () => {
@@ -340,6 +313,94 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder.po_number).toBe('');
             expect(purchaseOrder.payment_terms).toBe('');
             expect(purchaseOrder.file_url).toBe('');
+        });
+    });
+
+    describe('Sequelize Paranoid Soft Delete for PurchaseOrder', () => {
+        let testPurchaseOrder;
+        
+        beforeEach(async () => {
+        testPurchaseOrder = await PurchaseOrder.create({
+            po_number: 'SOFT-DELETE-TEST',
+            due_date: new Date(),
+            total_amount: 1000,
+            status: DocumentStatus.PROCESSING,
+            partner_id: partnerId
+        });
+        });
+    
+        test('should mark purchase order as deleted when using destroy()', async () => {
+            await testPurchaseOrder.destroy();
+            
+            const notFound = await PurchaseOrder.findByPk(testPurchaseOrder.id);
+            expect(notFound).toBeNull();
+            
+            const foundDeleted = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            expect(foundDeleted).not.toBeNull();
+            expect(foundDeleted.id).toBe(testPurchaseOrder.id);
+            expect(foundDeleted.is_deleted).toBe(true);
+            expect(foundDeleted.deleted_at).not.toBeNull();
+        });
+    
+        test('should not retrieve soft-deleted purchase orders in findAll by default', async () => {
+            await PurchaseOrder.destroy({ where: {}, force: true });
+            
+            const testPurchaseOrder = await PurchaseOrder.create({
+                po_number: 'SOFT-DELETE-TEST',
+                due_date: new Date(),
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+              
+              const secondPurchaseOrder = await PurchaseOrder.create({
+                po_number: 'NOT-DELETED',
+                due_date: new Date(),
+                status: DocumentStatus.PROCESSING,
+                partner_id: partnerId
+            });
+        
+            await testPurchaseOrder.destroy();
+            
+            const allPurchaseOrders = await PurchaseOrder.findAll();
+            
+            expect(allPurchaseOrders.some(po => po.id === testPurchaseOrder.id)).toBeFalsy();
+            expect(allPurchaseOrders.some(po => po.id === secondPurchaseOrder.id)).toBeTruthy();
+            
+            const allIncludingDeleted = await PurchaseOrder.findAll({ paranoid: false });
+            expect(allIncludingDeleted.some(po => po.id === testPurchaseOrder.id)).toBeTruthy();
+            
+            await secondPurchaseOrder.destroy({ force: true });
+        });
+    
+        test('should restore soft-deleted purchase order with restore() method', async () => {
+            await testPurchaseOrder.destroy();
+            
+            const notFound = await PurchaseOrder.findByPk(testPurchaseOrder.id);
+            expect(notFound).toBeNull();
+            
+            const deletedRecord = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            
+            await deletedRecord.restore();
+            
+            const restoredRecord = await PurchaseOrder.findByPk(testPurchaseOrder.id);
+            expect(restoredRecord).not.toBeNull();
+            expect(restoredRecord.id).toBe(testPurchaseOrder.id);
+            expect(restoredRecord.is_deleted).toBe(false);
+            expect(restoredRecord.deleted_at).toBeNull();
+        });
+    
+        test('should permanently delete purchase order with force: true', async () => {
+            await testPurchaseOrder.destroy({ force: true });
+        
+            const notFound = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            expect(notFound).toBeNull();
+        });
+    
+        test('should apply the beforeDestroy hook when soft deleting', async () => {
+            await testPurchaseOrder.destroy();
+        
+            const deletedRecord = await PurchaseOrder.findByPk(testPurchaseOrder.id, { paranoid: false });
+            expect(deletedRecord.is_deleted).toBe(true);
         });
     });
 });

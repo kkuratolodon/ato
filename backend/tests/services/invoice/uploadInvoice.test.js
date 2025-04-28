@@ -2,7 +2,7 @@ const invoiceService = require('../../../src/services/invoice/invoiceService');
 const fs = require("fs");
 const path = require("path");
 const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
-const DocumentStatus = require('../../../src/models/enums/documentStatus');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 
 // Mock Azure Document Intelligence
 jest.mock("@azure/ai-form-recognizer");

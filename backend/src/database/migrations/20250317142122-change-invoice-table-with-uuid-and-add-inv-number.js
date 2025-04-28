@@ -51,13 +51,34 @@ module.exports = {
 
   async down(queryInterface, Sequelize) {
     try {
-      // 1. Remove invoice_number column
-      await queryInterface.removeColumn('Invoice', 'invoice_number');
-      
-      // 2. Drop the primary key
-      await queryInterface.sequelize.query(
-        `ALTER TABLE Invoice DROP PRIMARY KEY`
-      );
+      // 1. Remove invoice_number column if it exists
+      try {
+        await queryInterface.removeColumn('Invoice', 'invoice_number');
+      } catch (error) {
+        // Skip if column doesn't exist (errno 1091)
+        if (error.original && error.original.errno === 1091) {
+          console.warn('Column invoice_number does not exist, skipping');
+        } else {
+          throw error;
+        }
+      }
+
+      // 1.5. Disable FKs and truncate to remove all rows (clear UUID values)
+      await queryInterface.sequelize.query('SET FOREIGN_KEY_CHECKS = 0;');
+      await queryInterface.sequelize.query('TRUNCATE TABLE `Invoice`;');
+      await queryInterface.sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
+
+      // 2. Drop the primary key (skip on errno 1091)
+      try {
+        await queryInterface.sequelize.query(
+          `ALTER TABLE Invoice DROP PRIMARY KEY`
+        );
+      } catch (error) {
+        if (!(error.original && error.original.errno === 1091)) {
+          throw error;
+        }
+        console.warn('No primary key to drop, continuing...');
+      }
       
       // 3. Revert ID column to INTEGER without primary key
       await queryInterface.changeColumn('Invoice', 'id', {
