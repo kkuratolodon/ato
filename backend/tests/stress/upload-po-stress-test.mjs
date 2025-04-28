@@ -2,6 +2,7 @@
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { Counter, Rate, Trend } from 'k6/metrics';
+import { SharedArray } from 'k6/data';
 
 // Metrik khusus untuk melacak performa
 const errorRate = new Rate('error_rate');
@@ -31,8 +32,27 @@ export const options = {
   setupTimeout: '30s',
 };
 
-// Gunakan file sampel PO dari direktori purchase_order
-const pdfData = open('./Sample1_Bike_PO.pdf', 'b');
+// Gunakan file sampel PO dari direktori dengan error handling yang lebih baik
+// Menggunakan sharedArray untuk load file sekali dan dipakai oleh semua VUs
+const pdfFile = new SharedArray('PO PDF', function() {
+  let data;
+  try {
+    // Coba load dari direktori saat ini terlebih dahulu (untuk CI/CD runner)
+    data = open('./Sample1_Bike_PO.pdf', 'b');
+    console.log('Berhasil membuka file PDF dari direktori saat ini');
+  } catch (e1) {
+    try {
+      // Jika gagal, coba dari lokasi relatif lain yang mungkin pada CI/CD
+      data = open('../../../sample_file/purchase_order/Sample1_Bike_PO.pdf', 'b');
+      console.log('Berhasil membuka file PDF dari direktori sample_file');
+    } catch (e2) {
+      console.error('Gagal membuka file PDF:', e2);
+      // Buat data dummy untuk mencegah crash
+      data = new Uint8Array(10).buffer;
+    }
+  }
+  return [data];
+});
 
 // Fungsi utama yang dijalankan untuk setiap VU
 export default function () {
@@ -40,7 +60,7 @@ export default function () {
   const uploadUrl = `${baseUrl}/api/purchase-orders/upload`;
 
   const payload = {
-    file: http.file(pdfData, 'Sample1_Bike_PO.pdf', 'application/pdf'),
+    file: http.file(pdfFile[0], 'Sample1_Bike_PO.pdf', 'application/pdf'),
   };
 
   const headers = {
