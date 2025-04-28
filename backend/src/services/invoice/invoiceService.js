@@ -9,7 +9,6 @@ const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
 const InvoiceValidator = require('./invoiceValidator');
 const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
-const InvoiceLogger = require('./invoiceLogger');
 const DocumentStatus = require('../../models/enums/DocumentStatus.js');
 const { NotFoundError } = require('../../utils/errors.js');
 

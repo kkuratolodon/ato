@@ -7,7 +7,6 @@ const AzureDocumentAnalyzer = require('../../../src/services/analysis/azureDocum
 const InvoiceValidator = require('../../../src/services/invoice/invoiceValidator');
 const InvoiceResponseFormatter = require('../../../src/services/invoice/invoiceResponseFormatter');
 const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService/invoiceMapperService');
-const InvoiceLogger = require('../../../src/services/invoice/invoiceLogger');
 
 // Mock all dependencies
 jest.mock('../../../src/repositories/invoiceRepository');
@@ -30,7 +29,7 @@ describe('InvoiceService Constructor', () => {
 
     test('should create instance with default dependencies when no parameters provided', () => {
         // Act
-        const service = new InvoiceService();
+        new InvoiceService();
 
         // Assert
         expect(InvoiceRepository).toHaveBeenCalledTimes(1);
@@ -45,7 +44,7 @@ describe('InvoiceService Constructor', () => {
 
     test('should create instance with default dependencies when empty object provided', () => {
         // Act
-        const service = new InvoiceService({});
+        new InvoiceService({});
 
         // Assert
         expect(InvoiceRepository).toHaveBeenCalledTimes(1);
