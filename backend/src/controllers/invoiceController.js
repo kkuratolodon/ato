@@ -3,7 +3,7 @@ const FinancialDocumentController = require('./financialDocumentController');
 const validateDeletion = require('../services/validateDeletion');
 const s3Service = require('../services/s3Service');
 const Sentry = require("../instrument");
-const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
+const { ValidationError, AuthError, ForbiddenError, NotFoundError } = require('../utils/errors');
 
 
 class InvoiceController extends FinancialDocumentController {
@@ -125,12 +125,18 @@ class InvoiceController extends FinancialDocumentController {
     if (!id) {
       throw new ValidationError("Invoice ID is required");
     }
-    // if (isNaN(id) || parseInt(id) <= 0) {
-    //   throw new ValidationError("Invalid invoice ID");
-    // }
-    const invoicePartnerId = await this.service.getPartnerId(id);
-    if (invoicePartnerId !== req.user.uuid) {
-      throw new ForbiddenError("Forbidden: You do not have access to this invoice");
+    
+    try {
+      const invoicePartnerId = await this.service.getPartnerId(id);
+      if (invoicePartnerId !== req.user.uuid) {
+        throw new ForbiddenError("Forbidden: You do not have access to this invoice");
+      }
+    } catch (error) {
+      // Rethrow NotFoundError or any other error
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new Error(`Error validating access: ${error.message}`);
     }
   }
 

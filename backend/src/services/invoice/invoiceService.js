@@ -266,7 +266,7 @@ class InvoiceService extends FinancialDocumentService {
     const invoice = await this.invoiceRepository.findById(invoiceId);
 
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
 
     return {
