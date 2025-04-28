@@ -255,6 +255,19 @@ class PurchaseOrderService extends FinancialDocumentService {
       throw error;
     }
   }
+
+  async getPurchaseOrderStatus(id) {
+    const purchaseOrder = await this.purchaseOrderRepository.findById(id);
+    
+    if (!purchaseOrder) {
+      throw new Error("Purchase order not found");
+    }
+    
+    return {
+      id: purchaseOrder.id,
+      status: purchaseOrder.status
+    };
+  }
 }
 
 module.exports = new PurchaseOrderService();
