@@ -3,7 +3,7 @@ const FinancialDocumentController = require('./financialDocumentController');
 const validateDeletion = require('../services/validateDeletion');
 const s3Service = require('../services/s3Service');
 const Sentry = require("../instrument");
-const { ValidationError, AuthError, ForbiddenError, NotFoundError } = require('../utils/errors');
+const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
 
 
 class InvoiceController extends FinancialDocumentController {
