@@ -10,7 +10,7 @@ const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
 const { AzurePurchaseOrderMapper } = require('../purchaseOrderMapperService/purchaseOrderMapperService');
 const DocumentStatus = require('../../models/enums/DocumentStatus');
-const { NotFoundError } = require('../../utils/errors.js');
+const {NotFoundError } = require('../../utils/errors');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {
@@ -256,17 +256,37 @@ class PurchaseOrderService extends FinancialDocumentService {
     }
   }
 
+  /**
+   * @description Get the status of a purchase order by ID
+   * @param {string} id - Purchase order ID
+   * @returns {Object} Purchase order status information
+   * @throws {NotFoundError} If purchase order not found
+   */
   async getPurchaseOrderStatus(id) {
-    const purchaseOrder = await this.purchaseOrderRepository.findById(id);
-    
-    if (!purchaseOrder) {
-      throw new Error("Purchase order not found");
+    try {
+      
+      const purchaseOrder = await this.purchaseOrderRepository.findById(id);
+      
+      if (!purchaseOrder) {
+        throw new NotFoundError("Purchase order not found");
+      }
+      
+      return {
+        id: purchaseOrder.id,
+        status: purchaseOrder.status
+      };
+    } catch (error) {
+      // Re-throw NotFoundError and ValidationError as is
+      if (error.name === "NotFoundError" || error.name === "ValidationError") {
+        throw error;
+      }
+      
+      console.error(`Error getting purchase order status: ${error.message}`, error);
+      Sentry.captureException(error);
+      
+      // Wrap other errors
+      throw new Error(`Failed to get purchase order status: ${error.message}`);
     }
-    
-    return {
-      id: purchaseOrder.id,
-      status: purchaseOrder.status
-    };
   }
 }
 
