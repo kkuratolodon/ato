@@ -97,7 +97,7 @@ describe("Purchase Order Controller - Status Endpoint", () => {
     
     // Assert
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith("Unauthorized");
+    expect(res.json).toHaveBeenCalledWith({ message: "Unauthorized" });
   });
 
   test("should return 400 when purchase order ID is missing", async () => {
@@ -112,7 +112,7 @@ describe("Purchase Order Controller - Status Endpoint", () => {
     
     // Assert
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith("Purchase order ID is required");
+    expect(res.json).toHaveBeenCalledWith({ message: "Purchase order ID is required" });
   });
 
   test("should return 403 when purchase order doesn't belong to authenticated user", async () => {
@@ -125,7 +125,7 @@ describe("Purchase Order Controller - Status Endpoint", () => {
     // Assert
     expect(mockPurchaseOrderService.getPartnerId).toHaveBeenCalledWith("po-123");
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith("Forbidden: You do not have access to this purchase order");
+    expect(res.json).toHaveBeenCalledWith({ message: "Forbidden: You do not have access to this purchase order" });
   });
 
   test("should return 404 when purchase order not found", async () => {
@@ -140,7 +140,7 @@ describe("Purchase Order Controller - Status Endpoint", () => {
     expect(mockPurchaseOrderService.getPartnerId).toHaveBeenCalledWith("po-123");
     expect(mockPurchaseOrderService.getPurchaseOrderStatus).toHaveBeenCalledWith("po-123");
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith("Purchase order not found");
+    expect(res.json).toHaveBeenCalledWith({ message: "Purchase order not found" });
   });
 
   test("should return 500 when an unexpected error occurs", async () => {
@@ -155,6 +155,6 @@ describe("Purchase Order Controller - Status Endpoint", () => {
     expect(mockPurchaseOrderService.getPartnerId).toHaveBeenCalledWith("po-123");
     expect(mockPurchaseOrderService.getPurchaseOrderStatus).toHaveBeenCalledWith("po-123");
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith("Internal server error");
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
   });
 });
