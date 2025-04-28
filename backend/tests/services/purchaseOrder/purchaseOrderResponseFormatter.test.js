@@ -11,13 +11,12 @@ describe('PurchaseOrderResponseFormatter', () => {
     // Positive case: Full data available
     const purchaseOrder = {
       po_number: 'PO-001',
-      po_date: '2023-05-01',
+      due_date: '2023-05-01',
       status: 'Processed',
       partner_id: 'partner-123',
       original_filename: 'test.pdf',
       file_size: 1024,
       file_url: 'https://example.com/test.pdf',
-      due_date: '2023-05-31',
       payment_terms: 'Net 30',
       currency_code: 'USD',
       total_amount: 300,
@@ -55,7 +54,7 @@ describe('PurchaseOrderResponseFormatter', () => {
             header: {
               purchase_order_details: {
                 purchase_order_id: 'PO-001',
-                due_date: '2023-05-31',
+                due_date: '2023-05-01',
                 payment_terms: 'Net 30'
               },
               vendor_details: {
@@ -92,7 +91,7 @@ describe('PurchaseOrderResponseFormatter', () => {
   test('should handle missing or invalid items', () => {
     const purchaseOrder = {
       po_number: 'PO-001',
-      po_date: '2023-05-01',
+      due_date: '2023-05-01',
       status: 'Processed',
       partner_id: 'partner-123',
       original_filename: 'test.pdf',
@@ -121,7 +120,7 @@ describe('PurchaseOrderResponseFormatter', () => {
   test('should handle missing vendor and customer data', () => {
     const purchaseOrder = {
       po_number: 'PO-001',
-      po_date: '2023-05-01',
+      due_date: '2023-05-01',
       status: 'Processed',
       partner_id: 'partner-123',
       original_filename: 'test.pdf',
@@ -159,7 +158,7 @@ describe('PurchaseOrderResponseFormatter', () => {
   test('should handle empty address fields in vendor and customer', () => {
     const purchaseOrder = {
       po_number: 'PO-001',
-      po_date: '2023-05-01',
+      due_date: '2023-05-01',
       status: 'Processed',
       partner_id: 'partner-123',
       original_filename: 'test.pdf',
@@ -196,13 +195,12 @@ describe('PurchaseOrderResponseFormatter', () => {
   test('should handle when items parameter is omitted entirely', () => {
     const purchaseOrder = {
       po_number: 'PO-001',
-      po_date: '2023-05-01',
+      due_date: '2023-05-01',
       status: 'Processed',
       partner_id: 'partner-123',
       original_filename: 'test.pdf',
       file_size: 1024,
       file_url: 'https://example.com/test.pdf',
-      due_date: '2023-05-31',
       payment_terms: 'Net 30'
     };
 
@@ -215,7 +213,7 @@ describe('PurchaseOrderResponseFormatter', () => {
     // Verify the rest of the structure is still correct
     expect(result.data.documents[0].header.purchase_order_details).toEqual({
       purchase_order_id: 'PO-001',
-      due_date: '2023-05-31',
+      due_date: '2023-05-01',
       payment_terms: 'Net 30'
     });
   });

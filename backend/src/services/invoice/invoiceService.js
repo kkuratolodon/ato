@@ -262,6 +262,19 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
+  async getInvoiceStatus(invoiceId) {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+
+    if (!invoice) {
+      throw new NotFoundError("Invoice not found");
+    }
+
+    return {
+      id: invoice.id,
+      status: invoice.status
+    };
+  }
+
   async deleteInvoiceById(id) {
     try {
       const result = await this.invoiceRepository.delete(id);

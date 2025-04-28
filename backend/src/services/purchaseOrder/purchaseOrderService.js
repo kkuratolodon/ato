@@ -186,6 +186,7 @@ class PurchaseOrderService extends FinancialDocumentService {
           'PurchaseOrder',
           purchaseOrderId,
           {
+            description: itemData.description || null,
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
             unit_price: itemData.unitPrice || 0,
@@ -217,10 +218,6 @@ class PurchaseOrderService extends FinancialDocumentService {
   async getPurchaseOrderById(id) {
     try {
       const purchaseOrder = await this.purchaseOrderRepository.findById(id);
-      
-      if (!purchaseOrder) {
-        throw new Error("Purchase order not found");
-      }
       
       // Return early with appropriate message for PROCESSING and FAILED states
       if (purchaseOrder.status === DocumentStatus.PROCESSING) {

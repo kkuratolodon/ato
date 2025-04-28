@@ -62,9 +62,11 @@ class PurchaseOrderController extends FinancialDocumentController {
       const { id } = req.params;
       await this.validateGetRequest(req, id);
       const purchaseOrderDetail = await this.purchaseOrderService.getPurchaseOrderById(id);
+      
       if (!purchaseOrderDetail) {
         return res.status(404).json({ message: "Purchase order not found" });
       }
+      
       return res.status(200).json(purchaseOrderDetail);
     } catch (error) {
       return this.handleError(res, error);
