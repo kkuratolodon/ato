@@ -231,6 +231,359 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Encrypted (No Password)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test for status code\r",
+									"pm.test(\"Status code is 403\", function () {\r",
+									"    pm.response.to.have.status(403);\r",
+									"});\r",
+									"\r",
+									"// Test for response message\r",
+									"pm.test(\"Response message is 'PDF is encrypted and requires a password'\", function () {\r",
+									"    pm.expect(pm.response.json().message.message).to.equal(\"PDF is encrypted and requires a password\");\r",
+									"});\r",
+									"\r",
+									"// Test for content type header\r",
+									"pm.test(\"Content-Type is present and is application/json\", function () {\r",
+									"    pm.response.to.have.header(\"Content-Type\");\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						},
+						"description": "Upload invoice berupa file PDF."
+					},
+					"response": []
+				},
+				{
+					"name": "Encrypted (Incorrect Password)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test for status code\r",
+									"pm.test(\"Status code is 400\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});\r",
+									"\r",
+									"// Test for response message\r",
+									"pm.test(\"Response message is 'Incorrect password for encrypted PDF'\", function () {\r",
+									"    pm.expect(pm.response.json().message).to.equal(\"Incorrect password for encrypted PDF\");\r",
+									"});\r",
+									"\r",
+									"// Test for content type header\r",
+									"pm.test(\"Content-Type is present and is application/json\", function () {\r",
+									"    pm.response.to.have.header(\"Content-Type\");\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+								},
+								{
+									"key": "password",
+									"value": "wrong_password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						},
+						"description": "Upload invoice berupa file PDF."
+					},
+					"response": []
+				},
+				{
+					"name": "Encrypted (Success)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test for status code\r",
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"// Test for response message\r",
+									"pm.test(\"Response message is 'Invoice upload initiated'\", function () {\r",
+									"    pm.expect(pm.response.json().message.message).to.equal(\"Invoice upload initiated\");\r",
+									"});\r",
+									"\r",
+									"// Test for content type header\r",
+									"pm.test(\"Content-Type is present and is application/json\", function () {\r",
+									"    pm.response.to.have.header(\"Content-Type\");\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+								},
+								{
+									"key": "password",
+									"value": "password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						},
+						"description": "Upload invoice berupa file PDF."
+					},
+					"response": []
+				},
+				{
+					"name": "Unauthorized Client",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401\", function () {\r",
+									"    pm.response.to.have.status(401);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response body has a message field\", function () {\r",
+									"    pm.expect(pm.response.json()).to.have.property('message');\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response body message is 'Unauthorized: Invalid credentials'\", function () {\r",
+									"    pm.expect(pm.response.json().message).to.equal(\"Unauthorized: Invalid credentials\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "secret",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/test-files/test-valid.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reject > 20 MB",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response code is 413\", function () {\r",
+									"    pm.response.to.have.status(413);\r",
+									"});\r",
+									"\r",
+									"// pm.test(\"Response time is less than 5000ms\", function () {\r",
+									"//     pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+									"// });\r",
+									"\r",
+									"pm.test(\"Response body has message field\", function () {\r",
+									"    pm.response.to.have.jsonBody('message');\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							},
+							{
+								"key": "client_id",
+								"value": "surya",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "client_secret",
+								"value": "suryasecret",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test-30mb.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						}
+					},
+					"response": []
 				}
 			],
 			"description": "_Endpoint_ `/api/invoice` berfungsi untuk melakukan fungsionalitas yang berkaitan dengan _invoice_."
@@ -456,6 +809,221 @@
 								"upload"
 							]
 						}
+					},
+					"response": []
+				},
+				{
+					"name": "Encrypted (No Password)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test for status code\r",
+									"pm.test(\"Status code is 403\", function () {\r",
+									"    pm.response.to.have.status(403);\r",
+									"});\r",
+									"\r",
+									"// Test for response message\r",
+									"pm.test(\"Response message is 'PDF is encrypted and requires a password'\", function () {\r",
+									"    pm.expect(pm.response.json().message.message).to.equal(\"PDF is encrypted and requires a password\");\r",
+									"});\r",
+									"\r",
+									"// Test for content type header\r",
+									"pm.test(\"Content-Type is present and is application/json\", function () {\r",
+									"    pm.response.to.have.header(\"Content-Type\");\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/purchase-orders/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"purchase-orders",
+								"upload"
+							]
+						},
+						"description": "Upload invoice berupa file PDF."
+					},
+					"response": []
+				},
+				{
+					"name": "Encrypted (Incorrect Password)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test for status code\r",
+									"pm.test(\"Status code is 400\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});\r",
+									"\r",
+									"// Test for response message\r",
+									"pm.test(\"Response message is 'Incorrect password for encrypted PDF'\", function () {\r",
+									"    pm.expect(pm.response.json().message).to.equal(\"Incorrect password for encrypted PDF\");\r",
+									"});\r",
+									"\r",
+									"// Test for content type header\r",
+									"pm.test(\"Content-Type is present and is application/json\", function () {\r",
+									"    pm.response.to.have.header(\"Content-Type\");\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+								},
+								{
+									"key": "password",
+									"value": "wrong_password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						},
+						"description": "Upload invoice berupa file PDF."
+					},
+					"response": []
+				},
+				{
+					"name": "Encrypted (Success)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test for status code\r",
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"// Test for response message\r",
+									"pm.test(\"Response message is 'Invoice upload initiated'\", function () {\r",
+									"    pm.expect(pm.response.json().message.message).to.equal(\"Invoice upload initiated\");\r",
+									"});\r",
+									"\r",
+									"// Test for content type header\r",
+									"pm.test(\"Content-Type is present and is application/json\", function () {\r",
+									"    pm.response.to.have.header(\"Content-Type\");\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+								},
+								{
+									"key": "password",
+									"value": "password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						},
+						"description": "Upload invoice berupa file PDF."
 					},
 					"response": []
 				},
