@@ -42,22 +42,13 @@ module.exports = (sequelize, DataTypes) => {
     }
 
     PurchaseOrder.init({
-        po_date: { 
+        due_date: { 
             type: DataTypes.DATE, 
             allowNull: true 
         },
         po_number: { 
             type: DataTypes.STRING, 
             allowNull: true,
-        },
-        due_date: {
-            type: DataTypes.VIRTUAL, // This makes the field virtual (not stored in DB)
-            get: function() {
-                return null; // Always returns null when accessed
-            },
-            set: function() {
-                // Do nothing when attempted to set
-            }
         }
     }, {
         sequelize,

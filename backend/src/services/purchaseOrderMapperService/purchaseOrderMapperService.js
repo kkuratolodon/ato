@@ -62,7 +62,7 @@ class AzurePurchaseOrderMapper {
     // Build purchase order data object matching our model requirements
     const purchaseOrderData = {
       po_number: poNumber, 
-      po_date: poDate,
+      due_date: poDate,
       total_amount: totalAmountAmount,
       subtotal_amount: subtotalAmountAmount,
       discount_amount: discountAmountAmount,
