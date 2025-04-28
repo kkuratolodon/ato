@@ -42,24 +42,13 @@ module.exports = (sequelize, DataTypes) => {
     }
 
     PurchaseOrder.init({
-        po_date: { 
+        due_date: { 
             type: DataTypes.DATE, 
             allowNull: true 
         },
         po_number: { 
             type: DataTypes.STRING, 
             allowNull: true,
-        },
-        due_date: {
-            type: DataTypes.DATE,
-            allowNull: true,
-            validate: {
-                isAfterPoDate(value) {
-                    if (this.po_date && new Date(value) < new Date(this.po_date)) {
-                        throw new Error('due_date must not be earlier than po_date');
-                    }
-                }
-            }
         }
     }, {
         sequelize,

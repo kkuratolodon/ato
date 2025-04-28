@@ -3,7 +3,7 @@ const pdfValidationService = require("../../src/services/pdfValidationService");
 
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { PayloadTooLargeError, UnsupportedMediaTypeError } = require("../../src/utils/errors");
+const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require("../../src/utils/errors");
 
 // Mock services
 jest.mock("../../src/services/pdfValidationService");
@@ -36,7 +36,8 @@ describe("Invoice Controller", () => {
       }),
       getInvoiceById: jest.fn(),
       getPartnerId: jest.fn(),
-      deleteInvoiceById: jest.fn()  // Add this method that might be needed
+      deleteInvoiceById: jest.fn(),  // Add this method that might be needed
+      getInvoiceStatus: jest.fn()
     };
 
     // Create mock services for other dependencies
@@ -300,6 +301,100 @@ describe("Invoice Controller", () => {
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
         message: "Invoice ID is required"
+      });
+    });
+
+  });
+
+  describe("getInvoiceStatus", () => {
+    test("should return invoice status when authorized", async () => {
+      // Arrange
+      const mockStatus = {
+        id: "1",
+        status: "ANALYZED"
+      };
+      const testData = setupTestData();
+      Object.assign(req, testData);
+
+      mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
+      mockInvoiceService.getInvoiceStatus.mockResolvedValue(mockStatus);
+
+      // Act
+      await controller.getInvoiceStatus(req, res);
+
+      // Assert
+      expect(mockInvoiceService.getPartnerId).toHaveBeenCalledWith("1");
+      expect(mockInvoiceService.getInvoiceStatus).toHaveBeenCalledWith("1");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(mockStatus);
+    });
+
+    test("should return 401 when user is not authenticated", async () => {
+      // Arrange
+      const testData = setupTestData({ user: undefined });
+      Object.assign(req, testData);
+
+      // Act
+      await controller.getInvoiceStatus(req, res);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unauthorized"
+      });
+      expect(mockInvoiceService.getInvoiceStatus).not.toHaveBeenCalled();
+    });
+
+    test("should return 400 when invoice ID is missing", async () => {
+      // Arrange
+      const testData = setupTestData({ params: {} });
+      Object.assign(req, testData);
+
+      // Act
+      await controller.getInvoiceStatus(req, res);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invoice ID is required"
+      });
+      expect(mockInvoiceService.getInvoiceStatus).not.toHaveBeenCalled();
+    });
+
+    test("should return 403 when accessing another user's invoice", async () => {
+      // Arrange
+      const testData = setupTestData();
+      Object.assign(req, testData);
+
+      mockInvoiceService.getPartnerId.mockResolvedValue("other-uuid");
+
+      // Act
+      await controller.getInvoiceStatus(req, res);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Forbidden: You do not have access to this invoice"
+      });
+      expect(mockInvoiceService.getInvoiceStatus).not.toHaveBeenCalled();
+    });
+
+    test("should handle invoice not found error", async () => {
+      // Arrange
+      const testData = setupTestData();
+      Object.assign(req, testData);
+
+      mockInvoiceService.getPartnerId.mockResolvedValue("test-uuid");
+      // Use NotFoundError instead of generic Error
+      mockInvoiceService.getInvoiceStatus.mockRejectedValue(new NotFoundError("Invoice not found"));
+
+      // Act
+      await controller.getInvoiceStatus(req, res);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invoice not found"
       });
     });
 

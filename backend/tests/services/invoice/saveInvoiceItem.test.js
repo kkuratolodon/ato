@@ -217,4 +217,33 @@ describe('saveInvoiceItems', () => {
       {description: 'Complete Item', quantity: 5, unit: 'kg', unit_price: 10.99, amount: 54.95 }
     );
   });
+  test('should handle items with undefined description correctly', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const itemsData = [
+      {
+        // No description property
+        quantity: 2,
+        unit: 'pc',
+        unitPrice: 10.5,
+        amount: 21.0
+      }
+    ];
+
+    // Act
+    await invoiceService.saveInvoiceItems(invoiceId, itemsData);
+
+    // Assert
+    expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
+      'Invoice',
+      invoiceId,
+      {
+        description: null,
+        quantity: 2,
+        unit: 'pc',
+        unit_price: 10.5,
+        amount: 21.0
+      }
+    );
+  });
 });

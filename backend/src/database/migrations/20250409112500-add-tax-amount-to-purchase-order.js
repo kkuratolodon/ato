@@ -1,16 +1,15 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up (queryInterface, Sequelize) {
+  up: async (queryInterface, Sequelize) => {
     await queryInterface.addColumn('PurchaseOrder', 'tax_amount', {
       type: Sequelize.DECIMAL(10, 2),
       allowNull: true,
-      defaultValue: null
+      after: 'discount_amount'
     });
   },
 
-  async down (queryInterface) {
+  down: async (queryInterface) => {
     await queryInterface.removeColumn('PurchaseOrder', 'tax_amount');
   }
 };

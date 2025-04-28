@@ -1,49 +1,129 @@
+const { of, throwError } = require('rxjs');
 const invoiceService = require('../../../src/services/invoice/invoiceService');
+const Sentry = require('../../../src/instrument');
 
-// Mock repositories
+jest.mock('../../../src/instrument', () => ({
+  captureException: jest.fn(),
+  addBreadcrumb: jest.fn()
+}));
+
 jest.mock('../../../src/repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
-    delete: jest.fn()
+    delete: jest.fn(),
+    findById: jest.fn()
   }));
 });
 
+jest.mock('rxjs', () => {
+  const original = jest.requireActual('rxjs');
+  return {
+    ...original,
+    from: jest.fn()
+  };
+});
+
 describe('deleteInvoiceById', () => {
+  const { from } = require('rxjs');
+  
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   test('should delete an invoice successfully', async () => {
-    // Arrange - Mock the delete method to return 1 (success)
-    invoiceService.invoiceRepository.delete.mockResolvedValue(1);
+    const mockId = 'invoice-123';
+    from.mockImplementation((input) => {
+      if (typeof input === 'function' || input instanceof Promise) {
+        return of(undefined);
+      }
+      return of(1);
+    });
     
-    // Act
-    const result = await invoiceService.deleteInvoiceById('invoice-123');
+    const result = await invoiceService.deleteInvoiceById(mockId).toPromise();
     
-    // Assert
-    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith('invoice-123');
+    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith(mockId);
     expect(result).toEqual({ message: 'Invoice successfully deleted' });
+    expect(Sentry.captureException).not.toHaveBeenCalled();
   });
 
   test('should throw error when no invoice is deleted', async () => {
-    // Arrange - Mock the delete method to return 0 (no records deleted)
-    invoiceService.invoiceRepository.delete.mockResolvedValue(0);
+    const mockId = 'nonexistent-invoice';
+    from.mockImplementation((input) => {
+      if (typeof input === 'function' || input instanceof Promise) {
+        return of(undefined);
+      }
+      return of(0);
+    });
     
-    // Act & Assert
-    await expect(invoiceService.deleteInvoiceById('nonexistent-invoice'))
-      .rejects.toThrow('Failed to delete invoice: Failed to delete invoice');
+    await expect(invoiceService.deleteInvoiceById(mockId).toPromise())
+      .rejects.toThrow('Failed to delete invoice: Failed to delete invoice with ID: nonexistent-invoice');
     
-    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith('nonexistent-invoice');
+    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith(mockId);
+    expect(Sentry.captureException).toHaveBeenCalled();
   });
 
-  test('should throw error when deletion fails', async () => {
-    // Arrange - Mock the delete method to throw an error
+  test('should throw error when deletion fails with database error', async () => {
+    const mockId = 'invoice-123';
     const mockError = new Error('Database connection error');
-    invoiceService.invoiceRepository.delete.mockRejectedValue(mockError);
     
-    // Act & Assert
-    await expect(invoiceService.deleteInvoiceById('invoice-123'))
+    from.mockImplementation((input) => {
+      if (typeof input === 'function' || input instanceof Promise) {
+        return of(undefined);
+      }
+      return throwError(() => mockError);
+    });
+    
+    await expect(invoiceService.deleteInvoiceById(mockId).toPromise())
       .rejects.toThrow('Failed to delete invoice: Database connection error');
     
-    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith('invoice-123');
+    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith(mockId);
+    expect(Sentry.captureException).toHaveBeenCalledWith(mockError);
+  });
+
+  test('should handle empty string ID gracefully', async () => {
+    const mockId = '';
+    from.mockImplementation((input) => {
+      if (typeof input === 'function' || input instanceof Promise) {
+        return of(undefined);
+      }
+      return of(0);
+    });
+    
+    await expect(invoiceService.deleteInvoiceById(mockId).toPromise())
+      .rejects.toThrow(`Failed to delete invoice: Failed to delete invoice with ID: ${mockId}`);
+    
+    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith(mockId);
+    expect(Sentry.captureException).toHaveBeenCalled();
+  });
+
+  test('should handle null ID gracefully', async () => {
+    const mockId = null;
+    from.mockImplementation((input) => {
+      if (typeof input === 'function' || input instanceof Promise) {
+        return of(undefined);
+      }
+      return of(0);
+    });
+    
+    await expect(invoiceService.deleteInvoiceById(mockId).toPromise())
+      .rejects.toThrow(`Failed to delete invoice: Failed to delete invoice with ID: ${mockId}`);
+    
+    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith(mockId);
+    expect(Sentry.captureException).toHaveBeenCalled();
+  });
+
+  test('should handle undefined ID gracefully', async () => {
+    const mockId = undefined;
+    from.mockImplementation((input) => {
+      if (typeof input === 'function' || input instanceof Promise) {
+        return of(undefined);
+      }
+      return of(0);
+    });
+    
+    await expect(invoiceService.deleteInvoiceById(mockId).toPromise())
+      .rejects.toThrow(`Failed to delete invoice: Failed to delete invoice with ID: ${mockId}`);
+    
+    expect(invoiceService.invoiceRepository.delete).toHaveBeenCalledWith(mockId);
+    expect(Sentry.captureException).toHaveBeenCalled();
   });
 });
