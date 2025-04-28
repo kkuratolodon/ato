@@ -17,6 +17,7 @@ class PurchaseOrderController extends FinancialDocumentController {
     // Bind methods to ensure correct context
     this.uploadPurchaseOrder = this.uploadPurchaseOrder.bind(this);
     this.getPurchaseOrderById = this.getPurchaseOrderById.bind(this);
+    this.getPurchaseOrderStatus = this.getPurchaseOrderStatus.bind(this);
     this.validateGetRequest = this.validateGetRequest.bind(this);
     this.purchaseOrderService = purchaseOrderService;
   }
@@ -68,6 +69,21 @@ class PurchaseOrderController extends FinancialDocumentController {
     } catch (error) {
       return this.handleError(res, error);
     }
+  }
+
+  /**
+   * @description Retrieves only the status of a purchase order by ID
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} JSON with purchase order ID and status
+   */
+  async getPurchaseOrderStatus(req, res) {
+    const { id } = req.params;
+    await this.validateGetRequest(req, id);
+    
+    const statusResult = await this.purchaseOrderService.getPurchaseOrderStatus(id);
+    return res.status(200).json(statusResult);
   }
 
   async validateGetRequest(req, id) {

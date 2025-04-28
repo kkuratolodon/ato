@@ -16,5 +16,10 @@ router.get(
     authMiddleware,
     controller.getPurchaseOrderById
 );
+router.get(
+    '/:id/status',
+    authMiddleware,
+    controller.getPurchaseOrderStatus
+);
 
 module.exports = router;
