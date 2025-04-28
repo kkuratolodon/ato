@@ -177,7 +177,6 @@ class InvoiceController extends FinancialDocumentController {
         }),
         
         catchError(error => {
-          console.error("Error deleting invoice:", error);
           Sentry.captureException(error);
           
           if (error.message === "Invoice not found") {
@@ -199,9 +198,6 @@ class InvoiceController extends FinancialDocumentController {
             return res.status(result.status).json({ message: result.message, error: result.error });
           }
           return res.status(200).json({ message: "Invoice successfully deleted" });
-        },
-        error: () => {
-          return res.status(500).json({ message: "Internal server error" });
         }
       });
   }
