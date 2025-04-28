@@ -10,6 +10,7 @@ const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
 const { AzurePurchaseOrderMapper } = require('../purchaseOrderMapperService/purchaseOrderMapperService');
 const DocumentStatus = require('../../models/enums/DocumentStatus');
+const { NotFoundError } = require('../../utils/errors.js');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {
@@ -204,7 +205,7 @@ class PurchaseOrderService extends FinancialDocumentService {
     const purchaseOrder = await this.purchaseOrderRepository.findById(id);
 
     if (!purchaseOrder) {
-      throw new Error("Purchase order not found");
+      throw new NotFoundError("Purchase order not found");
     }
     return purchaseOrder.partner_id;
   }
@@ -216,10 +217,6 @@ class PurchaseOrderService extends FinancialDocumentService {
   async getPurchaseOrderById(id) {
     try {
       const purchaseOrder = await this.purchaseOrderRepository.findById(id);
-      
-      if (!purchaseOrder) {
-        throw new Error("Purchase order not found");
-      }
       
       // Return early with appropriate message for PROCESSING and FAILED states
       if (purchaseOrder.status === DocumentStatus.PROCESSING) {
