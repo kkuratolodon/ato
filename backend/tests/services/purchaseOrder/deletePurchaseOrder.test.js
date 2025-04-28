@@ -1,4 +1,4 @@
-const { of, throwError } = require('rxjs');
+const { of } = require('rxjs');
 const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
 const Sentry = require('../../../src/instrument');
 
