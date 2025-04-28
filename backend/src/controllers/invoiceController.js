@@ -14,6 +14,8 @@ class InvoiceController extends FinancialDocumentController {
     this.uploadInvoice = this.uploadInvoice.bind(this);
     this.getInvoiceById = this.getInvoiceById.bind(this);
     this.deleteInvoiceById = this.deleteInvoiceById.bind(this);
+    this.getInvoiceStatus = this.getInvoiceStatus.bind(this);
+    this.validateGetRequest = this.validateGetRequest.bind(this);
   }
 
   /**
@@ -129,6 +131,25 @@ class InvoiceController extends FinancialDocumentController {
     const invoicePartnerId = await this.service.getPartnerId(id);
     if (invoicePartnerId !== req.user.uuid) {
       throw new ForbiddenError("Forbidden: You do not have access to this invoice");
+    }
+  }
+
+  /**
+   * @description Retrieves only the status of an invoice by ID
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} JSON with invoice ID and status
+   */
+  async getInvoiceStatus(req, res) {
+    try {
+      const { id } = req.params;
+      await this.validateGetRequest(req, id);
+
+      const statusResult = await this.service.getInvoiceStatus(id);
+      return res.status(200).json(statusResult);
+    } catch (error) {
+      return this.handleError(res, error);
     }
   }
 
