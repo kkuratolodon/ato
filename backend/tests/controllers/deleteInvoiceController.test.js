@@ -193,7 +193,7 @@ describe("Invoice Controller - deleteInvoiceById (Unit Test)", () => {
     });
   });
 
-  test("should return 500 if InvoiceService.deleteInvoiceById fails (after successful validation/S3)", () => { // Hapus async
+  test("should return 500 if InvoiceService.deleteInvoiceById fails (after successful validation/S3)", () => { 
     return new Promise(resolve => {
       const dbError = new Error("Database deletion failed");
 

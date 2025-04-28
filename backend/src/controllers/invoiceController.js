@@ -157,7 +157,6 @@ class InvoiceController extends FinancialDocumentController {
             const fileKey = invoice.file_url.split('/').pop();
             return from(s3Service.deleteFile(fileKey)).pipe(
               mergeMap(deleteResult => {
-                console.log("File deleted from S3:", deleteResult);
                 if (!deleteResult.success) {
                   const err = new Error("Failed to delete file from S3");
                   Sentry.captureException(err);
