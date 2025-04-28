@@ -74,16 +74,26 @@ class PurchaseOrderController extends FinancialDocumentController {
   /**
    * @description Retrieves only the status of a purchase order by ID
    * 
+   * @throws {400} Invalid purchase order ID (null)
+   * @throws {401} Unauthorized if req.user is missing
+   * @throws {403} Forbidden if purchase order does not belong to the authenticated user
+   * @throws {404} Not Found if purchase order is not found
+   * @throws {500} Internal Server Error
+   * 
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object
    * @returns {Promise<Object>} JSON with purchase order ID and status
    */
   async getPurchaseOrderStatus(req, res) {
-    const { id } = req.params;
-    await this.validateGetRequest(req, id);
-    
-    const statusResult = await this.purchaseOrderService.getPurchaseOrderStatus(id);
-    return res.status(200).json(statusResult);
+    try {
+      const { id } = req.params;
+      await this.validateGetRequest(req, id);
+      
+      const statusResult = await this.purchaseOrderService.getPurchaseOrderStatus(id);
+      return res.status(200).json(statusResult);
+    } catch (error) {
+      return this.handleError(res, error);
+    }
   }
 
   async validateGetRequest(req, id) {
