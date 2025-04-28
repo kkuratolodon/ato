@@ -6,7 +6,6 @@ const CustomerRepository = require('../../src/repositories/customerRepository');
 const VendorRepository = require('../../src/repositories/vendorRepository');
 const PurchaseOrderResponseFormatter = require('../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
 const DocumentStatus = require('../../src/models/enums/DocumentStatus');
-const Sentry = require("../../src/instrument");
 
 // Mock dependencies
 jest.mock('../../src/repositories/purchaseOrderRepository');
@@ -47,13 +46,6 @@ describe('Purchase Order Service - GetPurchaseOrderById', () => {
     // Happy Path Tests
     test('should return purchase order details when found and analyzed', async () => {
       // Arrange
-      const mockPurchaseOrder = {
-        id: 'po-123',
-        status: DocumentStatus.ANALYZED,
-        partner_id: 'partner-123',
-        customer_id: 'customer-123',
-        vendor_id: 'vendor-123'
-      };
       
       const mockItems = [
         { id: 'item-1', name: 'Item 1', quantity: 2, unit_price: 10 },

@@ -9,8 +9,6 @@ const CustomerRepository = require('../../src/repositories/customerRepository');
 const VendorRepository = require('../../src/repositories/vendorRepository');
 const PurchaseOrderResponseFormatter = require('../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
 const AzureDocumentAnalyzer = require('../../src/services/analysis/azureDocumentAnalyzer');
-const DocumentStatus = require('../../src/models/enums/DocumentStatus');
-const { ValidationError, NotFoundError } = require('../../src/utils/errors');
 const Sentry = require("../../src/instrument");
 
 // Mock all dependencies
