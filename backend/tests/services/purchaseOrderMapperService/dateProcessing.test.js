@@ -27,7 +27,7 @@ describe('PO Date Processing', () => {
       const now = new Date();
       const { purchaseOrderData } = mapper.mapToPurchaseOrderModel(ocrWithEmptyDate, partnerId);
       
-      const timeDiff = Math.abs(purchaseOrderData.po_date.getTime() - now.getTime());
+      const timeDiff = Math.abs(purchaseOrderData.due_date.getTime() - now.getTime());
       expect(timeDiff).toBeLessThan(1000);
     });
     
@@ -54,9 +54,9 @@ describe('PO Date Processing', () => {
         const { purchaseOrderData } = mapper.mapToPurchaseOrderModel(ocr, partnerId);
         
         // All should be parsed as the same date regardless of format
-        expect(purchaseOrderData.po_date.getFullYear()).toBe(2023);
-        expect(purchaseOrderData.po_date.getMonth()).toBe(4); // May is 4 (zero-indexed)
-        expect(purchaseOrderData.po_date.getDate()).toBe(15);
+        expect(purchaseOrderData.due_date.getFullYear()).toBe(2023);
+        expect(purchaseOrderData.due_date.getMonth()).toBe(4); // May is 4 (zero-indexed)
+        expect(purchaseOrderData.due_date.getDate()).toBe(15);
       });
     });
 });

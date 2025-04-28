@@ -9,7 +9,7 @@ describe('Core PO Mapping Basic Functionality', () => {
 
     expect(purchaseOrderData).toBeDefined();
     expect(purchaseOrderData.po_number).toBe("12345"); // Assuming mockAzureOcrResult provides this
-    expect(purchaseOrderData.po_date).toBeDefined();
+    expect(purchaseOrderData.due_date).toBeDefined();
     expect(purchaseOrderData.total_amount).toBe(110);
     expect(purchaseOrderData.subtotal_amount).toBe(100);
     expect(purchaseOrderData.discount_amount).toBe(5);
@@ -33,7 +33,7 @@ describe('Core PO Mapping Basic Functionality', () => {
 
     const { purchaseOrderData } = mapper.mapToPurchaseOrderModel(partialOcrResult, "abc-corp-partner");
 
-    expect(purchaseOrderData.po_date).toEqual(new Date('2023-05-15'));
+    expect(purchaseOrderData.due_date).toEqual(new Date('2023-05-15'));
     expect(purchaseOrderData.total_amount).toBe(500);
     expect(purchaseOrderData.subtotal_amount).toBe(500);
     expect(purchaseOrderData.po_number).toBe('PO-2023-001');

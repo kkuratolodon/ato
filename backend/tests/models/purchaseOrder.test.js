@@ -75,7 +75,7 @@ describe('PurchaseOrder Model', () => {
     // Basic model structure tests
     test('it should have purchase order specific attributes', () => {
         // Check for specific PO attributes
-        expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('po_date');
+        expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('due_date');
         expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('po_number');
     });
 
@@ -185,7 +185,7 @@ describe('PurchaseOrder Model', () => {
     describe('Positive Cases', () => {
         test('should create purchase order with all valid fields', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                po_date: new Date('2024-01-01'),
+                due_date: new Date('2024-01-01'),
                 po_number: 'PO-2024-001',
                 total_amount: 1000.50,
                 subtotal_amount: 1200.00,
@@ -211,7 +211,7 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder).toBeTruthy();
             expect(purchaseOrder.status).toBe('Analyzed');
             expect(purchaseOrder.partner_id).toBe(partnerId);
-            expect(purchaseOrder.po_date).toBeUndefined();
+            expect(purchaseOrder.due_date).toBeUndefined();
         });
 
         test('should associate correctly with Partner model', async () => {
@@ -316,55 +316,13 @@ describe('PurchaseOrder Model', () => {
         });
     });
 
-    describe('Virtual Fields', () => {
-        test('due_date getter should always return null', async () => {
-            // Create a purchase order
-            const purchaseOrder = await PurchaseOrder.create({
-                status: DocumentStatus.PROCESSING,
-                partner_id: partnerId
-            });
-
-            // Verify the due_date getter returns null
-            expect(purchaseOrder.due_date).toBeNull();
-        });
-
-        test('due_date setter should not change the value', async () => {
-            // Create a purchase order
-            const purchaseOrder = await PurchaseOrder.create({
-                status: DocumentStatus.PROCESSING,
-                partner_id: partnerId
-            });
-
-            // Attempt to set a value to due_date
-            purchaseOrder.due_date = new Date('2024-12-31');
-            
-            // Verify it still returns null
-            expect(purchaseOrder.due_date).toBeNull();
-            
-            // Save and reload to confirm it wasn't saved
-            await purchaseOrder.save();
-            const reloadedPO = await PurchaseOrder.findByPk(purchaseOrder.id);
-            expect(reloadedPO.due_date).toBeNull();
-        });
-
-        test('due_date should be defined as a VIRTUAL field', () => {
-            // Check the field definition type
-            const dueDate = PurchaseOrder.rawAttributes.due_date;
-            expect(dueDate).toBeDefined();
-            expect(dueDate.type).toBeInstanceOf(DataTypes.VIRTUAL);
-            // Check that the field has getter and setter functions
-            expect(typeof dueDate.get).toBe('function');
-            expect(typeof dueDate.set).toBe('function');
-        });
-    });
     describe('Sequelize Paranoid Soft Delete for PurchaseOrder', () => {
         let testPurchaseOrder;
         
         beforeEach(async () => {
         testPurchaseOrder = await PurchaseOrder.create({
             po_number: 'SOFT-DELETE-TEST',
-            po_date: new Date(),
-            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            due_date: new Date(),
             total_amount: 1000,
             status: DocumentStatus.PROCESSING,
             partner_id: partnerId
@@ -389,14 +347,14 @@ describe('PurchaseOrder Model', () => {
             
             const testPurchaseOrder = await PurchaseOrder.create({
                 po_number: 'SOFT-DELETE-TEST',
-                po_date: new Date(),
+                due_date: new Date(),
                 status: DocumentStatus.PROCESSING,
                 partner_id: partnerId
             });
               
               const secondPurchaseOrder = await PurchaseOrder.create({
                 po_number: 'NOT-DELETED',
-                po_date: new Date(),
+                due_date: new Date(),
                 status: DocumentStatus.PROCESSING,
                 partner_id: partnerId
             });
