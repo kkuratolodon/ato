@@ -1,15 +1,17 @@
 const { v4: uuidv4 } = require('uuid');
-const FinancialDocumentService = require("../financialDocumentService");
-const Sentry = require("../../instrument");
+const { from } = require('rxjs');
+const { catchError, map, switchMap } = require('rxjs/operators');
+const FinancialDocumentService = require("../financialDocumentService.js");
+const Sentry = require("../../instrument.js");
 const InvoiceRepository = require('../../repositories/invoiceRepository.js');
 const CustomerRepository = require('../../repositories/customerRepository.js');
 const VendorRepository = require('../../repositories/vendorRepository.js');
 const ItemRepository = require('../../repositories/itemRepository.js');
-const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer');
-const InvoiceValidator = require('./invoiceValidator');
-const InvoiceResponseFormatter = require('./invoiceResponseFormatter');
-const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService');
-const InvoiceLogger = require('./invoiceLogger');
+const AzureDocumentAnalyzer = require('../analysis/azureDocumentAnalyzer.js');
+const InvoiceValidator = require('./invoiceValidator.js');
+const InvoiceResponseFormatter = require('./invoiceResponseFormatter.js');
+const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService.js');
+const InvoiceLogger = require('./invoiceLogger.js');
 const DocumentStatus = require('../../models/enums/DocumentStatus.js');
 const { NotFoundError } = require('../../utils/errors.js');
 
@@ -262,6 +264,25 @@ class InvoiceService extends FinancialDocumentService {
     }
   }
 
+  deleteInvoiceById(id) {
+    return from(Promise.resolve())
+      .pipe(
+        switchMap(() => from(this.invoiceRepository.delete(id))),
+        map(result => {
+          if (result === 0) {
+            const err = new Error(`Failed to delete invoice with ID: ${id}`);
+            Sentry.captureException(err);
+            throw err;
+          }
+          return { message: "Invoice successfully deleted" };
+        }),
+        catchError(error => {
+          Sentry.captureException(error);
+          throw new Error("Failed to delete invoice: " + error.message);
+        })
+      );
+  }
+    
   async getInvoiceStatus(invoiceId) {
     const invoice = await this.invoiceRepository.findById(invoiceId);
 
@@ -275,22 +296,6 @@ class InvoiceService extends FinancialDocumentService {
     };
   }
 
-  async deleteInvoiceById(id) {
-    try {
-      const result = await this.invoiceRepository.delete(id);
-  
-      if (result === 0) {
-        const err = new Error(`Failed to delete invoice with ID: ${id}`);;
-        Sentry.captureException(err);
-        throw err;
-      }
-  
-      return { message: "Invoice successfully deleted" };
-    } catch (error) {
-      Sentry.captureException(error);
-      throw new Error("Failed to delete invoice: " + error.message);
-    }
-  }
   
 
   async analyzeInvoice(documentUrl) {

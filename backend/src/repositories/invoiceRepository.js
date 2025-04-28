@@ -30,7 +30,9 @@ class InvoiceRepository {
     const invoice = await Invoice.findByPk(id);
     if (invoice) {
       await invoice.destroy();
+      return 1;
     }
+    return 0;
   }
   
 
