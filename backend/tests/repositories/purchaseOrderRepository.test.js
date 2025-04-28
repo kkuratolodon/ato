@@ -197,10 +197,11 @@ describe('PurchaseOrderRepository', () => {
             
             PurchaseOrder.findByPk.mockResolvedValue(mockPurchaseOrder);
             
-            await purchaseOrderRepository.delete(1);
+            const result = await purchaseOrderRepository.delete(1);
             
             expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(1);
             expect(mockPurchaseOrder.destroy).toHaveBeenCalled();
+            expect(result).toBe(1); // Check that 1 is returned on success
         });
     
         test('should throw an error when delete fails', async () => {
@@ -221,9 +222,37 @@ describe('PurchaseOrderRepository', () => {
         test('should handle non-existent ID gracefully', async () => {
             PurchaseOrder.findByPk.mockResolvedValue(null);
             
-            await purchaseOrderRepository.delete(999);
+            const result = await purchaseOrderRepository.delete(999);
             
             expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(999);
+            expect(result).toBe(0); // Check that 0 is returned when purchaseOrder not found
+        });
+        
+        test('should handle empty string ID gracefully', async () => {
+            PurchaseOrder.findByPk.mockResolvedValue(null);
+            
+            const result = await purchaseOrderRepository.delete('');
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith('');
+            expect(result).toBe(0);
+        });
+        
+        test('should handle null ID gracefully', async () => {
+            PurchaseOrder.findByPk.mockResolvedValue(null);
+            
+            const result = await purchaseOrderRepository.delete(null);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(null);
+            expect(result).toBe(0);
+        });
+        
+        test('should handle undefined ID gracefully', async () => {
+            PurchaseOrder.findByPk.mockResolvedValue(null);
+            
+            const result = await purchaseOrderRepository.delete(undefined);
+            
+            expect(PurchaseOrder.findByPk).toHaveBeenCalledWith(undefined);
+            expect(result).toBe(0);
         });
     });
 
