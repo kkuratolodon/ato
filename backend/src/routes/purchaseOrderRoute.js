@@ -11,5 +11,10 @@ router.post(
     uploadMiddleware,
     controller.uploadPurchaseOrder
 );
+router.get(
+    '/:id', 
+    authMiddleware,
+    controller.getPurchaseOrderById
+);
 
 module.exports = router;

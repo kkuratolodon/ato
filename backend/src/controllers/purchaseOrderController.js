@@ -1,6 +1,7 @@
 const purchaseOrderService = require("../services/purchaseOrder/purchaseOrderService");
 const FinancialDocumentController = require('./financialDocumentController');
 const Sentry = require("../instrument");
+const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
 
 class PurchaseOrderController extends FinancialDocumentController {
   constructor(purchaseOrderService) {
@@ -15,6 +16,8 @@ class PurchaseOrderController extends FinancialDocumentController {
     
     // Bind methods to ensure correct context
     this.uploadPurchaseOrder = this.uploadPurchaseOrder.bind(this);
+    this.getPurchaseOrderById = this.getPurchaseOrderById.bind(this);
+    this.validateGetRequest = this.validateGetRequest.bind(this);
     this.purchaseOrderService = purchaseOrderService;
   }
 
@@ -42,6 +45,43 @@ class PurchaseOrderController extends FinancialDocumentController {
    */
   async uploadPurchaseOrder(req, res) {
     return await this.uploadFile(req, res);
+  }
+
+  /**
+   * @description Retrieves a purchase order by ID with authorization check.
+   *
+   * @throws {400} Invalid purchase order ID (null)
+   * @throws {401} Unauthorized if req.user is missing
+   * @throws {403} Forbidden if purchase order does not belong to the authenticated user
+   * @throws {404} Not Found if purchase order is not found
+   * @throws {500} Internal Server Error 
+   */
+  async getPurchaseOrderById(req, res) {
+    try {
+      const { id } = req.params;
+      await this.validateGetRequest(req, id);
+      const purchaseOrderDetail = await this.purchaseOrderService.getPurchaseOrderById(id);
+      if (!purchaseOrderDetail) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      return res.status(200).json(purchaseOrderDetail);
+    } catch (error) {
+      return this.handleError(res, error);
+    }
+  }
+
+  async validateGetRequest(req, id) {
+    if (!req.user) {
+      throw new AuthError("Unauthorized");
+    }
+    if (!id) {
+      throw new ValidationError("Purchase order ID is required");
+    }
+    
+    const purchaseOrderPartnerId = await this.purchaseOrderService.getPartnerId(id);
+    if (purchaseOrderPartnerId !== req.user.uuid) {
+      throw new ForbiddenError("Forbidden: You do not have access to this purchase order");
+    }
   }
 
   async processUpload(req) {
