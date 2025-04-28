@@ -147,3 +147,137 @@ logger.error('Pesan error', new Error('Contoh error'));
 
 Sekian tutorialnya. Happy coding guys!
 </details>
+
+<details>
+  <summary><strong>Tutorial Penggunaan K6 Stress Test</strong></summary>
+
+## Tutorial: Menjalankan K6 Stress Test
+
+Tutorial ini menjelaskan bagaimana cara menggunakan K6 untuk melakukan stress testing pada API endpoints.
+
+### 1. Instalasi K6
+
+Pastikan K6 telah terinstal di komputer Anda:
+
+**MacOS (menggunakan Homebrew):**
+```bash
+brew install k6
+```
+
+**Windows (menggunakan Chocolatey):**
+```bash
+choco install k6
+```
+
+**Linux:**
+```bash
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+sudo apt-get update
+sudo apt-get install k6
+```
+
+### 2. Menjalankan Stress Test Lokal
+
+#### Untuk Upload Purchase Order:
+
+1. Siapkan file sample untuk testing:
+   ```bash
+   # Di direktori root proyek
+   cp sample_file/purchase_order/Sample1_Bike_PO.pdf backend/tests/stress/
+   ```
+
+2. Jalankan stress test untuk upload purchase order:
+   ```bash
+   cd backend/tests/stress
+   k6 run -e API_BASE_URL=http://localhost:3000 -e LOAD_CLIENT_ID=your_client_id -e LOAD_CLIENT_SECRET=your_client_secret upload-po-stress-test.mjs
+   ```
+
+#### Mengubah Konfigurasi Test:
+
+Anda dapat mengubah parameter stress test dengan mengedit bagian `options` dalam file .mjs:
+
+```javascript
+export const options = {
+  stages: [
+    { duration: '30s', target: 10},  // Mulai dengan 10 virtual users
+    // Ubah stages lainnya sesuai kebutuhan
+  ],
+  thresholds: {
+    error_rate: ['rate<0.6'],  // Maksimal 60% error rate
+    latency_p95: ['p(95)<3000'], // 95% request dibawah 3000ms
+  }
+};
+```
+
+### 3. Menjalankan via GitHub Actions
+
+Test juga dapat dijalankan melalui GitHub Actions:
+
+1. Buka repositori GitHub
+2. Pilih tab "Actions"
+3. Klik workflow "PO Upload Stress Test" 
+4. Klik tombol "Run workflow"
+5. Setelah selesai, hasil test dapat dilihat di summary dan artifacts
+
+### 4. Memahami Hasil Test
+
+Hasil test K6 mencakup beberapa metrik utama:
+
+- **http_req_duration**: Durasi request (rata-rata, min, max, p90, p95, dst.)
+- **http_reqs**: Total jumlah request yang dikirim
+- **iterations**: Jumlah eksekusi fungsi default
+- **vus**: Jumlah virtual users yang dijalankan
+- **error_rate**: Persentase request yang gagal
+
+Contoh output:
+
+```
+data_received........: 2.5 MB 84 kB/s
+data_sent............: 136 kB 4.5 kB/s
+http_req_blocked.....: avg=1.58ms   min=1µs      med=12µs     max=75.27ms  p(90)=30µs     p(95)=1.45ms  
+http_req_connecting..: avg=884.12µs min=0s       med=0s       max=40.08ms  p(90)=0s       p(95)=778.39µs
+http_req_duration....: avg=506.34ms min=194.95ms med=434.93ms max=2.24s    p(90)=783.36ms p(95)=988.96ms
+http_req_receiving...: avg=180.58µs min=46µs     med=146µs    max=2.71ms   p(90)=253.29µs p(95)=360.74µs
+http_req_sending.....: avg=228.36µs min=44µs     med=114µs    max=16.48ms  p(90)=218.19µs p(95)=362.99µs
+http_req_tls_handshaking: avg=0s      min=0s      med=0s       max=0s       p(90)=0s       p(95)=0s      
+http_req_waiting.....: avg=505.93ms min=194.71ms med=434.66ms max=2.24s    p(90)=782.98ms p(95)=988.7ms 
+http_reqs............: 300     10/s
+iteration_duration...: avg=1.01s    min=695.04ms med=934.97ms max=2.74s    p(90)=1.28s    p(95)=1.48s   
+iterations...........: 300     10/s
+vus..................: 1       min=1   max=20
+vus_max..............: 20      min=20  max=20
+```
+
+### 5. Tips Penggunaan
+
+- Mulai dengan beban kecil dan tingkatkan bertahap untuk menemukan batas sistem
+- Perhatikan error rate dan latency untuk menilai performa sistem
+- Gunakan tag threshold untuk menentukan kriteria pass/fail test
+- Selalu kosongkan database test atau gunakan data dummy untuk konsistensi hasil
+- Jalankan test di environment terpisah dari produksi
+
+### 6. Struktur Script K6
+
+Script K6 umumnya memiliki beberapa bagian utama:
+- Import dari modul k6
+- Options untuk konfigurasi test
+- Setup untuk persiapan test
+- Default function yang dieksekusi oleh virtual users
+- Teardown untuk cleanup setelah test
+
+Contoh struktur dasar:
+```javascript
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+
+export const options = { /* konfigurasi */ };
+
+export function setup() { /* persiapan */ }
+
+export default function() { /* kode test utama */ }
+
+export function teardown() { /* cleanup */ }
+```
+
+</details>
