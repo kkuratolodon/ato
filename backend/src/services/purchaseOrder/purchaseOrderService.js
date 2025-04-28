@@ -186,6 +186,7 @@ class PurchaseOrderService extends FinancialDocumentService {
           'PurchaseOrder',
           purchaseOrderId,
           {
+            description: itemData.description || null,
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
             unit_price: itemData.unitPrice || 0,

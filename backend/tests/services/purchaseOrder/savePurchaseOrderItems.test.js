@@ -77,13 +77,13 @@ describe('savePurchaseOrderItems', () => {
       1,
       'PurchaseOrder',
       purchaseOrderId,
-      { quantity: 2, unit: 'pcs', unit_price: 10.5, amount: 21 }
+      { description:'Item 1', quantity: 2, unit: 'pcs', unit_price: 10.5, amount: 21 }
     );
     expect(purchaseOrderService.itemRepository.createDocumentItem).toHaveBeenNthCalledWith(
       2,
       'PurchaseOrder',
       purchaseOrderId,
-      { quantity: 1, unit: 'kg', unit_price: 15.75, amount: 15.75 }
+      { description:'Item 2', quantity: 1, unit: 'kg', unit_price: 15.75, amount: 15.75 }
     );
   });
 
@@ -130,7 +130,7 @@ describe('savePurchaseOrderItems', () => {
     expect(purchaseOrderService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
       'PurchaseOrder',
       purchaseOrderId,
-      { quantity: 1, unit: 'ea', unit_price: 10, amount: 10 }
+      {description:'Error Item', quantity: 1, unit: 'ea', unit_price: 10, amount: 10 }
     );
     expect(console.error).toHaveBeenCalled();
   });
@@ -144,7 +144,7 @@ describe('savePurchaseOrderItems', () => {
         // quantity, unit, unit_price, and amount are missing
       },
       {
-        description: 'Item with null values',
+        description: null,
         quantity: null,
         unit: null,
         unitPrice: null,
@@ -166,6 +166,7 @@ describe('savePurchaseOrderItems', () => {
 
     // Check first call (missing values)
     expect(purchaseOrderService.itemRepository.createDocumentItem.mock.calls[0][2]).toEqual({
+      description: 'Item with missing values', // Added description
       quantity: 0,            // Default value applied
       unit: null,             // Default value applied
       unit_price: 0,          // Default value applied
@@ -174,6 +175,7 @@ describe('savePurchaseOrderItems', () => {
 
     // Check second call (null values)
     expect(purchaseOrderService.itemRepository.createDocumentItem.mock.calls[1][2]).toEqual({
+      description: null, // Added description
       quantity: 0,            // Default value applied
       unit: null,             // Null preserved
       unit_price: 0,          // Default value applied
@@ -182,6 +184,7 @@ describe('savePurchaseOrderItems', () => {
 
     // Check third call (zero values)
     expect(purchaseOrderService.itemRepository.createDocumentItem.mock.calls[2][2]).toEqual({
+      description: 'Item with zero values', // Added description
       quantity: 0,            // Zero preserved
       unit: null,             // Default value applied
       unit_price: 0,          // Zero preserved
@@ -207,7 +210,7 @@ describe('savePurchaseOrderItems', () => {
     expect(purchaseOrderService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
       'PurchaseOrder',
       purchaseOrderId,
-      { quantity: 5, unit: 'kg', unit_price: 10.99, amount: 54.95 }
+      { description:'Complete Item', quantity: 5, unit: 'kg', unit_price: 10.99, amount: 54.95 }
     );
     expect(console.log).toHaveBeenCalledWith(`Saved 1 items for purchase order ${purchaseOrderId}`);
   });
