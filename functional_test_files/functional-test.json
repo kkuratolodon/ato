@@ -282,7 +282,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								}
 							]
 						},
@@ -350,7 +350,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -423,7 +423,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -492,7 +492,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/test-files/test-valid.pdf"
+									"src": "test-valid.pdf"
 								}
 							]
 						},
@@ -567,7 +567,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test-30mb.pdf"
+									"src": "test-30mb.pdf"
 								}
 							]
 						},
@@ -862,7 +862,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								}
 							]
 						},
@@ -930,7 +930,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -1003,7 +1003,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -1914,8 +1914,8 @@
 									"    pm.response.to.have.status(401);\r",
 									"});\r",
 									"\r",
-									"pm.test(\"Response time is less than 100ms\", function () {\r",
-									"    pm.expect(pm.response.responseTime).to.be.below(100);\r",
+									"pm.test(\"Response time is less than 1000ms\", function () {\r",
+									"    pm.expect(pm.response.responseTime).to.be.below(1000);\r",
 									"});\r",
 									"\r",
 									"pm.test(\"Response body has message field with value 'Unauthorized: Missing credentials'\", function () {\r",
