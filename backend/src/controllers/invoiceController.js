@@ -16,6 +16,8 @@ class InvoiceController extends FinancialDocumentController {
     this.uploadInvoice = this.uploadInvoice.bind(this);
     this.getInvoiceById = this.getInvoiceById.bind(this);
     this.deleteInvoiceById = this.deleteInvoiceById.bind(this);
+    this.getInvoiceStatus = this.getInvoiceStatus.bind(this);
+    this.validateGetRequest = this.validateGetRequest.bind(this);
   }
 
   /**
@@ -125,9 +127,7 @@ class InvoiceController extends FinancialDocumentController {
     if (!id) {
       throw new ValidationError("Invoice ID is required");
     }
-    // if (isNaN(id) || parseInt(id) <= 0) {
-    //   throw new ValidationError("Invalid invoice ID");
-    // }
+    
     const invoicePartnerId = await this.service.getPartnerId(id);
     if (invoicePartnerId !== req.user.uuid) {
       throw new ForbiddenError("Forbidden: You do not have access to this invoice");
@@ -135,20 +135,44 @@ class InvoiceController extends FinancialDocumentController {
   }
 
   /**
-   * Deletes an invoice by its ID.
-   *
-   * @param {Object} req - The request object containing parameters and user info.
-   * @param {Object} res - The response object used to send status and messages.
-   * @returns {Promise<Response>} The response indicating success or failure.
+   * @description Retrieves only the status of an invoice by ID
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} JSON with invoice ID and status
    */
-  deleteInvoiceById(req, res) {
-    const { id } = req.params;
-    
-    Sentry.addBreadcrumb({
-      category: "invoiceDeletion",
-      message: `Partner ${req.user.uuid} attempting to delete invoice ${id}`,
-      level: "info"
-    });
+  async getInvoiceStatus(req, res) {
+    try {
+      const { id } = req.params;
+      await this.validateGetRequest(req, id);
+
+      const statusResult = await this.service.getInvoiceStatus(id);
+      return res.status(200).json(statusResult);
+    } catch (error) {
+      return this.handleError(res, error);
+    }
+  }
+
+  /**
+ * Deletes an invoice by its ID.
+ *
+ * @param {Object} req - The request object containing parameters and user info.
+ * @param {Object} res - The response object used to send status and messages.
+ * @returns {Promise<Response>} The response indicating success or failure.
+ */
+  async deleteInvoiceById(req, res) {
+    try {
+      const { id } = req.params;
+
+      // TODO: check sentry  config again for all method 
+      Sentry.addBreadcrumb({
+        category: "invoiceDeletion",
+        message: `Partner ${req.user.uuid} attempting to delete invoice ${id}`,
+        level: "info"
+      });
+
+      let invoice;
+      invoice = await validateDeletion.validateInvoiceDeletion(req.user.uuid, id);
 
     from(validateDeletion.validateInvoiceDeletion(req.user.uuid, id))
       .pipe(

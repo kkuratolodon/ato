@@ -22,12 +22,24 @@ class PurchaseOrderRepository {
         });
     }
 
+    async updateCustomerId(id, customer_id) {
+        return await PurchaseOrder.update({ customer_id }, {
+            where: { id }
+        });
+    }
+
+    async updateVendorId(id, vendor_id) {
+        return await PurchaseOrder.update({ vendor_id }, {
+            where: { id }
+        });
+    }
+
     async delete(id) {
         const purchaseOrder = await PurchaseOrder.findByPk(id);
         if (purchaseOrder) {
-          await purchaseOrder.destroy();
+            await purchaseOrder.destroy();
         }
-      }
+    }
     
     async hardDelete(id) {
         await PurchaseOrder.destroy({ 

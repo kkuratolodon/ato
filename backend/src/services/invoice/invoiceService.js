@@ -193,6 +193,7 @@ class InvoiceService extends FinancialDocumentService {
           'Invoice',
           invoiceId,
           {
+            description: itemData.description || null,
             quantity: itemData.quantity || 0,
             unit: itemData.unit || null,
             unit_price: itemData.unitPrice || 0,
@@ -280,7 +281,20 @@ class InvoiceService extends FinancialDocumentService {
           throw new Error("Failed to delete invoice: " + error.message);
         })
       );
+    
+  async getInvoiceStatus(invoiceId) {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+
+    if (!invoice) {
+      throw new NotFoundError("Invoice not found");
+    }
+
+    return {
+      id: invoice.id,
+      status: invoice.status
+    };
   }
+
   
 
   async analyzeInvoice(documentUrl) {

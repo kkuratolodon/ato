@@ -28,7 +28,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Install k6
         run: |
           echo "Installing required dependencies..."
@@ -79,4 +78,3 @@ jobs:
         with:
           name: load-test-results
           path: backend/tests/load/*.log
-

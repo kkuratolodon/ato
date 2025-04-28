@@ -1,14 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { purchaseOrderController } = require('../controllers/purchaseOrderController');
+const { controller } = require('../controllers/purchaseOrderController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const uploadMiddleware = require('../middlewares/uploadMiddleware')
+// const apiLimiter = require('../middlewares/rateLimitMiddleware');
+const uploadMiddleware = require('../middlewares/uploadMiddleware');
 
 router.post(
     '/upload',
     authMiddleware,               
     uploadMiddleware,
-    purchaseOrderController.uploadPurchaseOrder
+    controller.uploadPurchaseOrder
+);
+router.get(
+    '/:id', 
+    authMiddleware,
+    controller.getPurchaseOrderById
 );
 
 module.exports = router;

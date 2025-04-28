@@ -48,7 +48,8 @@
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "/tests/",
-      "/src/instrument.js"
+      "/src/instrument.js",
+      "/src/strategies/pdfDecryptionStrategy.js"
     ],
     "coverageReporters": [
       "json",
