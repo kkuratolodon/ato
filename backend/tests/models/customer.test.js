@@ -1,7 +1,7 @@
 const { DataTypes, Sequelize } = require('sequelize');
-const CustomerModel = require('../../src/models/customer');
-const InvoiceModel = require('../../src/models/invoice');
-const PurchaseOrderModel = require('../../src/models/purchaseOrder');
+const CustomerModel = require('@models/customer');
+const InvoiceModel = require('@models/invoice');
+const PurchaseOrderModel = require('@models/purchaseOrder');
 
 describe('Customer Model', () => {
     let sequelize;

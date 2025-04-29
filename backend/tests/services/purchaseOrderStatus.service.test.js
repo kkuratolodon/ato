@@ -1,10 +1,10 @@
-const PurchaseOrderRepository = require('../../src/repositories/purchaseOrderRepository');
+const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
 const DocumentStatus = require('../../src/models/enums/DocumentStatus');
-const { ValidationError, NotFoundError } = require('../../src/utils/errors');
+const { ValidationError, NotFoundError } = require('@utils/errors');
 const Sentry = require("../../src/instrument");
 
 // Mock dependencies
-jest.mock('../../src/repositories/purchaseOrderRepository');
+jest.mock('@repositories/purchaseOrderRepository');
 jest.mock('../../src/instrument', () => ({
   captureException: jest.fn(),
   addBreadcrumb: jest.fn()
@@ -12,7 +12,7 @@ jest.mock('../../src/instrument', () => ({
 
 // We need to mock the actual purchaseOrderService methods but still preserve its real implementation
 // So we create our own version for testing
-const actualPurchaseOrderService = jest.requireActual('../../src/services/purchaseOrder/purchaseOrderService');
+const actualPurchaseOrderService = jest.requireActual('@services/purchaseOrder/purchaseOrderService');
 
 describe('Purchase Order Service - Status Functions', () => {
   let purchaseOrderService;

@@ -1,8 +1,8 @@
-const CustomerRepository = require('../../src/repositories/customerRepository');
-const { Customer } = require('../../src/models');
+const CustomerRepository = require('@repositories/customerRepository');
+const { Customer } = require('@models/');
 
 // Mock the Customer model
-jest.mock('../../src/models', () => ({
+jest.mock('@models/', () => ({
     Customer: {
         findByPk: jest.fn(),
         findOne: jest.fn(),

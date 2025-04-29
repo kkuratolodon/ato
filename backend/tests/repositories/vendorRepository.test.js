@@ -1,8 +1,8 @@
-const VendorRepository = require('../../src/repositories/vendorRepository');
-const { Vendor } = require('../../src/models');
+const VendorRepository = require('@repositories/vendorRepository');
+const { Vendor } = require('@models/');
 
 // Mock the Sequelize model
-jest.mock('../../src/models', () => ({
+jest.mock('@models/', () => ({
     Vendor: {
         findByPk: jest.fn(),
         findOne: jest.fn(),

@@ -1,27 +1,27 @@
 // filepath: /Users/suryaputra/Downloads/fin-invoice-ocr-team6/backend/tests/services/purchaseOrderById.service.test.js
-const purchaseOrderService = require('../../src/services/purchaseOrder/purchaseOrderService');
-const PurchaseOrderRepository = require('../../src/repositories/purchaseOrderRepository');
-const ItemRepository = require('../../src/repositories/itemRepository');
-const CustomerRepository = require('../../src/repositories/customerRepository');
-const VendorRepository = require('../../src/repositories/vendorRepository');
-const PurchaseOrderResponseFormatter = require('../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
+const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
+const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
+const ItemRepository = require('@repositories/itemRepository');
+const CustomerRepository = require('@repositories/customerRepository');
+const VendorRepository = require('@repositories/vendorRepository');
+const PurchaseOrderResponseFormatter = require('@services/purchaseOrder/purchaseOrderResponseFormatter');
 const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 
 // Mock dependencies
-jest.mock('../../src/repositories/purchaseOrderRepository');
-jest.mock('../../src/repositories/itemRepository');
-jest.mock('../../src/repositories/customerRepository');
-jest.mock('../../src/repositories/vendorRepository');
-jest.mock('../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
+jest.mock('@repositories/purchaseOrderRepository');
+jest.mock('@repositories/itemRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
 jest.mock('../../src/instrument', () => ({
   captureException: jest.fn(),
   addBreadcrumb: jest.fn()
 }));
 
 // Create a mock for the purchaseOrderService to override its methods
-jest.mock('../../src/services/purchaseOrder/purchaseOrderService', () => {
+jest.mock('@services/purchaseOrder/purchaseOrderService', () => {
   // Get the actual module
-  const actualService = jest.requireActual('../../src/services/purchaseOrder/purchaseOrderService');
+  const actualService = jest.requireActual('@services/purchaseOrder/purchaseOrderService');
   
   // Return a modified version with mocked methods
   return {

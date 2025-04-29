@@ -1,9 +1,9 @@
 const { DataTypes, Sequelize } = require('sequelize');
 const { fail } = require('@jest/globals');
 
-const VendorModel = require('../../src/models/vendor');
-const InvoiceModel = require('../../src/models/invoice');
-const PurchaseOrderModel = require('../../src/models/purchaseOrder');
+const VendorModel = require('@models/vendor');
+const InvoiceModel = require('@models/invoice');
+const PurchaseOrderModel = require('@models/purchaseOrder');
 
 describe('Vendor Model', () => {
     let sequelize;

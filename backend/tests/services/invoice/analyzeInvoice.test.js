@@ -1,8 +1,8 @@
-const InvoiceService = require('../../../src/services/invoice/invoiceService');
-const AzureDocumentAnalyzer = require('../../../src/services/analysis/azureDocumentAnalyzer');
+const InvoiceService = require('@services/invoice/invoiceService');
+const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
 
 // Mock the AzureDocumentAnalyzer
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer', () => {
+jest.mock('@services/analysis/azureDocumentAnalyzer', () => {
   return jest.fn().mockImplementation(() => {
     return {
       analyzeDocument: jest.fn()

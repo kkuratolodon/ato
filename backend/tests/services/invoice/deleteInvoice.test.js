@@ -1,13 +1,13 @@
 const { of, throwError } = require('rxjs');
-const invoiceService = require('../../../src/services/invoice/invoiceService');
-const Sentry = require('../../../src/instrument');
+const invoiceService = require('@services/invoice/invoiceService');
+const Sentry = require('@instrument');
 
-jest.mock('../../../src/instrument', () => ({
+jest.mock('@instrument', () => ({
   captureException: jest.fn(),
   addBreadcrumb: jest.fn()
 }));
 
-jest.mock('../../../src/repositories/invoiceRepository', () => {
+jest.mock('@repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
     delete: jest.fn(),
     findById: jest.fn()

@@ -2,9 +2,9 @@ const request = require('supertest');
 const express = require('express');
 
 // Mock agar kita tidak memanggil implementasi asli
-jest.mock('../../src/middlewares/authMiddleware');
-jest.mock('../../src/middlewares/uploadMiddleware'); 
-jest.mock('../../src/controllers/invoiceController', () => ({
+jest.mock('@middlewares/authMiddleware');
+jest.mock('@middlewares/uploadMiddleware'); 
+jest.mock('@controllers/invoiceController', () => ({
   controller: {
     uploadInvoice: jest.fn((req, res) => res.end()),
     getInvoiceById: jest.fn(),
@@ -15,9 +15,9 @@ jest.mock('../../src/controllers/invoiceController', () => ({
 }));
 
 // Import after mocking
-const { controller: invoiceController } = require('../../src/controllers/invoiceController');
-const authMiddleware = require('../../src/middlewares/authMiddleware');
-const uploadMiddleware = require('../../src/middlewares/uploadMiddleware');
+const { controller: invoiceController } = require('@controllers/invoiceController');
+const authMiddleware = require('@middlewares/authMiddleware');
+const uploadMiddleware = require('@middlewares/uploadMiddleware');
 const invoiceRoutes = require('../../src/routes/invoiceRoute');
 
 describe('Invoice Routes', () => {

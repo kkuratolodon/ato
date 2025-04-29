@@ -1,4 +1,4 @@
-const InvoiceResponseFormatter = require('../../../src/services/invoice/invoiceResponseFormatter');
+const InvoiceResponseFormatter = require('@services/invoice/invoiceResponseFormatter');
 
 describe('InvoiceResponseFormatter', () => {
     let formatter;

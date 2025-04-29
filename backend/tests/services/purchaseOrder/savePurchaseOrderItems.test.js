@@ -1,24 +1,24 @@
-const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
+const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
 
 // Mock repositories directly
-jest.mock('../../../src/repositories/itemRepository', () => {
+jest.mock('@repositories/itemRepository', () => {
   return jest.fn().mockImplementation(() => ({
     createDocumentItem: jest.fn(),
     findItemsByDocumentId: jest.fn()
   }));
 });
 
-jest.mock('../../../src/repositories/purchaseOrderRepository');
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('@repositories/purchaseOrderRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
 
 // Mock other dependencies
 jest.mock('@azure/ai-form-recognizer');
-jest.mock('../../../src/services/s3Service', () => ({ uploadFile: jest.fn() }));
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
-jest.mock('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
+jest.mock('@services/s3Service', () => ({ uploadFile: jest.fn() }));
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/purchaseOrder/purchaseOrderValidator');
+jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
+jest.mock('@services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 // Mock uuid
 jest.mock('uuid', () => ({
@@ -42,7 +42,7 @@ describe('savePurchaseOrderItems', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reassign mocked ItemRepository instance to service (ensure mock applies)
-    const ItemRepository = require('../../../src/repositories/itemRepository');
+    const ItemRepository = require('@repositories/itemRepository');
     purchaseOrderService.itemRepository = new ItemRepository();
     // Ensure createDocumentItem resolves by default
     purchaseOrderService.itemRepository.createDocumentItem.mockResolvedValue();
