@@ -35,29 +35,37 @@ export const options = {
 // Gunakan file sampel PO dari direktori dengan error handling yang lebih baik
 // Menggunakan sharedArray untuk load file sekali dan dipakai oleh semua VUs
 const pdfFile = new SharedArray('PO PDF', function() {
-  let data;
   try {
     // Coba load dari direktori saat ini terlebih dahulu (untuk CI/CD runner)
-    data = open('./Sample1_Bike_PO.pdf', 'b');
+    const data = open('./Sample1_Bike_PO.pdf', 'binary');
     console.log('Berhasil membuka file PDF dari direktori saat ini');
+    return [data];
   } catch (e1) {
+    console.log('Gagal membuka dari direktori saat ini:', e1.message);
     try {
       // Jika gagal, coba dari lokasi relatif lain yang mungkin pada CI/CD
-      data = open('../../../sample_file/purchase_order/Sample1_Bike_PO.pdf', 'b');
+      const data = open('../../../sample_file/purchase_order/Sample1_Bike_PO.pdf', 'binary');
       console.log('Berhasil membuka file PDF dari direktori sample_file');
+      return [data];
     } catch (e2) {
-      console.error('Gagal membuka file PDF:', e2);
-      // Buat data dummy untuk mencegah crash
-      data = new Uint8Array(10).buffer;
+      console.error('Gagal membuka file PDF:', e2.message);
+      // Throw error jelas untuk diagnosa
+      throw new Error(`Tidak dapat membuka file PDF: ${e2.message}`);
     }
   }
-  return [data];
 });
 
 // Fungsi utama yang dijalankan untuk setiap VU
 export default function () {
   const baseUrl = __ENV.API_BASE_URL;
   const uploadUrl = `${baseUrl}/api/purchase-orders/upload`;
+
+  // Ensure we have file data
+  if (!pdfFile || !pdfFile[0]) {
+    console.error('PDF file data is missing or invalid');
+    errorRate.add(true);
+    return;
+  }
 
   const payload = {
     file: http.file(pdfFile[0], 'Sample1_Bike_PO.pdf', 'application/pdf'),
