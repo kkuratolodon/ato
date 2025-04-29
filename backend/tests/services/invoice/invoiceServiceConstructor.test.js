@@ -1,25 +1,25 @@
-const { InvoiceService } = require('../../../src/services/invoice/invoiceService');
-const InvoiceRepository = require('../../../src/repositories/invoiceRepository');
-const CustomerRepository = require('../../../src/repositories/customerRepository');
-const VendorRepository = require('../../../src/repositories/vendorRepository');
-const ItemRepository = require('../../../src/repositories/itemRepository');
-const AzureDocumentAnalyzer = require('../../../src/services/analysis/azureDocumentAnalyzer');
-const InvoiceValidator = require('../../../src/services/invoice/invoiceValidator');
-const InvoiceResponseFormatter = require('../../../src/services/invoice/invoiceResponseFormatter');
-const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService/invoiceMapperService');
+const { InvoiceService } = require('@services/invoice/invoiceService');
+const InvoiceRepository = require('@repositories/invoiceRepository');
+const CustomerRepository = require('@repositories/customerRepository');
+const VendorRepository = require('@repositories/vendorRepository');
+const ItemRepository = require('@repositories/itemRepository');
+const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
+const InvoiceValidator = require('@services/invoice/invoiceValidator');
+const InvoiceResponseFormatter = require('@services/invoice/invoiceResponseFormatter');
+const { AzureInvoiceMapper } = require('@services/invoiceMapperService/invoiceMapperService');
 
 // Mock all dependencies
-jest.mock('../../../src/repositories/invoiceRepository');
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
-jest.mock('../../../src/repositories/itemRepository');
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/invoice/invoiceValidator');
-jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService', () => ({
+jest.mock('@repositories/invoiceRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@repositories/itemRepository');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/invoice/invoiceValidator');
+jest.mock('@services/invoice/invoiceResponseFormatter');
+jest.mock('@services/invoiceMapperService/invoiceMapperService', () => ({
     AzureInvoiceMapper: jest.fn()
 }));
-jest.mock('../../../src/services/s3Service');
+jest.mock('@services/s3Service');
 
 describe('InvoiceService Constructor', () => {
     // Reset all mocks before each test

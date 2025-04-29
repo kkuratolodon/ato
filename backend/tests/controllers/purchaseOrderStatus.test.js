@@ -1,7 +1,7 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { PurchaseOrderController } = require("../../src/controllers/purchaseOrderController");
+const { PurchaseOrderController } = require("@controllers/purchaseOrderController");
 const DocumentStatus = require("../../src/models/enums/DocumentStatus");
-const { NotFoundError } = require('../../src/utils/errors');
+const { NotFoundError } = require('@utils/errors');
 
 describe("Purchase Order Controller - Status Endpoint", () => {
   let req, res, controller;

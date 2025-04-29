@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
-const AzureDocumentAnalyzer = require('../src/services/analysis/azureDocumentAnalyzer');
-const { AzureInvoiceMapper } = require('../src/services/invoiceMapperService/invoiceMapperService');
+const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
+const { AzureInvoiceMapper } = require('@services/invoiceMapperService/invoiceMapperService');
 
 // Initialize services
 const documentAnalyzer = new AzureDocumentAnalyzer();

@@ -42,7 +42,7 @@ describe('saveInvoiceItems', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reassign mocked ItemRepository instance to service (ensure mock applies)
-    const ItemRepository = require('../../../src/repositories/itemRepository');
+    const ItemRepository = require('@repositories/itemRepository');
     invoiceService.itemRepository = new ItemRepository();
     // Ensure createDocumentItem resolves by default
     invoiceService.itemRepository.createDocumentItem.mockResolvedValue();

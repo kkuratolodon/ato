@@ -1,8 +1,8 @@
-const invoiceService = require('../../../src/services/invoice/invoiceService');
+const invoiceService = require('@services/invoice/invoiceService');
 const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 
 // Mock repositories
-jest.mock('../../../src/repositories/invoiceRepository', () => {
+jest.mock('@repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
     update: jest.fn().mockResolvedValue([1]),
     updateStatus: jest.fn().mockResolvedValue([1])
@@ -10,15 +10,15 @@ jest.mock('../../../src/repositories/invoiceRepository', () => {
 });
 
 // Mock other dependencies
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
-jest.mock('../../../src/repositories/itemRepository');
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/invoice/invoiceValidator');
-jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@repositories/itemRepository');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/invoice/invoiceValidator');
+jest.mock('@services/invoice/invoiceResponseFormatter');
+jest.mock('@services/invoiceMapperService/invoiceMapperService');
 jest.mock('../../../src/instrument');
-jest.mock('../../../src/services/invoice/invoiceLogger', () => ({
+jest.mock('@services/invoice/invoiceLogger', () => ({
   logProcessingStart: jest.fn(),
   logAnalysisComplete: jest.fn(),
   logDataMappingComplete: jest.fn(),

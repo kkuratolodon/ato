@@ -3,21 +3,21 @@
  * This test file is specifically created to target uncovered code lines in purchaseOrderService.js
  * It focuses on direct execution of error handling code paths to ensure coverage of lines 271, 290-294
  */
-const PurchaseOrderRepository = require('../../src/repositories/purchaseOrderRepository');
-const ItemRepository = require('../../src/repositories/itemRepository');
-const CustomerRepository = require('../../src/repositories/customerRepository');
-const VendorRepository = require('../../src/repositories/vendorRepository');
-const PurchaseOrderResponseFormatter = require('../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
-const AzureDocumentAnalyzer = require('../../src/services/analysis/azureDocumentAnalyzer');
+const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
+const ItemRepository = require('@repositories/itemRepository');
+const CustomerRepository = require('@repositories/customerRepository');
+const VendorRepository = require('@repositories/vendorRepository');
+const PurchaseOrderResponseFormatter = require('@services/purchaseOrder/purchaseOrderResponseFormatter');
+const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
 const Sentry = require("../../src/instrument");
 
 // Mock all dependencies
-jest.mock('../../src/repositories/purchaseOrderRepository');
-jest.mock('../../src/repositories/itemRepository');
-jest.mock('../../src/repositories/customerRepository');
-jest.mock('../../src/repositories/vendorRepository');
-jest.mock('../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
-jest.mock('../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('@repositories/purchaseOrderRepository');
+jest.mock('@repositories/itemRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
 jest.mock('../../src/instrument', () => ({
   captureException: jest.fn(),
   addBreadcrumb: jest.fn(),
@@ -26,7 +26,7 @@ jest.mock('../../src/instrument', () => ({
 
 describe('Purchase Order Service Coverage Tests', () => {
   // We need direct access to the original service class without importing the singleton
-  const PurchaseOrderService = require('../../src/services/purchaseOrder/purchaseOrderService').constructor;
+  const PurchaseOrderService = require('@services/purchaseOrder/purchaseOrderService').constructor;
   let purchaseOrderService;
 
   beforeEach(() => {

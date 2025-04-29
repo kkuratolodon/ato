@@ -1,20 +1,20 @@
-const PurchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
+const PurchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
 
 // Mock the repository methods instead of models
-jest.mock('../../../src/repositories/purchaseOrderRepository', () => {
+jest.mock('@repositories/purchaseOrderRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findById: jest.fn()
   }));
 });
 
 // Other mocks needed for PurchaseOrderService to initialize properly
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
-jest.mock('../../../src/repositories/itemRepository');
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
-jest.mock('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@repositories/itemRepository');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/purchaseOrder/purchaseOrderValidator');
+jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
+jest.mock('@services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 // Sentry mock
 jest.mock('../../../src/instrument', () => ({

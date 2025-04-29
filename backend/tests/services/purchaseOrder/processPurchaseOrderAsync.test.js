@@ -1,6 +1,6 @@
 const Sentry = require('../../../src/instrument');
 const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
-const PurchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
+const PurchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
 
 // Mock dependencies
 jest.mock('../../../src/instrument', () => ({
@@ -10,12 +10,12 @@ jest.mock('../../../src/instrument', () => ({
 }));
 
 // Mock other repositories
-jest.mock('../../../src/repositories/purchaseOrderRepository');
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
-jest.mock('../../../src/repositories/itemRepository');
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
+jest.mock('@repositories/purchaseOrderRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@repositories/itemRepository');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 describe('PurchaseOrderService.processPurchaseOrderAsync direct implementation', () => {
   beforeEach(() => {

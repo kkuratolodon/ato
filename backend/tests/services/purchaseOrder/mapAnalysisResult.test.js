@@ -1,9 +1,9 @@
-const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
-const { AzurePurchaseOrderMapper } = require('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
+const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
+const { AzurePurchaseOrderMapper } = require('@services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 
 // Mock the purchaseOrderMapperService
-jest.mock('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService', () => {
+jest.mock('@services/purchaseOrderMapperService/purchaseOrderMapperService', () => {
   return {
     AzurePurchaseOrderMapper: jest.fn().mockImplementation(() => {
       return {
