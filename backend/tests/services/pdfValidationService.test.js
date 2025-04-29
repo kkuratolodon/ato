@@ -1,4 +1,4 @@
-const pdfValidationService = require("../../src/services/pdfValidationService");
+const pdfValidationService = require("@services/pdfValidationService");
 const fs = require("fs");
 const path = require("path");
 const pdfjsLib = require("pdfjs-dist");
@@ -211,7 +211,7 @@ describe("PDF Page Count Validation", () => {
     test("Should pass all validations for a valid PDF", async () => {
       await expect(
         pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "valid.pdf")
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({ isValid: true, isEncrypted: false });
     });
 
     test("Should fail if MIME type is invalid", async () => {
@@ -235,11 +235,11 @@ describe("PDF Page Count Validation", () => {
       ).rejects.toThrow("File exceeds maximum allowed size of 20MB");
     });
 
-    test("Should fail if PDF is encrypted", async () => {
+    test("Should identify encrypted PDF and return encryption status", async () => {
       jest.spyOn(pdfValidationService, "isPdfEncrypted").mockResolvedValue(true);
       await expect(
         pdfValidationService.allValidations(dummyPdfBuffer, "application/pdf", "encrypted.pdf")
-      ).rejects.toThrow("PDF is encrypted");
+      ).resolves.toEqual({ isValid: true, isEncrypted: true });
     });    
 
     test("Should fail if PDF has no pages", async () => {

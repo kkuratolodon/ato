@@ -26,9 +26,32 @@ class InvoiceRepository {
     await Invoice.update({ vendor_id: vendorId }, { where: { id } });
   }
 
-  async delete(id) {  
-    await Invoice.destroy({ where: { id } });
+  async delete(id) {
+    const invoice = await Invoice.findByPk(id);
+    if (invoice) {
+      await invoice.destroy();
+      return 1;
+    }
+    return 0;
   }
+  
+
+  async hardDelete(id) {
+    await Invoice.destroy({ 
+      where: { id },
+      force: true  
+    });
+  }
+
+  async restore(id) {
+    const invoice = await Invoice.findByPk(id, { paranoid: false });
+    if (invoice && invoice.deleted_at) {
+      await invoice.restore(); 
+      return true;
+    }
+    return false;
+  }
+  
 
 }
 

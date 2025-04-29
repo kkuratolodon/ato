@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-const s3Service = require('../../src/services/s3Service');
+const s3Service = require('@services/s3Service');
 
 // Define constants for expected locations
 const FILE_UPLOAD_LOCATION = "https://s3-bucket-url.com/file.pdf";

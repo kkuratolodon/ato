@@ -1,11 +1,10 @@
 const { DataTypes, Sequelize } = require('sequelize');
-const ItemModel = require('../../src/models/item');
-const InvoiceModel = require('../../src/models/invoice');
-const PurchaseOrderModel = require('../../src/models/purchaseOrder');
-// Hapus import FinancialDocumentItemModel karena sudah digabung ke Item
-const PartnerModel = require('../../src/models/partner');
-const CustomerModel = require('../../src/models/customer');
-const VendorModel = require('../../src/models/vendor');
+const ItemModel = require('@models/item');
+const InvoiceModel = require('@models/invoice');
+const PurchaseOrderModel = require('@models/purchaseOrder');
+const PartnerModel = require('@models/partner');
+const CustomerModel = require('@models/customer');
+const VendorModel = require('@models/vendor');
 const { fail } = require('jest');
 
 describe('Item Model', () => {

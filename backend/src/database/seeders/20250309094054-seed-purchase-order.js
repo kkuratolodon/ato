@@ -1,6 +1,6 @@
 'use strict';
 const { v4: uuidv4 } = require('uuid');
-const DocumentStatus = require('../../models/enums/DocumentStatus');
+const DocumentStatus = require('@models/enums/DocumentStatus');
 
 module.exports = {
   up: async (queryInterface) => {
@@ -18,8 +18,7 @@ module.exports = {
       {
         id: uuidv4(),
         po_number: 'PO-2024-001', 
-        po_date: new Date('2024-01-01'),
-        due_date: new Date('2024-02-01'),
+        due_date: new Date('2024-01-01'),
         total_amount: 5000.00,
         subtotal_amount: 5200.00,
         discount_amount: 200.00,
@@ -33,8 +32,7 @@ module.exports = {
       {
         id: uuidv4(),
         po_number: 'PO-2024-002',
-        po_date: new Date('2024-02-15'),
-        due_date: new Date('2024-03-15'),
+        due_date: new Date('2024-02-15'),
         total_amount: 3500.00,
         subtotal_amount: 3700.00,
         discount_amount: 200.00,

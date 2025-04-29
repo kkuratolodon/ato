@@ -1,24 +1,24 @@
-const invoiceService = require('../../../src/services/invoice/invoiceService');
+const invoiceService = require('@services/invoice/invoiceService');
 
 // Mock repositories directly
-jest.mock('../../../src/repositories/itemRepository', () => {
+jest.mock('@repositories/itemRepository', () => {
   return jest.fn().mockImplementation(() => ({
     createDocumentItem: jest.fn(),
     findItemsByDocumentId: jest.fn()
   }));
 });
 
-jest.mock('../../../src/repositories/invoiceRepository');
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('@repositories/invoiceRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
 
 // Mock other dependencies
 jest.mock('@azure/ai-form-recognizer');
-jest.mock('../../../src/services/s3Service', () => ({ uploadFile: jest.fn() }));
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/invoice/invoiceValidator');
-jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
+jest.mock('@services/s3Service', () => ({ uploadFile: jest.fn() }));
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/invoice/invoiceValidator');
+jest.mock('@services/invoice/invoiceResponseFormatter');
+jest.mock('@services/invoiceMapperService/invoiceMapperService');
 
 // Mock uuid
 jest.mock('uuid', () => ({
@@ -26,7 +26,7 @@ jest.mock('uuid', () => ({
 }));
 
 // Mock Sentry
-jest.mock('../../../src/instrument', () => ({
+jest.mock('@instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),
@@ -42,7 +42,7 @@ describe('saveInvoiceItems', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reassign mocked ItemRepository instance to service (ensure mock applies)
-    const ItemRepository = require('../../../src/repositories/itemRepository');
+    const ItemRepository = require('@repositories/itemRepository');
     invoiceService.itemRepository = new ItemRepository();
     // Ensure createDocumentItem resolves by default
     invoiceService.itemRepository.createDocumentItem.mockResolvedValue();
@@ -71,13 +71,13 @@ describe('saveInvoiceItems', () => {
       1,
       'Invoice',
       invoiceId,
-      { quantity: 2, unit: 'pcs', unit_price: 10.5, amount: 21 }
+      {description: "Item 1", quantity: 2, unit: 'pcs', unit_price: 10.5, amount: 21 }
     );
     expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenNthCalledWith(
       2,
       'Invoice',
       invoiceId,
-      { quantity: 1, unit: 'kg', unit_price: 15.75, amount: 15.75 }
+      {description: "Item 2", quantity: 1, unit: 'kg', unit_price: 15.75, amount: 15.75 }
     );
   });
 
@@ -122,7 +122,7 @@ describe('saveInvoiceItems', () => {
     expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
       'Invoice',
       invoiceId,
-      { quantity: 1, unit: 'ea', unit_price: 10, amount: 10 }
+      {description: "Error Item", quantity: 1, unit: 'ea', unit_price: 10, amount: 10 }
     );
   });
 
@@ -146,6 +146,12 @@ describe('saveInvoiceItems', () => {
         quantity: 0,
         unitPrice: 0,
         amount: 0
+      },
+      {
+        description: null,
+        quantity: 0,
+        unitPrice: 0,
+        amount: 0
       }
     ];
     console.log(`itemsWithMissingValues: ${JSON.stringify(itemsWithMissingValues)}`);
@@ -153,10 +159,11 @@ describe('saveInvoiceItems', () => {
     await invoiceService.saveInvoiceItems(invoiceId, itemsWithMissingValues);
     console.log(`masuk: ${JSON.stringify(itemsWithMissingValues)}`);
     // Assert
-    expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledTimes(3);
+    expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledTimes(4);
 
     // Check first call (missing values)
     expect(invoiceService.itemRepository.createDocumentItem.mock.calls[0][2]).toEqual({
+      description: 'Item with missing values',
       quantity: 0,            // Default value applied
       unit: null,             // Default value applied
       unit_price: 0,          // Default value applied
@@ -165,6 +172,7 @@ describe('saveInvoiceItems', () => {
 
     // Check second call (null values)
     expect(invoiceService.itemRepository.createDocumentItem.mock.calls[1][2]).toEqual({
+      description: 'Item with null values',
       quantity: 0,            // Default value applied
       unit: null,             // Null preserved
       unit_price: 0,          // Default value applied
@@ -173,6 +181,14 @@ describe('saveInvoiceItems', () => {
 
     // Check third call (zero values)
     expect(invoiceService.itemRepository.createDocumentItem.mock.calls[2][2]).toEqual({
+      description: 'Item with zero values',
+      quantity: 0,            // Zero preserved
+      unit: null,             // Default value applied
+      unit_price: 0,          // Zero preserved
+      amount: 0               // Zero preserved
+    });
+    expect(invoiceService.itemRepository.createDocumentItem.mock.calls[3][2]).toEqual({
+      description: null,
       quantity: 0,            // Zero preserved
       unit: null,             // Default value applied
       unit_price: 0,          // Zero preserved
@@ -198,7 +214,36 @@ describe('saveInvoiceItems', () => {
     expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
       'Invoice',
       invoiceId,
-      { quantity: 5, unit: 'kg', unit_price: 10.99, amount: 54.95 }
+      {description: 'Complete Item', quantity: 5, unit: 'kg', unit_price: 10.99, amount: 54.95 }
+    );
+  });
+  test('should handle items with undefined description correctly', async () => {
+    // Arrange
+    const invoiceId = 'test-invoice-123';
+    const itemsData = [
+      {
+        // No description property
+        quantity: 2,
+        unit: 'pc',
+        unitPrice: 10.5,
+        amount: 21.0
+      }
+    ];
+
+    // Act
+    await invoiceService.saveInvoiceItems(invoiceId, itemsData);
+
+    // Assert
+    expect(invoiceService.itemRepository.createDocumentItem).toHaveBeenCalledWith(
+      'Invoice',
+      invoiceId,
+      {
+        description: null,
+        quantity: 2,
+        unit: 'pc',
+        unit_price: 10.5,
+        amount: 21.0
+      }
     );
   });
 });

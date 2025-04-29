@@ -1,12 +1,12 @@
 const { v4: uuidv4 } = require('uuid');
 const { Sequelize, DataTypes } = require("sequelize");
-const InvoiceModel = require("../../src/models/invoice");
-const PartnerModel = require("../../src/models/partner");
-const CustomerModel = require("../../src/models/customer");
-const VendorModel = require("../../src/models/vendor");
-const ItemModel = require("../../src/models/item");
-const FinancialDocument = require('../../src/models/base/financialDocument');
-const DocumentStatus = require('../../src/models/enums/DocumentStatus'); 
+const InvoiceModel = require("@models/invoice");
+const PartnerModel = require("@models/partner");
+const CustomerModel = require("@models/customer");
+const VendorModel = require("@models/vendor");
+const ItemModel = require("@models/item");
+const FinancialDocument = require('@models/base/financialDocument');
+const DocumentStatus = require('@models/enums/DocumentStatus'); 
 
 describe("Invoice Model", () => {
   let sequelize, Invoice, Partner, Vendor, Customer, Item;
@@ -370,6 +370,95 @@ describe("Invoice Model", () => {
     });
     
     expect(testInvoice.analysis_json_url).toBeNull();
+  });
+
+  describe('Sequelize Paranoid Soft Delete', () => {
+    let testInvoice;
+    
+    beforeEach(async () => {
+      testInvoice = await Invoice.create({
+        invoice_number: 'SOFT-DELETE-TEST',
+        invoice_date: new Date(),
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        total_amount: 1000,
+        status: DocumentStatus.PROCESSING,
+        partner_id: 'partner-uuid-123'
+      });
+    });
+
+    test('should mark invoice as deleted when using destroy()', async () => {
+      await testInvoice.destroy();
+      
+      const notFound = await Invoice.findByPk(testInvoice.id);
+      expect(notFound).toBeNull();
+      
+      const foundDeleted = await Invoice.findByPk(testInvoice.id, { paranoid: false });
+      expect(foundDeleted).not.toBeNull();
+      expect(foundDeleted.id).toBe(testInvoice.id);
+      expect(foundDeleted.is_deleted).toBe(true);
+      expect(foundDeleted.deleted_at).not.toBeNull();
+    });
+
+    test('should not retrieve soft-deleted invoices in findAll by default', async () => {
+      await Invoice.destroy({ where: {}, force: true });
+
+      const testInvoice = await Invoice.create({
+        invoice_number: 'SOFT-DELETE-TEST',
+        invoice_date: new Date(),
+        status: DocumentStatus.PROCESSING,
+        partner_id: 'partner-uuid-123'
+      });
+      
+      const secondInvoice = await Invoice.create({
+        invoice_number: 'NOT-DELETED',
+        invoice_date: new Date(),
+        status: DocumentStatus.PROCESSING,
+        partner_id: 'partner-uuid-123'
+      });
+      
+      await testInvoice.destroy();
+      
+      const allInvoices = await Invoice.findAll();
+      
+      expect(allInvoices.length).toBe(1);
+      expect(allInvoices[0].invoice_number).toBe('NOT-DELETED');
+      
+      const allIncludingDeleted = await Invoice.findAll({ paranoid: false });
+      expect(allIncludingDeleted.length).toBe(2);
+      
+      await secondInvoice.destroy({ force: true });
+    });
+
+    test('should restore soft-deleted invoice with restore() method', async () => {
+      await testInvoice.destroy();
+      
+      const notFound = await Invoice.findByPk(testInvoice.id);
+      expect(notFound).toBeNull();
+      
+      const deletedRecord = await Invoice.findByPk(testInvoice.id, { paranoid: false });
+      
+      await deletedRecord.restore();
+      
+      const restoredRecord = await Invoice.findByPk(testInvoice.id);
+      expect(restoredRecord).not.toBeNull();
+      expect(restoredRecord.id).toBe(testInvoice.id);
+      expect(restoredRecord.is_deleted).toBe(false);
+      expect(restoredRecord.deleted_at).toBeNull();
+    });
+
+    test('should permanently delete invoice with force: true', async () => {
+      await testInvoice.destroy({ force: true });
+      
+      const notFound = await Invoice.findByPk(testInvoice.id, { paranoid: false });
+      expect(notFound).toBeNull();
+    });
+
+    test('should apply the beforeDestroy hook when soft deleting', async () => {
+      await testInvoice.destroy();
+      
+      const deletedRecord = await Invoice.findByPk(testInvoice.id, { paranoid: false });
+      expect(deletedRecord.is_deleted).toBe(true);
+    });
   });
   
 });

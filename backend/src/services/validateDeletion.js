@@ -1,5 +1,5 @@
-const DocumentStatus = require("../models/enums/DocumentStatus");
-const InvoiceRepository = require("../repositories/invoiceRepository");
+const DocumentStatus = require("@models/enums/DocumentStatus");
+const InvoiceRepository = require("@repositories/invoiceRepository");
 
 /**
  * Class for handling invoice deletion validation logic

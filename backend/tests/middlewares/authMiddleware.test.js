@@ -1,8 +1,8 @@
 const { mockRequest, mockResponse } = require('jest-mock-req-res');
-const authMiddleware = require('../../src/middlewares/authMiddleware');
-const authService = require('../../src/services/authService');
+const authMiddleware = require('@middlewares/authMiddleware');
+const authService = require('@services/authService');
 
-jest.mock('../../src/services/authService');
+jest.mock('@services/authService');
 
 describe('authMiddleware', () => {
   let req, res, next;

@@ -30,10 +30,12 @@ export default function() {
     
     const headers = {
         // eslint-disable-next-line no-undef
-        'client_id': __ENV.LOAD_CLIENT_ID,
+        'client_id': __ENV.LOAD_CLIENT_ID ,
+        // 'client_id':"surya" ,
         // eslint-disable-next-line no-undef
-        'client_secret': __ENV.LOAD_CLIENT_SECRET 
-    };
+        'client_secret': __ENV.LOAD_CLIENT_SECRET
+        // 'client_secret':"suryasecret"
+      };
     
     const startTime = new Date().getTime();
     

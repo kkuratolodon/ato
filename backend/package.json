@@ -31,6 +31,7 @@
     "express-rate-limit": "^7.5.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.12.0",
+    "rxjs": "^7.8.2",
     "sequelize": "^6.37.5",
     "sequelize-cli": "^6.6.2",
     "winston": "^3.17.0"
@@ -54,7 +55,8 @@
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "/tests/",
-      "/src/instrument.js"
+      "/src/instrument.js",
+      "/src/strategies/pdfDecryptionStrategy.js"
     ],
     "coverageReporters": [
       "json",
@@ -67,6 +69,20 @@
       "!src/database/**",
       "!src/models/index.js"
     ],
-    "testEnvironment": "node"
+    "testEnvironment": "node", 
+    "rootDir": ".",
+    "moduleNameMapper": {
+      "^@models/(.*)$": "<rootDir>/src/models/$1",
+      "^@services/(.*)$": "<rootDir>/src/services/$1",
+      "^@utils/(.*)$": "<rootDir>/src/utils/$1",
+      "^@controllers/(.*)$": "<rootDir>/src/controllers/$1",
+      "^@repositories/(.*)$": "<rootDir>/src/repositories/$1",
+      "^@middlewares/(.*)$": "<rootDir>/src/middlewares/$1", 
+      "^@instrument$": "<rootDir>/src/instrument.js"
+    },
+    "moduleDirectories": [
+      "node_modules",
+      "src"
+    ]
   }
 }

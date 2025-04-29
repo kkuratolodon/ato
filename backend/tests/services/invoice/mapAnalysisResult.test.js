@@ -1,9 +1,9 @@
-const invoiceService = require('../../../src/services/invoice/invoiceService');
-const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService/invoiceMapperService');
+const invoiceService = require('@services/invoice/invoiceService');
+const { AzureInvoiceMapper } = require('@services/invoiceMapperService/invoiceMapperService');
 
 
 // Mock the invoiceMapperService
-jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService', () => {
+jest.mock('@services/invoiceMapperService/invoiceMapperService', () => {
   return {
     AzureInvoiceMapper: jest.fn().mockImplementation(() => {
       return {

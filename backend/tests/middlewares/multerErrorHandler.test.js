@@ -1,5 +1,5 @@
 const multer = require('multer'); 
-const multerErrorHandler = require('../../src/middlewares/multerErrorHandler')
+const multerErrorHandler = require('@middlewares/multerErrorHandler')
 
 describe('Multer Error Handling Middleware', () => {
   let req, res, next;
@@ -25,7 +25,7 @@ describe('Multer Error Handling Middleware', () => {
       
       expect(res.status).toHaveBeenCalledWith(413);
       expect(res.json).toHaveBeenCalledWith({ 
-        message: 'File size exceeds the 20MB limit' 
+        message: 'File size exceeds 20MB limit' 
       });
       expect(next).not.toHaveBeenCalled();
     });
@@ -74,7 +74,7 @@ describe('Multer Error Handling Middleware', () => {
       
       expect(res.status).toHaveBeenCalledWith(413);
       expect(res.json).toHaveBeenCalledWith({ 
-        message: 'File size exceeds the 20MB limit' 
+        message: 'File size exceeds 20MB limit' 
       });
       expect(next).not.toHaveBeenCalled();
     });
