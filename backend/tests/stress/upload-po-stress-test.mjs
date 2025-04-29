@@ -110,13 +110,20 @@ export function handleSummary(data) {
   const errRate = data.metrics.error_rate.rate ?? 0;
   const errPercent = (errRate * 100).toFixed(2);
 
-  console.log(`\n📊 Error rate akhir: ${errPercent}%`);
+  console.log(`\n=== Summary ===`);
+  console.log(`📊 Error rate akhir: ${errPercent}%`);
 
   if (errRate > 0.6) {
     console.log(`⚠️  Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.`);
   } else {
     console.log(`✅ Error rate masih dalam batas yang dapat diterima.`);
   }
+
+  // Menampilkan metrik penting lainnya
+  console.log(`\nLatency (p95): ${data.metrics.latency_p95?.values?.p(95)?.toFixed(2) ?? 'N/A'} ms`);
+  console.log(`Total Requests: ${data.metrics.requests?.values?.count ?? 'N/A'}`);
+  console.log(`Total Virtual Users: ${data.metrics.vus?.values?.max ?? 'N/A'}`);
+  console.log(`=== End of Summary ===`);
 
   return {};
 }
