@@ -1,0 +1,78 @@
+name: PO Upload Stress Test
+
+on:
+  workflow_dispatch:
+    # Workflow dapat dijalankan secara manual dari GitHub UI
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          echo "Installing required dependencies..."
+          sudo apt-get update
+          sudo apt-get install -y gnupg2 dirmngr
+
+          echo "Adding k6 repository and installing k6..."
+          curl -s https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+          echo "k6 installation completed."
+
+      - name: Prepare Test Directory
+        run: |
+          mkdir -p backend/tests/stress
+          ls -la sample_file/purchase_order/
+
+      - name: Copy Sample Files
+        run: |
+          echo "Attempting to copy sample PO files..."
+          cp -f sample_file/purchase_order/Sample1_Bike_PO.pdf backend/tests/stress/ && echo "Sample PO file copied successfully" || echo "Failed to copy PO sample file, checking if file exists..."
+          
+          # Verify the file was copied or exists at the destination
+          if [ -f backend/tests/stress/Sample1_Bike_PO.pdf ]; then
+            echo "✓ Sample1_Bike_PO.pdf exists in test directory"
+            ls -la backend/tests/stress/
+          else
+            echo "⚠️ Sample file not found or not copied. Finding available sample files:"
+            find sample_file -name "*.pdf" | grep -i "bike\|po\|purchase"
+            
+            # Try alternative path if standard path fails
+            if [ -f sample_file/purchase_order/Sample1_Bike_PO.pdf ]; then
+              echo "File exists at expected path but copy failed, trying with absolute path"
+              cp -f "$(pwd)/sample_file/purchase_order/Sample1_Bike_PO.pdf" backend/tests/stress/
+            fi
+          fi
+
+      - name: Run Purchase Order Upload Stress Test
+        run: |
+          echo "Starting Purchase Order Upload Stress Test..."
+          cd backend/tests/stress
+          ls -la
+          k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} -e API_BASE_URL=${{ secrets.API_BASE_URL }} upload-po-stress-test.mjs | tee upload-po-stress-test.log || echo "Purchase Order Upload Stress Test completed with issues!"
+          echo "Purchase Order Upload Stress Test completed."
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: po-upload-stress-test-results
+          path: backend/tests/stress/upload-po-stress-test.log
+
+      - name: Generate Summary
+        run: |
+          echo "# Purchase Order Upload Stress Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "backend/tests/stress/upload-po-stress-test.log" ]; then
+            echo "## Purchase Order Upload Stress Test Results" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -A 10 "Summary" backend/tests/stress/upload-po-stress-test.log >> $GITHUB_STEP_SUMMARY || echo "Tidak dapat menemukan ringkasan hasil di log" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ File log tidak ditemukan" >> $GITHUB_STEP_SUMMARY
+          fi
