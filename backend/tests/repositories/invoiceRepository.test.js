@@ -178,7 +178,6 @@ describe('InvoiceRepository', () => {
 
     describe('delete', () => {
         test('should soft delete invoice successfully', async () => {
-            // Mock invoice instance
             const mockInvoice = {
                 id: 1,
                 destroy: jest.fn().mockResolvedValue(true)
@@ -186,12 +185,22 @@ describe('InvoiceRepository', () => {
             
             Invoice.findByPk.mockResolvedValue(mockInvoice);
             
-            await invoiceRepository.delete(1);
+            const result = await invoiceRepository.delete(1);
             
             expect(Invoice.findByPk).toHaveBeenCalledWith(1);
             expect(mockInvoice.destroy).toHaveBeenCalled();
+            expect(result).toBe(1); 
         });
     
+        test('should return 0 when invoice does not exist', async () => {
+            Invoice.findByPk.mockResolvedValue(null);
+            
+            const result = await invoiceRepository.delete(999);
+            
+            expect(Invoice.findByPk).toHaveBeenCalledWith(999);
+            expect(result).toBe(0); 
+        });
+      
         test('should throw an error when delete fails', async () => {
             const mockError = new Error('Delete failed');
             const mockInvoice = {
@@ -207,14 +216,34 @@ describe('InvoiceRepository', () => {
             expect(Invoice.findByPk).toHaveBeenCalledWith(1);
             expect(mockInvoice.destroy).toHaveBeenCalled();
         });
-    
-        test('should handle non-existent ID gracefully', async () => {
+      
+        test('should handle empty string ID gracefully', async () => {
             Invoice.findByPk.mockResolvedValue(null);
             
-            await invoiceRepository.delete(999);
+            const result = await invoiceRepository.delete('');
             
-            expect(Invoice.findByPk).toHaveBeenCalledWith(999);
+            expect(Invoice.findByPk).toHaveBeenCalledWith('');
+            expect(result).toBe(0);
         });
+        
+        test('should handle null ID gracefully', async () => {
+            Invoice.findByPk.mockResolvedValue(null);
+            
+            const result = await invoiceRepository.delete(null);
+            
+            expect(Invoice.findByPk).toHaveBeenCalledWith(null);
+            expect(result).toBe(0);
+        });
+        
+        test('should handle undefined ID gracefully', async () => {
+            Invoice.findByPk.mockResolvedValue(null);
+            
+            const result = await invoiceRepository.delete(undefined);
+            
+            expect(Invoice.findByPk).toHaveBeenCalledWith(undefined);
+            expect(result).toBe(0);
+        });
+        
     });
 
     describe('hardDelete', () => {

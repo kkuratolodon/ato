@@ -7,7 +7,7 @@ jest.mock('@models/', () => ({
         create: jest.fn(),
         findByPk: jest.fn(),
         update: jest.fn(),
-        destroy: jest.fn()
+        destroy: jest.fn()  // Added mock for destroy method
     }
 }));
 
@@ -139,6 +139,54 @@ describe('PurchaseOrderRepository', () => {
         });
     });
 
+    describe('updateCustomerId', () => {
+        test('should update customer_id successfully', async () => {
+            await purchaseOrderRepository.updateCustomerId(1, 123);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { customer_id: 123 }, 
+                { where: { id: 1 } }
+            );
+        });
+
+        test('should throw an error when customer_id update fails', async () => {
+            const mockError = new Error('Database error');
+            PurchaseOrder.update.mockRejectedValue(mockError);
+            
+            await expect(purchaseOrderRepository.updateCustomerId(1, 123))
+                .rejects.toThrow(mockError);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { customer_id: 123 }, 
+                { where: { id: 1 } }
+            );
+        });
+    });
+
+    describe('updateVendorId', () => {
+        test('should update vendor_id successfully', async () => {
+            await purchaseOrderRepository.updateVendorId(1, 456);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { vendor_id: 456 }, 
+                { where: { id: 1 } }
+            );
+        });
+
+        test('should throw an error when vendor_id update fails', async () => {
+            const mockError = new Error('Database error');
+            PurchaseOrder.update.mockRejectedValue(mockError);
+            
+            await expect(purchaseOrderRepository.updateVendorId(1, 456))
+                .rejects.toThrow(mockError);
+            
+            expect(PurchaseOrder.update).toHaveBeenCalledWith(
+                { vendor_id: 456 }, 
+                { where: { id: 1 } }
+            );
+        });
+    });
+
     describe('delete', () => {
         test('should soft delete purchase order successfully', async () => {
             // Mock PurchaseOrder instance
@@ -163,7 +211,6 @@ describe('PurchaseOrderRepository', () => {
             };
             
             PurchaseOrder.findByPk.mockResolvedValue(mockPurchaseOrder);
-            
             await expect(purchaseOrderRepository.delete(1))
                 .rejects.toThrow(mockError);
             

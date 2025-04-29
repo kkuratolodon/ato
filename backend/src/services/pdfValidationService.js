@@ -117,16 +117,20 @@ class PdfValidationService {
             throw new PayloadTooLargeError(error.message);
         }
 
+        const isEncrypted = await this.isPdfEncrypted(fileBuffer);
+        if (isEncrypted) {
+            // Return encrypted status instead of throwing an error
+            return { isValid: true, isEncrypted: true };
+        }
+        
         try {
             await this.validatePdfPageCount(fileBuffer);
         } catch (error) {
             throw new ValidationError(error.message);
         } 
-
-        const isEncrypted = await this.isPdfEncrypted(fileBuffer);
-        if (isEncrypted) {
-            throw new Error("PDF is encrypted");
-        }        
+        
+        // PDF is valid and not encrypted
+        return { isValid: true, isEncrypted: false };
     }
 }
 

@@ -61,12 +61,12 @@ class FinancialDocument extends Model {
       currency_symbol: {
         type: options.DataTypes.STRING,
         allowNull: true,
-        defaultValue: '$'
+        defaultValue: null
       },
       currency_code: {
         type: options.DataTypes.STRING,
         allowNull: true,
-        defaultValue: 'AUD'
+        defaultValue: null
       },
       subtotal_amount: {
         type: options.DataTypes.DECIMAL,

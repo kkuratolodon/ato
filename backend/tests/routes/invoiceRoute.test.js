@@ -9,7 +9,8 @@ jest.mock('@controllers/invoiceController', () => ({
     uploadInvoice: jest.fn((req, res) => res.end()),
     getInvoiceById: jest.fn(),
     analyzeInvoice: jest.fn(), 
-    deleteInvoiceById: jest.fn()
+    deleteInvoiceById: jest.fn(),
+    getInvoiceStatus: jest.fn()
   }  
 }));
 

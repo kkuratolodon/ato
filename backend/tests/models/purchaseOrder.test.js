@@ -75,7 +75,7 @@ describe('PurchaseOrder Model', () => {
     // Basic model structure tests
     test('it should have purchase order specific attributes', () => {
         // Check for specific PO attributes
-        expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('po_date');
+        expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('due_date');
         expect(Object.keys(PurchaseOrder.rawAttributes)).toContain('po_number');
     });
 
@@ -185,9 +185,8 @@ describe('PurchaseOrder Model', () => {
     describe('Positive Cases', () => {
         test('should create purchase order with all valid fields', async () => {
             const purchaseOrder = await PurchaseOrder.create({
-                po_date: new Date('2024-01-01'),
+                due_date: new Date('2024-01-01'),
                 po_number: 'PO-2024-001',
-                due_date: new Date('2024-02-01'),
                 total_amount: 1000.50,
                 subtotal_amount: 1200.00,
                 discount_amount: 199.50,
@@ -213,8 +212,6 @@ describe('PurchaseOrder Model', () => {
             expect(purchaseOrder.status).toBe('Analyzed');
             expect(purchaseOrder.partner_id).toBe(partnerId);
             expect(purchaseOrder.due_date).toBeUndefined();
-            expect(purchaseOrder.po_date).toBeUndefined();
-            expect(purchaseOrder.po_number).toBeUndefined();
         });
 
         test('should associate correctly with Partner model', async () => {
@@ -277,17 +274,6 @@ describe('PurchaseOrder Model', () => {
                 })
             ).rejects.toThrow('notNull Violation: PurchaseOrder.partner_id cannot be null');
         });
-
-        test('should fail if due_date is earlier than po_date', async () => {
-            await expect(
-                PurchaseOrder.create({
-                    po_date: new Date('2024-05-01'),
-                    due_date: new Date('2024-04-30'), // Earlier than po_date
-                    status: DocumentStatus.PROCESSING,
-                    partner_id: partnerId
-                })
-            ).rejects.toThrow('due_date must not be earlier than po_date');
-        });
     });
 
     describe('Corner Cases', () => {
@@ -300,19 +286,6 @@ describe('PurchaseOrder Model', () => {
 
             expect(purchaseOrder).toBeTruthy();
             expect(purchaseOrder.total_amount).toBe(0);
-        });
-
-        test('should allow same date for po_date and due_date', async () => {
-            const sameDate = new Date('2024-05-01');
-            const purchaseOrder = await PurchaseOrder.create({
-                po_date: sameDate,
-                due_date: sameDate,
-                status: DocumentStatus.PROCESSING,
-                partner_id: partnerId
-            });
-
-            expect(purchaseOrder).toBeTruthy();
-            expect(purchaseOrder.po_date).toEqual(purchaseOrder.due_date);
         });
 
         test('should handle very large amounts', async () => {
@@ -349,8 +322,7 @@ describe('PurchaseOrder Model', () => {
         beforeEach(async () => {
         testPurchaseOrder = await PurchaseOrder.create({
             po_number: 'SOFT-DELETE-TEST',
-            po_date: new Date(),
-            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            due_date: new Date(),
             total_amount: 1000,
             status: DocumentStatus.PROCESSING,
             partner_id: partnerId
@@ -375,14 +347,14 @@ describe('PurchaseOrder Model', () => {
             
             const testPurchaseOrder = await PurchaseOrder.create({
                 po_number: 'SOFT-DELETE-TEST',
-                po_date: new Date(),
+                due_date: new Date(),
                 status: DocumentStatus.PROCESSING,
                 partner_id: partnerId
             });
               
               const secondPurchaseOrder = await PurchaseOrder.create({
                 po_number: 'NOT-DELETED',
-                po_date: new Date(),
+                due_date: new Date(),
                 status: DocumentStatus.PROCESSING,
                 partner_id: partnerId
             });

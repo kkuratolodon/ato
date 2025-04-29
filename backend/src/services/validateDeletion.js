@@ -1,4 +1,4 @@
-const DocumentStatus = require("../models/enums/DocumentStatus");
+const DocumentStatus = require("@models/enums/DocumentStatus");
 const InvoiceRepository = require("@repositories/invoiceRepository");
 
 /**
