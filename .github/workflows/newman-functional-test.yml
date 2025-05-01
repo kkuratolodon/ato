@@ -2,38 +2,103 @@ name: Functional Tests
 
 on:
   pull_request:
-    branches: [ dev, staging, main ]
+    branches: [dev, staging, main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     services:
-      postgres:  
+      mysql:
         image: mysql:8
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_pass
-          MYSQL_ROOT_PASSWORD: root_pass
+          MYSQL_ROOT_PASSWORD: root
         ports:
           - 3306:3306
         options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root --password=root_pass"
+          --health-cmd="mysqladmin ping -h localhost"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4 
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: "20"
 
-      - name: Install dependencies
+      - name: Install backend dependencies
+        working-directory: backend
         run: npm install
 
-      - name: Run tests with Newman
-        run: npm run test:functional
+      - name: Run DB mirgrations
+        working-directory: backend
+        run: npx sequelize-cli db:migrate --env test
+        env: 
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: test_user
+          DB_PASSWORD: test_pass
+          DB_NAME: test_db
+      
+      - name: Seed DB with dummy data
+        working-directory: backend
+        run: npx sequelize-cli db:seed:all --env test
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: test_user
+          DB_PASSWORD: test_pass
+          DB_NAME: test_db
+      
+      - name: Start backend server
+        working-directory: backend
+        run: npm start &
+        env:
+          NODE_ENV: test
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: test_user
+          DB_PASSWORD: test_pass
+          DB_NAME: test_db
+      
+      - name: Install Newman and htmlextra
+        run: |
+          npm install -g newman
+          npm install -g newman-reporter-htmlextra
+      
+      - name: Create reports directory 
+        run: mkdir -p functional_test_files/reports 
+      
+      - name: Create test environment file
+        run: |
+          echo '{
+            "id": "test-env",
+            "name": "Test",
+            "values": [
+              { "key": "base_url", "value": "http://localhost:3000", "enabled": true }
+            ]
+          }' > functional_test_files/test-environment.json
+      
+          - name: Run Functional Tests with htmlextra
+          working-directory: functional_test_files
+          run: |
+            newman run functional-test.json \
+              -e test-environment.json \
+              -r htmlextra \
+              --reporter-htmlextra-export ./reports/functional-test-report.html
+    
+      - name: Upload Functional Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: functional-test-report
+          path: functional_test_files/reports/functional-test-report.html
+      # - name: Run tests with Newman
+      #   run: npm run test:functional
