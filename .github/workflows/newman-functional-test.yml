@@ -51,7 +51,7 @@ jobs:
         working-directory: backend
         run: npx sequelize-cli db:seed:all --env test
         env:
-          DB_HOST: 127.0.0.1
+          DB_HOST: locaalhost
           DB_PORT: 3306
           DB_USER: test_user
           DB_PASSWORD: test_pass
