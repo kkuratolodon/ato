@@ -100,18 +100,40 @@ function determineCurrentStage() {
 }
 
 // Helper untuk mengkonversi durasi string (seperti '30s', '1m') ke detik
+// PERBAIKAN: Fungsi parseDuration untuk menangani String sebagai input
 function parseDuration(duration) {
-  const match = duration.match(/(\d+)(s|m|h)/);
-  if (!match) return 0;
+  // Pastikan duration adalah string
+  if (typeof duration !== 'string') {
+    console.log(`Warning: Duration bukan string: ${duration}, tipe: ${typeof duration}`);
+    return 0;
+  }
   
-  const value = parseInt(match[1]);
-  const unit = match[2];
-  
-  switch (unit) {
-    case 's': return value;
-    case 'm': return value * 60;
-    case 'h': return value * 3600;
-    default: return 0;
+  // Menggunakan regex untuk mencocokkan pola numerik dan unit (s, m, h)
+  try {
+    // Ekstrak angka dan unit secara manual jika string valid
+    const numericPart = duration.replace(/[^0-9]/g, '');
+    const unitPart = duration.replace(/[0-9]/g, '');
+    
+    // Konversi ke angka
+    const value = parseInt(numericPart, 10);
+    
+    // Jika tidak bisa di-parse menjadi angka, return 0
+    if (isNaN(value)) {
+      console.log(`Warning: Tidak dapat mengkonversi durasi "${duration}" ke angka`);
+      return 0;
+    }
+    
+    // Konversi ke detik berdasarkan unit
+    if (unitPart === 's') return value;
+    if (unitPart === 'm') return value * 60;
+    if (unitPart === 'h') return value * 3600;
+    
+    // Default jika unit tidak dikenali
+    console.log(`Warning: Unit durasi tidak dikenali: ${unitPart} dalam "${duration}"`);
+    return value; // Asumsikan dalam detik jika unit tidak dikenali
+  } catch (e) {
+    console.log(`Error saat parsing durasi "${duration}": ${e.message}`);
+    return 0;
   }
 }
 
