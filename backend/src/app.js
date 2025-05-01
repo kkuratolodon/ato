@@ -1,3 +1,4 @@
+require("module-alias/register");
 const express = require('express');
 const invoiceRoutes = require('./routes/invoiceRoute')
 const purchaseOrderRoutes = require('./routes/purchaseOrderRoute')

@@ -1,16 +1,16 @@
 const { v4: uuidv4 } = require('uuid');
-const FinancialDocumentService = require('@services/financialDocumentService');
-const Sentry = require("@instrument");
-const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
-const CustomerRepository = require('@repositories/customerRepository.js');
-const VendorRepository = require('@repositories/vendorRepository.js');
-const ItemRepository = require('@repositories/itemRepository.js');
-const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
+const FinancialDocumentService = require('../../services/financialDocumentService');
+const Sentry = require("../../instrument");
+const PurchaseOrderRepository = require('../../repositories/purchaseOrderRepository');
+const CustomerRepository = require('../../repositories/customerRepository.js');
+const VendorRepository = require('../../repositories/vendorRepository.js');
+const ItemRepository = require('../../repositories/itemRepository.js');
+const AzureDocumentAnalyzer = require('../../services/analysis/azureDocumentAnalyzer');
 const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
-const DocumentStatus = require('@models/enums/DocumentStatus');
-const { NotFoundError } = require('@utils/errors'); 
-const { AzurePurchaseOrderMapper } = require('@services/purchaseOrderMapperService/purchaseOrderMapperService');
+const DocumentStatus = require('../../models/enums/DocumentStatus');
+const { NotFoundError } = require('../../utils/errors'); 
+const { AzurePurchaseOrderMapper } = require('../../services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {

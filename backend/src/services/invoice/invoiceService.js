@@ -1,18 +1,18 @@
 const { v4: uuidv4 } = require('uuid');
 const { from } = require('rxjs');
 const { catchError, map, switchMap } = require('rxjs/operators');
-const FinancialDocumentService = require("@services/financialDocumentService");
-const Sentry = require("@instrument");
-const InvoiceRepository = require('@repositories/invoiceRepository');
-const CustomerRepository = require('@repositories/customerRepository');
-const VendorRepository = require('@repositories/vendorRepository');
-const ItemRepository = require('@repositories/itemRepository');
-const AzureDocumentAnalyzer = require('@services/analysis/azureDocumentAnalyzer');
+const FinancialDocumentService = require("../financialDocumentService");
+const Sentry = require("../../instrument");
+const InvoiceRepository = require('../../repositories/invoiceRepository');
+const CustomerRepository = require('../../repositories/customerRepository');
+const VendorRepository = require('../../repositories/vendorRepository');
+const ItemRepository = require('../../repositories/itemRepository');
+const AzureDocumentAnalyzer = require('../../services/analysis/azureDocumentAnalyzer');
 const InvoiceValidator = require('./invoiceValidator');
-const InvoiceResponseFormatter = require('@services/invoice/invoiceResponseFormatter');
-const { AzureInvoiceMapper } = require('@services/invoiceMapperService/invoiceMapperService');
-const DocumentStatus = require('@models/enums/DocumentStatus');
-const { NotFoundError } = require('@utils/errors');
+const InvoiceResponseFormatter = require('../../services/invoice/invoiceResponseFormatter');
+const { AzureInvoiceMapper } = require('../../services/invoiceMapperService/invoiceMapperService');
+const DocumentStatus = require('../../models/enums/DocumentStatus');
+const { NotFoundError } = require('../../utils/errors');
 
 class InvoiceService extends FinancialDocumentService {
   constructor(dependencies = {}) {

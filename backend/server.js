@@ -1,3 +1,4 @@
+require('module-alias')(__dirname);
 const Sentry = require("./src/instrument.js");
 const app = require("./src/app");
 
