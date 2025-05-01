@@ -96,16 +96,17 @@ jobs:
           
           # Create simple table directly from log data without complex regex
           for i in {0..9}; do
-            # Count successful and failed requests per stage
-            STAGE_REQUESTS=$(grep -c "Request berhasil.*Stage: $i" upload-po-stress-test.log || echo "0")
-            STAGE_FAILURES=$(grep -c "Request gagal.*Stage: $i" upload-po-stress-test.log || echo "0")
-            STAGE_TIMEOUTS=$(grep -c "Status 504.*Stage: $i" upload-po-stress-test.log || echo "0")
+            # Count successful and failed requests per stage - ensure numbers with || echo 0
+            STAGE_REQUESTS=$(grep -c "Request berhasil.*Stage: $i" upload-po-stress-test.log || echo 0)
+            STAGE_FAILURES=$(grep -c "Request gagal.*Stage: $i" upload-po-stress-test.log || echo 0)
+            STAGE_TIMEOUTS=$(grep -c "Status 504.*Stage: $i" upload-po-stress-test.log || echo 0)
             
-            # Calculate total requests
+            # Calculate total requests - ensure they're treated as integers
             TOTAL_REQUESTS=$((STAGE_REQUESTS + STAGE_FAILURES))
             
             # Calculate error rate
             if [ "$TOTAL_REQUESTS" -gt 0 ]; then
+              # Use bc for floating point calculation
               ERROR_RATE=$(echo "scale=2; $STAGE_FAILURES * 100 / $TOTAL_REQUESTS" | bc 2>/dev/null || echo "0.00")
               ERROR_RATE="${ERROR_RATE}%"
             else
