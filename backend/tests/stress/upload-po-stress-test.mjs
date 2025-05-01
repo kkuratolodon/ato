@@ -256,7 +256,7 @@ export default function () {
 // Ringkasan kustom di akhir test dengan penanganan error yang lebih baik
 export function handleSummary(data) {
   try {
-    let report = "\n=== Summary ===\n";
+    let report = "\n=== Purchase Order Upload Stress Test Summary ===\n";
     
     // Mendapatkan error rate dengan safe access
     const errRate = data?.metrics?.error_rate?.rate ?? 0;
@@ -300,7 +300,7 @@ export function handleSummary(data) {
     const latencyDegradationThreshold = 1000; // 1000ms sebagai threshold peningkatan latency signifikan
     const crashThreshold = 0.5; // 50% error rate sebagai threshold crash
     
-    report += `\nPerforma Per Stage:\n`;
+    report += `\nPerforma Per Tahap Load Testing:\n`;
     report += `Stage | VUs Target | Requests | Error Rate | Latency p95 (ms) | Status\n`;
     report += `----- | ---------- | -------- | ---------- | --------------- | ------\n`;
     
@@ -371,7 +371,7 @@ export function handleSummary(data) {
     }
     
     // Kesimpulan analisis
-    report += `\n=== Kesimpulan Analisis ===\n`;
+    report += `\n=== Ringkasan Ketahanan Sistem ===\n`;
     
     if (degradationPoint !== null) {
       report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${options.stages[degradationPoint].target} VUs\n`;
@@ -381,18 +381,36 @@ export function handleSummary(data) {
     
     if (crashPoint !== null) {
       report += `💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${options.stages[crashPoint].target} VUs\n`;
+    } else {
+      report += `✅ Tidak terdeteksi crash system selama pengujian\n`;
     }
     
-    report += `🔄 Pola Degradasi: ${isGradualDegradation ? "Bertahap (gradual degradation)" : crashPoint !== null ? "Mendadak (crash)" : "Tidak terdeteksi"}\n`;
+    report += `🔄 Pola Degradasi: ${isGradualDegradation ? "Bertahap (gradual degradation)" : crashPoint !== null ? "Mendadak (crash)" : "Tidak terdeteksi pola degradasi"}\n`;
     
-    report += `=== End of Summary ===\n`;
-
-    // Print report ke console
+    // Print report ke console terlebih dahulu
     console.log(report);
     
-    return {};
+    // Buat file laporan yang tersedia setelah tes selesai
+    return {
+      'stdout': report,  // Menampilkan ke konsol standar
+      './stress-test-summary.txt': report,  // Menyimpan ke file teks
+      './summary.json': JSON.stringify({
+        errorRate: errRate,
+        latencyP95: latencyP95Value,
+        totalRequests: requestCount,
+        maxVUs: maxVUs,
+        hasDegradation: degradationPoint !== null,
+        hasCrash: crashPoint !== null,
+        degradationAtStage: degradationPoint,
+        crashAtStage: crashPoint,
+        degradationPattern: isGradualDegradation ? "gradual" : crashPoint !== null ? "sudden" : "none"
+      }, null, 2)  // Menyimpan ringkasan dalam format JSON
+    };
   } catch (e) {
     console.error('Error dalam handleSummary:', e);
-    return {};
+    return {
+      'stdout': `Error dalam membuat summary: ${e.message}`,
+      './stress-test-error.txt': `Terjadi error saat membuat laporan: ${e.toString()}\n${e.stack}`
+    };
   }
 }
