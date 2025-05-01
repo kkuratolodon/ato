@@ -6,7 +6,7 @@ import { SharedArray } from 'k6/data';
 
 // Metrik khusus untuk melacak performa
 const errorRate = new Rate('error_rate');
-const timeoutErrors = new Counter('timeout_errors');
+const timeoutErrors = new Counter('timeout_errors'); // Khusus untuk error 504
 const latencyP95 = new Trend('latency_p95');
 const requests = new Counter('requests');
 
@@ -16,7 +16,7 @@ const stageErrorRates = {};
 const stageLatencies = {};
 const stageRequests = {};
 const stageFailures = {};
-const stageTimeoutErrors = {};
+const stageTimeoutErrors = {}; // Tambahan untuk error 504 per stage
 
 // Pre-inisialisasi metrik untuk semua stage yang mungkin
 for (let i = 0; i < 10; i++) {
@@ -277,7 +277,7 @@ export function handleSummary(data) {
     const timeoutCount = data?.metrics?.timeout_errors?.values?.count ?? 0;
     
     report += `📊 Error rate akhir: ${errPercent}%\n`;
-    report += `⏱️ Jumlah timeout (status 504): ${timeoutCount}\n`;
+    report += `⏱️ Jumlah timeout: ${timeoutCount}\n`;
 
     if (errRate > 0.6) {
       report += `⚠️ Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.\n`;

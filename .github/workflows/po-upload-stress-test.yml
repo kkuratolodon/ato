@@ -84,19 +84,32 @@ jobs:
           PERFORMANCE_TABLE=$(grep -A 15 "Performa Per Stage:" upload-po-stress-test.log || echo "Tidak dapat menemukan tabel performa")
           CONCLUSION=$(grep -A 10 "=== Ringkasan Ketahanan Sistem ===" upload-po-stress-test.log || echo "Tidak dapat menemukan kesimpulan analisis")
           
+          # Count timeout errors
+          TIMEOUT_COUNT=$(grep -c "Status 504" upload-po-stress-test.log || echo "0")
+          echo "Total timeout errors (504): $TIMEOUT_COUNT"
+          
           # Save to separate files for easier reference
           echo "$SUMMARY" > summary.txt
           echo "$DEGRADATION_ANALYSIS" > degradation_analysis.txt
           echo "$PERFORMANCE_TABLE" > performance_table.txt
           echo "$CONCLUSION" > conclusion.txt
+          echo "$TIMEOUT_COUNT" > timeout_count.txt
           
           # Create a more readable performance table for the GitHub summary
           echo "## Performance Summary" > performance_summary.md
-          echo "| Stage | VUs | Requests | Error Rate | Latency p95 (ms) | Status |" >> performance_summary.md
-          echo "| ----- | --- | -------- | ---------- | --------------- | ------ |" >> performance_summary.md
+          echo "| Stage | VUs | Requests | Error Rate | Failed Requests | Latency p95 (ms) | Status |" >> performance_summary.md
+          echo "| ----- | --- | -------- | ---------- | -------------------- | --------------- | ------ |" >> performance_summary.md
           
           # Extract actual stage information from the test script
           VU_TARGETS=(10 15 18 20 30 40 60 80 100 300)
+          
+          # Count timeouts per stage
+          for i in {0..9}; do
+            STAGE_TIMEOUT_COUNT=$(grep -c "Status 504.*Stage: $i" upload-po-stress-test.log || echo "0")
+            echo "Stage $i timeout count: $STAGE_TIMEOUT_COUNT" >> stage_timeouts.txt
+            # Store in array for later use
+            STAGE_TIMEOUTS[$i]=$STAGE_TIMEOUT_COUNT
+          done
           
           # Generate a fixed performance table using actual VU targets
           cat upload-po-stress-test.log | grep -E "^[0-9]+ \| " | while read -r line; do
@@ -105,18 +118,64 @@ jobs:
               VU_TARGET="${VU_TARGETS[$STAGE_NUM]}"
               # Replace [object Object] with actual VU target
               FIXED_LINE=$(echo "$line" | sed "s/\[object Object\]/$VU_TARGET/")
-              echo "$FIXED_LINE" >> performance_fixed.txt
+              
+              # Add timeout count to the line before the status column
+              TIMEOUT_COUNT=${STAGE_TIMEOUTS[$STAGE_NUM]:-0}
+              FIXED_LINE_WITH_TIMEOUT=$(echo "$FIXED_LINE" | sed -E "s/([0-9.]+%) \| ([0-9]+|N\/A)/\1 | $TIMEOUT_COUNT | \2/")
+              
+              echo "$FIXED_LINE_WITH_TIMEOUT" >> performance_fixed.txt
               
               # Format for markdown table
-              MARKDOWN_LINE=$(echo "$FIXED_LINE" | sed 's/ | /|/g' | sed 's/^/|/' | sed 's/$/|/')
+              MARKDOWN_LINE=$(echo "$FIXED_LINE_WITH_TIMEOUT" | sed 's/ | /|/g' | sed 's/^/|/' | sed 's/$/|/')
               echo "$MARKDOWN_LINE" >> performance_summary.md
             fi
           done
+          
+          # If the above fails, create a backup table from scratch
+          if [ ! -s performance_summary.md ] || [ $(wc -l < performance_summary.md) -le 2 ]; then
+            echo "## Performance Summary (Fallback)" > performance_summary_fallback.md
+            echo "| Stage | VUs | Requests | Error Rate | Failed Requests | Latency p95 (ms) | Status |" >> performance_summary_fallback.md
+            echo "| ----- | --- | -------- | ---------- | -------------------- | --------------- | ------ |" >> performance_summary_fallback.md
+            
+            for i in {0..9}; do
+              STAGE_REQUESTS=$(grep -c "Request berhasil.*Stage: $i" upload-po-stress-test.log || echo "0")
+              STAGE_FAILURES=$(grep -c "Request gagal.*Stage: $i" upload-po-stress-test.log || echo "0")
+              STAGE_TIMEOUTS=${STAGE_TIMEOUTS[$i]:-0}
+              TOTAL_REQUESTS=$((STAGE_REQUESTS + STAGE_FAILURES))
+              
+              # Calculate error rate if there are requests
+              if [ "$TOTAL_REQUESTS" -gt 0 ]; then
+                ERROR_RATE=$(echo "scale=2; $STAGE_FAILURES * 100 / $TOTAL_REQUESTS" | bc)
+                ERROR_RATE="${ERROR_RATE}%"
+              else
+                ERROR_RATE="0.00%"
+              fi
+              
+              # Determine status based on error count
+              if [ "$STAGE_TIMEOUTS" -gt 0 ]; then
+                STATUS="⚠️ Timeouts Detected"
+              else
+                STATUS="Normal"
+              fi
+              
+              echo "| $i | ${VU_TARGETS[$i]} | $TOTAL_REQUESTS | $ERROR_RATE | $STAGE_TIMEOUTS | N/A | $STATUS |" >> performance_summary_fallback.md
+            done
+            
+            # Use the fallback if needed
+            cp performance_summary_fallback.md performance_summary.md
+          fi
 
       - name: Generate Summary
         run: |
           echo "# Purchase Order Upload Stress Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Add total timeout count
+          if [ -f "backend/tests/stress/timeout_count.txt" ]; then
+            TIMEOUT_COUNT=$(cat backend/tests/stress/timeout_count.txt)
+            echo "## 🚨 Total Error Timeout Count: $TIMEOUT_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
           
           if [ -f "backend/tests/stress/summary.txt" ]; then
             echo "## Ringkasan Hasil Test" >> $GITHUB_STEP_SUMMARY
