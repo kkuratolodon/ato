@@ -58,9 +58,11 @@ jobs:
           DB_PASSWORD: test_pass
           DB_NAME: test_db
       
-      - name: Start backend server
+      - name: Start backend server in background
         working-directory: backend
-        run: npm start 
+        run: |
+          nohup npm start &> backend.log &
+          sleep 5  # Give time for the server to start
         env:
           NODE_ENV: test
           DB_HOST: localhost
