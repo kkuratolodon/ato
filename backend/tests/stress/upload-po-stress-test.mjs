@@ -6,6 +6,7 @@ import { SharedArray } from 'k6/data';
 
 // Metrik khusus untuk melacak performa
 const errorRate = new Rate('error_rate');
+const timeoutErrors = new Counter('timeout_errors');
 const latencyP95 = new Trend('latency_p95');
 const requests = new Counter('requests');
 
@@ -15,6 +16,7 @@ const stageErrorRates = {};
 const stageLatencies = {};
 const stageRequests = {};
 const stageFailures = {};
+const stageTimeoutErrors = {};
 
 // Pre-inisialisasi metrik untuk semua stage yang mungkin
 for (let i = 0; i < 10; i++) {
@@ -22,6 +24,7 @@ for (let i = 0; i < 10; i++) {
   stageLatencies[i] = new Trend(`stage_${i}_latency`);
   stageRequests[i] = new Counter(`stage_${i}_requests`);
   stageFailures[i] = new Counter(`stage_${i}_failures`);
+  stageTimeoutErrors[i] = new Counter(`stage_${i}_timeout_errors`);
 }
 
 let currentStage = 0;
@@ -222,10 +225,18 @@ export default function () {
   const endTime = Date.now();
   const duration = endTime - startTime;
 
-  // Validasi respons
+  // Validasi respons dengan pengecekan timeout (status 504) secara khusus
   const success = check(res, {
     'status is 200': (r) => r.status === 200,
   });
+
+  const isTimeout = res.status === 504;
+  
+  if (isTimeout) {
+    // Tambahkan penghitung khusus untuk timeout
+    timeoutErrors.add(1);
+    stageTimeoutErrors[currentStage].add(1);
+  }
 
   // Catat metrik global
   errorRate.add(!success);
@@ -238,7 +249,7 @@ export default function () {
   stageRequests[currentStage].add(1);
   if (!success) stageFailures[currentStage].add(1);
 
-  // Logging
+  // Logging yang lebih informatif
   if (res.status !== 200) {
     console.log(`Request gagal: Status ${res.status}, Response: ${res.body}, Stage: ${currentStage}, VUs: ${options.stages[currentStage].target}`);
     stageFailures[currentStage].add(1);
@@ -262,7 +273,11 @@ export function handleSummary(data) {
     const errRate = data?.metrics?.error_rate?.rate ?? 0;
     const errPercent = (errRate * 100).toFixed(2);
     
+    // Mendapatkan jumlah timeout
+    const timeoutCount = data?.metrics?.timeout_errors?.values?.count ?? 0;
+    
     report += `📊 Error rate akhir: ${errPercent}%\n`;
+    report += `⏱️ Jumlah timeout (status 504): ${timeoutCount}\n`;
 
     if (errRate > 0.6) {
       report += `⚠️ Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.\n`;
@@ -301,8 +316,8 @@ export function handleSummary(data) {
     const crashThreshold = 0.5; // 50% error rate sebagai threshold crash
     
     report += `\nPerforma Per Tahap Load Testing:\n`;
-    report += `Stage | VUs Target | Requests | Error Rate | Latency p95 (ms) | Status\n`;
-    report += `----- | ---------- | -------- | ---------- | --------------- | ------\n`;
+    report += `Stage | VUs Target | Requests | Error Rate | Timeouts | Latency p95 (ms) | Status\n`;
+    report += `----- | ---------- | -------- | ---------- | -------- | --------------- | ------\n`;
     
     // Definisikan array tetap dengan nilai target VU untuk setiap stage
     const vuTargets = [10, 15, 18, 20, 30, 40, 60, 80, 100, 300];
@@ -316,6 +331,7 @@ export function handleSummary(data) {
       let stageErrorRate = 0;
       let stageLatencyP95 = 'N/A';
       let stageRequestCount = 0;
+      let stageTimeoutCount = 0;
       
       try {
         const stageErrorRateMetric = data?.metrics?.[`stage_${i}_error_rate`];
@@ -328,6 +344,9 @@ export function handleSummary(data) {
         
         const stageRequestMetric = data?.metrics?.[`stage_${i}_requests`];
         stageRequestCount = stageRequestMetric?.values?.count ?? 0;
+        
+        const stageTimeoutMetric = data?.metrics?.[`stage_${i}_timeout_errors`];
+        stageTimeoutCount = stageTimeoutMetric?.values?.count ?? 0;
       } catch (e) {
         console.log(`Warning: Tidak dapat mengakses metrik stage ${i}:`, e.message);
       }
@@ -336,8 +355,8 @@ export function handleSummary(data) {
       
       let stageStatus = "Normal";
       
-      // Deteksi titik degradasi
-      if (!degradationPoint && stageErrorRate >= degradationThreshold) {
+      // Deteksi titik degradasi - termasuk memeriksa timeouts
+      if (!degradationPoint && (stageErrorRate >= degradationThreshold || stageTimeoutCount > 0)) {
         degradationPoint = i;
         stageStatus = "⚠️ Awal Degradasi";
       }
@@ -356,8 +375,8 @@ export function handleSummary(data) {
           stageStatus = "🔽 Degradasi Bertahap";
         }
         
-        // Deteksi titik crash (lonjakan error rate yang signifikan)
-        if (stageErrorRate >= crashThreshold && !crashPoint) {
+        // Deteksi titik crash (lonjakan error rate yang signifikan atau banyak timeouts)
+        if (stageErrorRate >= crashThreshold || stageTimeoutCount >= stageRequestCount * 0.3) {
           crashPoint = i;
           stageStatus = "💥 Crash Point";
         }
@@ -369,7 +388,7 @@ export function handleSummary(data) {
         }
       }
       
-      report += `${i} | ${vuTarget} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageLatencyP95} | ${stageStatus}\n`;
+      report += `${i} | ${vuTarget} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageTimeoutCount} | ${stageLatencyP95} | ${stageStatus}\n`;
       
       previousErrorRate = stageErrorRate;
       previousLatency = stageLatencyP95;
@@ -405,6 +424,7 @@ export function handleSummary(data) {
         errorRate: errRate,
         latencyP95: latencyP95Value,
         totalRequests: requestCount,
+        timeoutErrors: timeoutCount,
         maxVUs: maxVUs,
         hasDegradation: degradationPoint !== null,
         hasCrash: crashPoint !== null,
