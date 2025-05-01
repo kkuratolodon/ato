@@ -123,7 +123,7 @@ jobs:
             # Get latency from performance table if available
             LATENCY_P95=$(grep -E "^$i \|.*\|.*\|.*\|.*\|.*\|" performance_table.txt | awk -F'|' '{print $6}' | tr -d ' ' || echo "N/A")
             
-            # Create line for markdown table
+            # Create line for markdown table - Fix array reference syntax
             echo "| $i | ${VU_TARGETS[$i]} | $TOTAL_REQUESTS | $ERROR_RATE | $STAGE_TIMEOUTS | $LATENCY_P95 | $STATUS |" >> performance_summary.md
             
             # Save raw data for debugging
