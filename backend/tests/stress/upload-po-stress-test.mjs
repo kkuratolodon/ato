@@ -232,27 +232,34 @@ export default function () {
 
   const isTimeout = res.status === 504;
   
+  // PERBAIKAN: Selalu menganggap timeout sebagai kegagalan untuk error rate
+  const isError = !success || isTimeout;
+  
   if (isTimeout) {
     // Tambahkan penghitung khusus untuk timeout
     timeoutErrors.add(1);
     stageTimeoutErrors[currentStage].add(1);
+    
+    // PERBAIKAN: Log timeout sebagai kegagalan untuk debugging
+    console.log(`Timeout detected (504): Stage: ${currentStage}, VUs: ${options.stages[currentStage].target}`);
   }
 
-  // Catat metrik global
-  errorRate.add(!success);
+  // PERBAIKAN: Catat metrik global - isError digunakan sebagai penanda kegagalan
+  errorRate.add(isError);  // Timeout dihitung sebagai error untuk errorRate
   latencyP95.add(duration);
   requests.add(1);
   
-  // Catat metrik per tahap
-  stageErrorRates[currentStage].add(!success);
+  // PERBAIKAN: Catat metrik per tahap - timeout dihitung sebagai error
+  stageErrorRates[currentStage].add(isError);
   stageLatencies[currentStage].add(duration);
   stageRequests[currentStage].add(1);
-  if (!success) stageFailures[currentStage].add(1);
+  
+  // Catat kegagalan terlepas dari jenisnya
+  if (isError) stageFailures[currentStage].add(1);
 
   // Logging yang lebih informatif
   if (res.status !== 200) {
     console.log(`Request gagal: Status ${res.status}, Response: ${res.body}, Stage: ${currentStage}, VUs: ${options.stages[currentStage].target}`);
-    stageFailures[currentStage].add(1);
   } else {
     // Hanya catat setiap 10 request sukses untuk mengurangi kebisingan log
     if (Math.random() < 0.1) {
@@ -269,14 +276,14 @@ export function handleSummary(data) {
   try {
     let report = "\n=== Purchase Order Upload Stress Test Summary ===\n";
     
-    // Mendapatkan error rate dengan safe access
+    // PERBAIKAN: Mendapatkan error rate dengan safe access - termasuk timeouts
     const errRate = data?.metrics?.error_rate?.rate ?? 0;
     const errPercent = (errRate * 100).toFixed(2);
     
     // Mendapatkan jumlah timeout
     const timeoutCount = data?.metrics?.timeout_errors?.values?.count ?? 0;
     
-    report += `📊 Error rate akhir: ${errPercent}%\n`;
+    report += `📊 Error rate akhir (termasuk timeouts): ${errPercent}%\n`;
     report += `⏱️ Jumlah timeout: ${timeoutCount}\n`;
 
     if (errRate > 0.6) {
@@ -351,11 +358,12 @@ export function handleSummary(data) {
         console.log(`Warning: Tidak dapat mengakses metrik stage ${i}:`, e.message);
       }
       
+      // PERBAIKAN: Pastikan timeouts terhitung dalam error rate
       const stageErrorPercent = (stageErrorRate * 100).toFixed(2);
       
       let stageStatus = "Normal";
       
-      // Deteksi titik degradasi - termasuk memeriksa timeouts
+      // PERBAIKAN: Deteksi titik degradasi - termasuk memeriksa timeouts
       if (!degradationPoint && (stageErrorRate >= degradationThreshold || stageTimeoutCount > 0)) {
         degradationPoint = i;
         stageStatus = "⚠️ Awal Degradasi";
@@ -375,7 +383,7 @@ export function handleSummary(data) {
           stageStatus = "🔽 Degradasi Bertahap";
         }
         
-        // Deteksi titik crash (lonjakan error rate yang signifikan atau banyak timeouts)
+        // PERBAIKAN: Deteksi titik crash (lonjakan error rate yang signifikan atau banyak timeouts)
         if (stageErrorRate >= crashThreshold || stageTimeoutCount >= stageRequestCount * 0.3) {
           crashPoint = i;
           stageStatus = "💥 Crash Point";
@@ -388,6 +396,7 @@ export function handleSummary(data) {
         }
       }
       
+      // PERBAIKAN: Format yang lebih jelas untuk error rate dan timeouts
       report += `${i} | ${vuTarget} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageTimeoutCount} | ${stageLatencyP95} | ${stageStatus}\n`;
       
       previousErrorRate = stageErrorRate;
@@ -413,6 +422,12 @@ export function handleSummary(data) {
     
     report += `🔄 Pola Degradasi: ${isGradualDegradation ? "Bertahap (gradual degradation)" : crashPoint !== null ? "Mendadak (crash)" : "Tidak terdeteksi pola degradasi"}\n`;
     
+    // PERBAIKAN: Menambahkan informasi tambahan tentang persentase timeout
+    if (timeoutCount > 0 && requestCount > 0) {
+      const timeoutPercent = ((timeoutCount / requestCount) * 100).toFixed(2);
+      report += `\n⏱️ Persentase request yang timeout: ${timeoutPercent}% (${timeoutCount} dari ${requestCount})\n`;
+    }
+    
     // Print report ke console terlebih dahulu
     console.log(report);
     
@@ -422,6 +437,7 @@ export function handleSummary(data) {
       './stress-test-summary.txt': report,  // Menyimpan ke file teks
       './summary.json': JSON.stringify({
         errorRate: errRate,
+        timeoutPercentage: timeoutCount > 0 ? (timeoutCount / requestCount) * 100 : 0,
         latencyP95: latencyP95Value,
         totalRequests: requestCount,
         timeoutErrors: timeoutCount,
