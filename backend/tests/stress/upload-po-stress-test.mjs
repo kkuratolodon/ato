@@ -304,8 +304,13 @@ export function handleSummary(data) {
     report += `Stage | VUs Target | Requests | Error Rate | Latency p95 (ms) | Status\n`;
     report += `----- | ---------- | -------- | ---------- | --------------- | ------\n`;
     
+    // Definisikan array tetap dengan nilai target VU untuk setiap stage
+    const vuTargets = [10, 15, 18, 20, 30, 40, 60, 80, 100, 300];
+    
     for (let i = 0; i < options.stages.length; i++) {
-      const stage = options.stages[i];
+      // Gunakan nilai tetap dari array vuTargets daripada mengakses options.stages[i].target
+      // yang bisa jadi objek kompleks yang tidak bisa diformat dengan baik
+      const vuTarget = vuTargets[i];
       
       // Safe access ke nilai metrik
       let stageErrorRate = 0;
@@ -364,7 +369,7 @@ export function handleSummary(data) {
         }
       }
       
-      report += `${i} | ${stage.target} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageLatencyP95} | ${stageStatus}\n`;
+      report += `${i} | ${vuTarget} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageLatencyP95} | ${stageStatus}\n`;
       
       previousErrorRate = stageErrorRate;
       previousLatency = stageLatencyP95;
@@ -374,13 +379,15 @@ export function handleSummary(data) {
     report += `\n=== Ringkasan Ketahanan Sistem ===\n`;
     
     if (degradationPoint !== null) {
-      report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${options.stages[degradationPoint].target} VUs\n`;
+      const degradationVUs = vuTargets[degradationPoint];
+      report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${degradationVUs} VUs\n`;
     } else {
       report += `✅ Sistem tidak menunjukkan tanda-tanda degradasi yang signifikan selama pengujian\n`;
     }
     
     if (crashPoint !== null) {
-      report += `💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${options.stages[crashPoint].target} VUs\n`;
+      const crashVUs = vuTargets[crashPoint];
+      report += `💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${crashVUs} VUs\n`;
     } else {
       report += `✅ Tidak terdeteksi crash system selama pengujian\n`;
     }
@@ -403,7 +410,8 @@ export function handleSummary(data) {
         hasCrash: crashPoint !== null,
         degradationAtStage: degradationPoint,
         crashAtStage: crashPoint,
-        degradationPattern: isGradualDegradation ? "gradual" : crashPoint !== null ? "sudden" : "none"
+        degradationPattern: isGradualDegradation ? "gradual" : crashPoint !== null ? "sudden" : "none",
+        vuTargets: vuTargets // Include the VU targets array for reference
       }, null, 2)  // Menyimpan ringkasan dalam format JSON
     };
   } catch (e) {

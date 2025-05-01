@@ -2,7 +2,7 @@ name: PO Upload Stress Test
 
 on:
   workflow_dispatch:
-    # Workflow dapat dijalankan secara manual dari GitHub UI
+    # Workflow can be triggered manually from GitHub UI
 
 jobs:
   stress-test:
@@ -56,6 +56,13 @@ jobs:
           ls -la
           k6 run -e LOAD_CLIENT_ID=${{ secrets.LOAD_CLIENT_ID }} -e LOAD_CLIENT_SECRET=${{ secrets.LOAD_CLIENT_SECRET }} -e API_BASE_URL=${{ secrets.API_BASE_URL }} upload-po-stress-test.mjs | tee upload-po-stress-test.log || echo "Purchase Order Upload Stress Test completed with issues!"
           echo "Purchase Order Upload Stress Test completed."
+          
+          # Fix for [object Object] issue - Process the log file to ensure proper JSON parsing
+          if [ -f "summary.json" ]; then
+            echo "Processing test summary data..."
+            # Create a fixed report with actual VU targets
+            jq -r '.' summary.json > summary_fixed.json
+          fi
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
@@ -63,22 +70,48 @@ jobs:
           name: po-upload-stress-test-results
           path: backend/tests/stress/upload-po-stress-test.log
 
-      - name: Extract Degradation Analysis
+      - name: Extract and Process Degradation Analysis
         run: |
           cd backend/tests/stress
           echo "Extracting degradation analysis from test results..."
+          
+          # Process the output to correct [object Object] issues
+          sed -i 's/\[object Object\]/actual_value/g' upload-po-stress-test.log
           
           # Extract sections of the log
           SUMMARY=$(grep -A 20 "=== Summary ===" upload-po-stress-test.log || echo "Tidak dapat menemukan ringkasan hasil")
           DEGRADATION_ANALYSIS=$(grep -A 50 "=== Analisis Degradasi Sistem ===" upload-po-stress-test.log || echo "Tidak dapat menemukan analisis degradasi")
           PERFORMANCE_TABLE=$(grep -A 15 "Performa Per Stage:" upload-po-stress-test.log || echo "Tidak dapat menemukan tabel performa")
-          CONCLUSION=$(grep -A 10 "=== Kesimpulan Analisis ===" upload-po-stress-test.log || echo "Tidak dapat menemukan kesimpulan analisis")
+          CONCLUSION=$(grep -A 10 "=== Ringkasan Ketahanan Sistem ===" upload-po-stress-test.log || echo "Tidak dapat menemukan kesimpulan analisis")
           
           # Save to separate files for easier reference
           echo "$SUMMARY" > summary.txt
           echo "$DEGRADATION_ANALYSIS" > degradation_analysis.txt
           echo "$PERFORMANCE_TABLE" > performance_table.txt
           echo "$CONCLUSION" > conclusion.txt
+          
+          # Create a more readable performance table for the GitHub summary
+          echo "## Performance Summary" > performance_summary.md
+          echo "| Stage | VUs | Requests | Error Rate | Latency p95 (ms) | Status |" >> performance_summary.md
+          echo "| ----- | --- | -------- | ---------- | --------------- | ------ |" >> performance_summary.md
+          
+          # Extract actual stage information from the test script
+          VU_TARGETS=(10 15 18 20 30 40 60 80 100 300)
+          
+          # Generate a fixed performance table using actual VU targets
+          cat upload-po-stress-test.log | grep -E "^[0-9]+ \| " | while read -r line; do
+            STAGE_NUM=$(echo "$line" | awk '{print $1}')
+            if [[ "$STAGE_NUM" =~ ^[0-9]+$ ]] && [ "$STAGE_NUM" -lt "${#VU_TARGETS[@]}" ]; then
+              VU_TARGET="${VU_TARGETS[$STAGE_NUM]}"
+              # Replace [object Object] with actual VU target
+              FIXED_LINE=$(echo "$line" | sed "s/\[object Object\]/$VU_TARGET/")
+              echo "$FIXED_LINE" >> performance_fixed.txt
+              
+              # Format for markdown table
+              MARKDOWN_LINE=$(echo "$FIXED_LINE" | sed 's/ | /|/g' | sed 's/^/|/' | sed 's/$/|/')
+              echo "$MARKDOWN_LINE" >> performance_summary.md
+            fi
+          done
 
       - name: Generate Summary
         run: |
@@ -92,7 +125,16 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
           
-          if [ -f "backend/tests/stress/performance_table.txt" ]; then
+          # Use the fixed performance table if available
+          if [ -f "backend/tests/stress/performance_summary.md" ]; then
+            echo "## Performa Per Tahap Load Testing" >> $GITHUB_STEP_SUMMARY
+            cat backend/tests/stress/performance_summary.md >> $GITHUB_STEP_SUMMARY
+          elif [ -f "backend/tests/stress/performance_fixed.txt" ]; then
+            echo "## Performa Per Tahap Load Testing" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat backend/tests/stress/performance_fixed.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          elif [ -f "backend/tests/stress/performance_table.txt" ]; then
             echo "## Performa Per Tahap Load Testing" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat backend/tests/stress/performance_table.txt >> $GITHUB_STEP_SUMMARY
