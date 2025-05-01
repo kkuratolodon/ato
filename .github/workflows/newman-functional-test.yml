@@ -85,7 +85,7 @@ jobs:
             "id": "test-env",
             "name": "Test",
             "values": [
-              { "key": "base_url", "value": "http://localhost:3000", "enabled": true }
+              { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true }
             ]
           }' > functional_test_files/test-environment.json
       
