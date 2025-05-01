@@ -68,10 +68,37 @@ jobs:
           cd backend/tests/stress
           echo "Extracting degradation analysis from test results..."
           
-          # Count timeout errors first without modifying the file
+          # Check if the log file exists
+          if [ ! -f upload-po-stress-test.log ]; then
+            echo "ERROR: Test log file not found!"
+            exit 1
+          fi
+          
+          # Install bc for floating point calculations if needed
+          sudo apt-get install -y bc
+          
+          # Count timeout errors and failed requests more comprehensively
           TIMEOUT_COUNT=$(grep -c "Status 504" upload-po-stress-test.log || echo "0")
+          FAILED_COUNT=$(grep -c "Request gagal" upload-po-stress-test.log || echo "0")
+          SUCCESS_COUNT=$(grep -c "Request berhasil" upload-po-stress-test.log || echo "0")
+          
+          # Calculate total request count and error rate
+          TOTAL_COUNT=$((SUCCESS_COUNT + FAILED_COUNT))
+          
+          if [ "$TOTAL_COUNT" -gt 0 ]; then
+            ERROR_RATE=$(echo "scale=2; ($FAILED_COUNT + $TIMEOUT_COUNT) * 100 / $TOTAL_COUNT" | bc)
+          else
+            ERROR_RATE="0.00"
+          fi
+          
           echo "Total timeout errors (504): $TIMEOUT_COUNT"
+          echo "Total failed requests: $FAILED_COUNT"
+          echo "Total successful requests: $SUCCESS_COUNT" 
+          echo "Total requests: $TOTAL_COUNT"
+          echo "Error rate: ${ERROR_RATE}%"
+          
           echo "$TIMEOUT_COUNT" > timeout_count.txt
+          echo "$ERROR_RATE" > error_rate.txt
           
           # Extract sections of the log without sed replacements
           SUMMARY=$(grep -A 20 "=== Purchase Order Upload Stress Test Summary ===" upload-po-stress-test.log || echo "Tidak dapat menemukan ringkasan hasil")
@@ -86,13 +113,13 @@ jobs:
           echo "$CONCLUSION" > conclusion.txt
           
           # Create fallback table directly - bypass the complex sed command
-          echo "Creating performance summary directly from timeouts..."
+          echo "Creating performance summary directly from test data..."
           echo "## Performance Summary" > performance_summary.md
           echo "| Stage | VUs | Requests | Error Rate | Failed Requests (504) | Latency p95 (ms) | Status |" >> performance_summary.md
           echo "| ----- | --- | -------- | ---------- | -------------------- | --------------- | ------ |" >> performance_summary.md
           
-          # Define VU targets for each stage
-          VU_TARGETS=(10 15 18 20 30 40 60 80 100 300)
+          # Define VU targets for each stage - use bash array properly
+          declare -a VU_TARGETS=(10 15 18 20 30 40 60 80 100 300)
           
           # Create simple table directly from log data without complex regex
           for i in {0..9}; do
@@ -104,16 +131,16 @@ jobs:
             # Calculate total requests - ensure they're treated as integers
             TOTAL_REQUESTS=$((STAGE_REQUESTS + STAGE_FAILURES))
             
-            # Calculate error rate
+            # Calculate error rate including timeouts in the error count
             if [ "$TOTAL_REQUESTS" -gt 0 ]; then
-              # Use bc for floating point calculation
-              ERROR_RATE=$(echo "scale=2; $STAGE_FAILURES * 100 / $TOTAL_REQUESTS" | bc 2>/dev/null || echo "0.00")
+              # Use bc for floating point calculation - include timeouts in error rate
+              ERROR_RATE=$(echo "scale=2; ($STAGE_FAILURES + $STAGE_TIMEOUTS) * 100 / ($TOTAL_REQUESTS + $STAGE_TIMEOUTS)" | bc 2>/dev/null || echo "0.00")
               ERROR_RATE="${ERROR_RATE}%"
             else
               ERROR_RATE="0.00%"
             fi
             
-            # Determine status based on timeouts
+            # Determine status based on timeouts and error rate
             if [ "$STAGE_TIMEOUTS" -gt 0 ]; then
               STATUS="⚠️ Timeouts Detected"
             else
@@ -123,22 +150,33 @@ jobs:
             # Get latency from performance table if available
             LATENCY_P95=$(grep -E "^$i \|.*\|.*\|.*\|.*\|.*\|" performance_table.txt | awk -F'|' '{print $6}' | tr -d ' ' || echo "N/A")
             
-            # Create line for markdown table - Fix array reference syntax
-            echo "| $i | ${VU_TARGETS[$i]} | $TOTAL_REQUESTS | $ERROR_RATE | $STAGE_TIMEOUTS | $LATENCY_P95 | $STATUS |" >> performance_summary.md
+            # Create line for markdown table - use array reference with proper syntax
+            VU_TARGET="${VU_TARGETS[$i]}"
+            echo "| $i | $VU_TARGET | $TOTAL_REQUESTS | $ERROR_RATE | $STAGE_TIMEOUTS | $LATENCY_P95 | $STATUS |" >> performance_summary.md
             
             # Save raw data for debugging
             echo "Stage $i: Requests=$STAGE_REQUESTS, Failures=$STAGE_FAILURES, Timeouts=$STAGE_TIMEOUTS" >> raw_stats.txt
           done
+          
+          cat performance_summary.md
+          
+          echo "Analysis complete. Performance summary saved to performance_summary.md"
 
       - name: Generate Summary
         run: |
           echo "# Purchase Order Upload Stress Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Add total timeout count
+          # Add total timeout count and error rate
           if [ -f "backend/tests/stress/timeout_count.txt" ]; then
             TIMEOUT_COUNT=$(cat backend/tests/stress/timeout_count.txt)
             echo "## 🚨 Total Error (504 Timeout) Count: $TIMEOUT_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "backend/tests/stress/error_rate.txt" ]; then
+            ERROR_RATE=$(cat backend/tests/stress/error_rate.txt)
+            echo "## Overall Error Rate: ${ERROR_RATE}%" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           
