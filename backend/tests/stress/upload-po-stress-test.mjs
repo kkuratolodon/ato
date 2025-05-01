@@ -9,11 +9,21 @@ const errorRate = new Rate('error_rate');
 const latencyP95 = new Trend('latency_p95');
 const requests = new Counter('requests');
 
-// Metrik tambahan untuk melacak degradasi performa per tahap
+// Metrik tambahan untuk melacak degradasi performa per tahap - HARUS didefinisikan di level root
+// Buat metrik untuk setiap stage di init context, bukan di setup()
 const stageErrorRates = {};
 const stageLatencies = {};
 const stageRequests = {};
 const stageFailures = {};
+
+// Pre-inisialisasi metrik untuk semua stage yang mungkin
+for (let i = 0; i < 10; i++) {
+  stageErrorRates[i] = new Rate(`stage_${i}_error_rate`);
+  stageLatencies[i] = new Trend(`stage_${i}_latency`);
+  stageRequests[i] = new Counter(`stage_${i}_requests`);
+  stageFailures[i] = new Counter(`stage_${i}_failures`);
+}
+
 let currentStage = 0;
 let stageStartTime = 0;
 
@@ -40,16 +50,11 @@ export const options = {
   setupTimeout: '30s',
 };
 
-// Inisialisasi semua metrik per stage
+// Setup hanya untuk inisialisasi timestamp, bukan untuk membuat metrik baru
 export function setup() {
-  // Inisialisasi metrik untuk setiap tahap
-  options.stages.forEach((_, index) => {
-    stageErrorRates[index] = new Rate(`stage_${index}_error_rate`);
-    stageLatencies[index] = new Trend(`stage_${index}_latency`);
-    stageRequests[index] = new Counter(`stage_${index}_requests`);
-    stageFailures[index] = new Counter(`stage_${index}_failures`);
-  });
+  // Hanya set waktu mulai, tidak mendefinisikan metrik baru
   stageStartTime = Date.now();
+  console.log('Test setup complete. Starting test execution.');
   return {};
 }
 
@@ -173,100 +178,146 @@ export default function () {
   sleep(0.5);
 }
 
-// Ringkasan kustom di akhir test
+// Ringkasan kustom di akhir test dengan penanganan error yang lebih baik
 export function handleSummary(data) {
-  const errRate = data.metrics.error_rate.rate ?? 0;
-  const errPercent = (errRate * 100).toFixed(2);
-
-  console.log(`\n=== Summary ===`);
-  console.log(`📊 Error rate akhir: ${errPercent}%`);
-
-  if (errRate > 0.6) {
-    console.log(`⚠️  Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.`);
-  } else {
-    console.log(`✅ Error rate masih dalam batas yang dapat diterima.`);
-  }
-
-  // Menampilkan metrik penting lainnya
-  console.log(`\nLatency (p95): ${data.metrics.latency_p95?.values?.p(95)?.toFixed(2) ?? 'N/A'} ms`);
-  console.log(`Total Requests: ${data.metrics.requests?.values?.count ?? 'N/A'}`);
-  console.log(`Total Virtual Users: ${data.metrics.vus?.values?.max ?? 'N/A'}`);
-  
-  // Analisis degradasi sistem
-  console.log(`\n=== Analisis Degradasi Sistem ===`);
-  
-  let degradationPoint = null;
-  let crashPoint = null;
-  let isGradualDegradation = false;
-  let previousErrorRate = 0;
-  let previousLatency = 0;
-  const degradationThreshold = 0.1; // 10% error rate sebagai threshold degradasi awal
-  const latencyDegradationThreshold = 1000; // 1000ms sebagai threshold peningkatan latency signifikan
-  const crashThreshold = 0.5; // 50% error rate sebagai threshold crash
-  
-  console.log(`\nPerforma Per Stage:`);
-  console.log(`Stage | VUs Target | Requests | Error Rate | Latency p95 (ms) | Status`);
-  console.log(`----- | ---------- | -------- | ---------- | --------------- | ------`);
-  
-  options.stages.forEach((stage, index) => {
-    const stageErrorRate = data.metrics[`stage_${index}_error_rate`]?.rate ?? 0;
-    const stageErrorPercent = (stageErrorRate * 100).toFixed(2);
-    const stageLatencyP95 = data.metrics[`stage_${index}_latency`]?.values?.p(95)?.toFixed(2) ?? 'N/A';
-    const stageRequestCount = data.metrics[`stage_${index}_requests`]?.values?.count ?? 0;
+  try {
+    let report = "\n=== Summary ===\n";
     
-    let stageStatus = "Normal";
+    // Mendapatkan error rate dengan safe access
+    const errRate = data?.metrics?.error_rate?.rate ?? 0;
+    const errPercent = (errRate * 100).toFixed(2);
     
-    // Deteksi titik degradasi
-    if (!degradationPoint && stageErrorRate >= degradationThreshold) {
-      degradationPoint = index;
-      stageStatus = "⚠️ Awal Degradasi";
+    report += `📊 Error rate akhir: ${errPercent}%\n`;
+
+    if (errRate > 0.6) {
+      report += `⚠️ Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.\n`;
+    } else {
+      report += `✅ Error rate masih dalam batas yang dapat diterima.\n`;
+    }
+
+    // Mendapatkan latency dengan safe access
+    let latencyP95Value = 'N/A';
+    try {
+      if (data?.metrics?.latency_p95?.values) {
+        const p95Value = data.metrics.latency_p95.values['p(95)'];
+        latencyP95Value = p95Value !== undefined ? p95Value.toFixed(2) : 'N/A';
+      }
+    } catch (e) {
+      console.log('Warning: Tidak dapat mengakses latency p95:', e.message);
     }
     
-    // Deteksi apakah degradasi bertahap dengan melihat peningkatan error rate
-    if (index > 0 && !isGradualDegradation && !crashPoint) {
-      const errorRateIncrease = stageErrorRate - previousErrorRate;
-      const latencyIncrease = stageLatencyP95 - previousLatency;
+    const requestCount = data?.metrics?.requests?.values?.count ?? 0;
+    const maxVUs = data?.metrics?.vus?.values?.max ?? 0;
+    
+    report += `\nLatency (p95): ${latencyP95Value} ms\n`;
+    report += `Total Requests: ${requestCount}\n`;
+    report += `Total Virtual Users: ${maxVUs}\n`;
+    
+    // Analisis degradasi sistem
+    report += `\n=== Analisis Degradasi Sistem ===\n`;
+    
+    let degradationPoint = null;
+    let crashPoint = null;
+    let isGradualDegradation = false;
+    let previousErrorRate = 0;
+    let previousLatency = 0;
+    const degradationThreshold = 0.1; // 10% error rate sebagai threshold degradasi awal
+    const latencyDegradationThreshold = 1000; // 1000ms sebagai threshold peningkatan latency signifikan
+    const crashThreshold = 0.5; // 50% error rate sebagai threshold crash
+    
+    report += `\nPerforma Per Stage:\n`;
+    report += `Stage | VUs Target | Requests | Error Rate | Latency p95 (ms) | Status\n`;
+    report += `----- | ---------- | -------- | ---------- | --------------- | ------\n`;
+    
+    for (let i = 0; i < options.stages.length; i++) {
+      const stage = options.stages[i];
       
-      if (errorRateIncrease > 0 && errorRateIncrease < 0.2) {
-        isGradualDegradation = true;
-        stageStatus = "🔽 Degradasi Bertahap";
+      // Safe access ke nilai metrik
+      let stageErrorRate = 0;
+      let stageLatencyP95 = 'N/A';
+      let stageRequestCount = 0;
+      
+      try {
+        const stageErrorRateMetric = data?.metrics?.[`stage_${i}_error_rate`];
+        stageErrorRate = stageErrorRateMetric?.rate ?? 0;
+        
+        const stageLatencyMetric = data?.metrics?.[`stage_${i}_latency`];
+        if (stageLatencyMetric?.values && stageLatencyMetric.values['p(95)'] !== undefined) {
+          stageLatencyP95 = stageLatencyMetric.values['p(95)'].toFixed(2);
+        }
+        
+        const stageRequestMetric = data?.metrics?.[`stage_${i}_requests`];
+        stageRequestCount = stageRequestMetric?.values?.count ?? 0;
+      } catch (e) {
+        console.log(`Warning: Tidak dapat mengakses metrik stage ${i}:`, e.message);
       }
       
-      // Deteksi titik crash (lonjakan error rate yang signifikan)
-      if (stageErrorRate >= crashThreshold && !crashPoint) {
-        crashPoint = index;
-        stageStatus = "💥 Crash Point";
+      const stageErrorPercent = (stageErrorRate * 100).toFixed(2);
+      
+      let stageStatus = "Normal";
+      
+      // Deteksi titik degradasi
+      if (!degradationPoint && stageErrorRate >= degradationThreshold) {
+        degradationPoint = i;
+        stageStatus = "⚠️ Awal Degradasi";
       }
       
-      // Jika latency meningkat secara signifikan tanpa error rate tinggi, itu juga degradasi
-      if (latencyIncrease > latencyDegradationThreshold && stageStatus === "Normal") {
-        stageStatus = "⏱️ Degradasi Latency";
-        if (!degradationPoint) degradationPoint = index;
+      // Deteksi apakah degradasi bertahap dengan melihat peningkatan error rate
+      if (i > 0 && !isGradualDegradation && !crashPoint) {
+        const errorRateIncrease = stageErrorRate - previousErrorRate;
+        let latencyIncrease = 0;
+        
+        if (previousLatency !== 'N/A' && stageLatencyP95 !== 'N/A') {
+          latencyIncrease = parseFloat(stageLatencyP95) - parseFloat(previousLatency);
+        }
+        
+        if (errorRateIncrease > 0 && errorRateIncrease < 0.2) {
+          isGradualDegradation = true;
+          stageStatus = "🔽 Degradasi Bertahap";
+        }
+        
+        // Deteksi titik crash (lonjakan error rate yang signifikan)
+        if (stageErrorRate >= crashThreshold && !crashPoint) {
+          crashPoint = i;
+          stageStatus = "💥 Crash Point";
+        }
+        
+        // Jika latency meningkat secara signifikan tanpa error rate tinggi, itu juga degradasi
+        if (latencyIncrease > latencyDegradationThreshold && stageStatus === "Normal") {
+          stageStatus = "⏱️ Degradasi Latency";
+          if (!degradationPoint) degradationPoint = i;
+        }
       }
+      
+      report += `${i} | ${stage.target} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageLatencyP95} | ${stageStatus}\n`;
+      
+      previousErrorRate = stageErrorRate;
+      previousLatency = stageLatencyP95;
     }
     
-    console.log(`${index} | ${stage.target} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageLatencyP95} | ${stageStatus}`);
+    // Kesimpulan analisis
+    report += `\n=== Kesimpulan Analisis ===\n`;
     
-    previousErrorRate = stageErrorRate;
-    previousLatency = stageLatencyP95;
-  });
-  
-  // Kesimpulan analisis
-  console.log(`\n=== Kesimpulan Analisis ===`);
-  
-  if (degradationPoint !== null) {
-    console.log(`🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${options.stages[degradationPoint].target} VUs`);
-  } else {
-    console.log(`✅ Sistem tidak menunjukkan tanda-tanda degradasi yang signifikan selama pengujian`);
-  }
-  
-  if (crashPoint !== null) {
-    console.log(`💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${options.stages[crashPoint].target} VUs`);
-  }
-  
-  console.log(`🔄 Pola Degradasi: ${isGradualDegradation ? "Bertahap (gradual degradation)" : crashPoint !== null ? "Mendadak (crash)" : "Tidak terdeteksi"}`);
-  
-  console.log(`=== End of Summary ===`);
+    if (degradationPoint !== null) {
+      report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${options.stages[degradationPoint].target} VUs\n`;
+    } else {
+      report += `✅ Sistem tidak menunjukkan tanda-tanda degradasi yang signifikan selama pengujian\n`;
+    }
+    
+    if (crashPoint !== null) {
+      report += `💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${options.stages[crashPoint].target} VUs\n`;
+    }
+    
+    report += `🔄 Pola Degradasi: ${isGradualDegradation ? "Bertahap (gradual degradation)" : crashPoint !== null ? "Mendadak (crash)" : "Tidak terdeteksi"}\n`;
+    
+    report += `=== End of Summary ===\n`;
 
-  return {};
+    // Print report ke console
+    console.log(report);
+    
+    return {};
+  } catch (e) {
+    console.error('Error dalam handleSummary:', e);
+    return {};
+  }
 }
