@@ -63,16 +63,64 @@ jobs:
           name: po-upload-stress-test-results
           path: backend/tests/stress/upload-po-stress-test.log
 
+      - name: Extract Degradation Analysis
+        run: |
+          cd backend/tests/stress
+          echo "Extracting degradation analysis from test results..."
+          
+          # Extract sections of the log
+          SUMMARY=$(grep -A 20 "=== Summary ===" upload-po-stress-test.log || echo "Tidak dapat menemukan ringkasan hasil")
+          DEGRADATION_ANALYSIS=$(grep -A 50 "=== Analisis Degradasi Sistem ===" upload-po-stress-test.log || echo "Tidak dapat menemukan analisis degradasi")
+          PERFORMANCE_TABLE=$(grep -A 15 "Performa Per Stage:" upload-po-stress-test.log || echo "Tidak dapat menemukan tabel performa")
+          CONCLUSION=$(grep -A 10 "=== Kesimpulan Analisis ===" upload-po-stress-test.log || echo "Tidak dapat menemukan kesimpulan analisis")
+          
+          # Save to separate files for easier reference
+          echo "$SUMMARY" > summary.txt
+          echo "$DEGRADATION_ANALYSIS" > degradation_analysis.txt
+          echo "$PERFORMANCE_TABLE" > performance_table.txt
+          echo "$CONCLUSION" > conclusion.txt
+
       - name: Generate Summary
         run: |
           echo "# Purchase Order Upload Stress Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ -f "backend/tests/stress/upload-po-stress-test.log" ]; then
-            echo "## Purchase Order Upload Stress Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f "backend/tests/stress/summary.txt" ]; then
+            echo "## Ringkasan Hasil Test" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -A 10 "Summary" backend/tests/stress/upload-po-stress-test.log >> $GITHUB_STEP_SUMMARY || echo "Tidak dapat menemukan ringkasan hasil di log" >> $GITHUB_STEP_SUMMARY
+            cat backend/tests/stress/summary.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "backend/tests/stress/performance_table.txt" ]; then
+            echo "## Performa Per Tahap Load Testing" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat backend/tests/stress/performance_table.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "backend/tests/stress/conclusion.txt" ]; then
+            echo "## Analisis Titik Degradasi Sistem" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat backend/tests/stress/conclusion.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            
+            # Extract specific information about degradation point and crash point for better visibility
+            DEGRADATION_POINT=$(grep -E "Sistem mulai menunjukkan tanda-tanda degradasi" backend/tests/stress/conclusion.txt || echo "Tidak terdeteksi titik degradasi")
+            CRASH_POINT=$(grep -E "Sistem mengalami crash/kegagalan signifikan" backend/tests/stress/conclusion.txt || echo "")
+            DEGRADATION_PATTERN=$(grep -E "Pola Degradasi:" backend/tests/stress/conclusion.txt || echo "Tidak terdeteksi pola degradasi")
+            
+            echo "## Ringkasan Ketahanan Sistem" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔍 **Titik Degradasi:** ${DEGRADATION_POINT#*🔍 }" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "$CRASH_POINT" ]; then
+              echo "💥 **Titik Crash:** ${CRASH_POINT#*💥 }" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **Tidak terdeteksi crash system selama pengujian**" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "🔄 **${DEGRADATION_PATTERN#*🔄 }**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ File log tidak ditemukan" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ File log tidak ditemukan atau analisis tidak dapat diekstrak" >> $GITHUB_STEP_SUMMARY
           fi
