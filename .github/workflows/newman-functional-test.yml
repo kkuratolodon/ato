@@ -81,12 +81,12 @@ jobs:
       
       - name: Create test environment file
         run: |
-          echo '{ \
-            "id": "test-env", \
-            "name": "Test", \
-            "values": [ \
-              { "key": "base_url", "value": "http://localhost:3000", "enabled": true } \
-            ] \
+          echo '{
+            "id": "test-env",
+            "name": "Test",
+            "values": [
+              { "key": "base_url", "value": "http://localhost:3000", "enabled": true }
+            ]
           }' > functional_test_files/test-environment.json
       
       - name: Run Functional Tests with htmlextra
