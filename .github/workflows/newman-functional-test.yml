@@ -36,7 +36,7 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm install
+        run: npm install && sudo apt-get update && sudo apt-get install -y qpdf
 
       - name: Run DB mirgrations
         working-directory: backend
@@ -86,8 +86,8 @@ jobs:
             "name": "Test",
             "values": [
               { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true }, 
-              { "key": "client_id", "value": "dummy_id", "enabled": true }, 
-              { "key": "client_secret", "value": "dummy_secret", "enabled": true }
+              { "key": "client_id", "value": "id_dummy", "enabled": true }, 
+              { "key": "client_secret", "value": "secret_dummy", "enabled": true }
             ]
           }' > functional_test_files/test-environment.json
       
