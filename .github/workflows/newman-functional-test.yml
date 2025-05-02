@@ -1,6 +1,26 @@
 name: Functional Tests
 
-on: workflow_dispatch
+on: 
+  workflow_dispatch: 
+    inputs:
+      test_type:
+        description: "Test type to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - upload
+          - get-by-id
+      load_pattern:
+        description: "Load pattern"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - both
+          - fixed
+          - ramping
 
 jobs:
   test:
