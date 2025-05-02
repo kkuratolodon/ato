@@ -50,7 +50,7 @@ jobs:
       
       - name: Seed DB with dummy data
         working-directory: backend
-        run: npx sequelize-cli db:seed:all --env test
+        run: npx sequelize-cli db:seed:all --seeders-path src/database/seeders/test --env test
         env:
           DB_HOST: localhost
           DB_PORT: 3306
