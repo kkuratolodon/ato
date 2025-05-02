@@ -85,7 +85,9 @@ jobs:
             "id": "test-env",
             "name": "Test",
             "values": [
-              { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true }
+              { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true }, 
+              { "key": "client_id", "value": "dummy_id", "enabled": true }, 
+              { "key": "client_secret", "value": "dummy_secret", "enabled": true }
             ]
           }' > functional_test_files/test-environment.json
       
@@ -103,5 +105,3 @@ jobs:
         with:
           name: functional-test-report
           path: functional_test_files/reports/functional-test-report.html
-      # - name: Run tests with Newman
-      #   run: npm run test:functional
