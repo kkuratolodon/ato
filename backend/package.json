@@ -22,6 +22,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "module-alias": "^2.2.3",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.12.0",
     "rxjs": "^7.8.2",
@@ -62,7 +63,7 @@
       "!src/database/**",
       "!src/models/index.js"
     ],
-    "testEnvironment": "node", 
+    "testEnvironment": "node",
     "rootDir": ".",
     "moduleNameMapper": {
       "^@models/(.*)$": "<rootDir>/src/models/$1",
@@ -70,7 +71,7 @@
       "^@utils/(.*)$": "<rootDir>/src/utils/$1",
       "^@controllers/(.*)$": "<rootDir>/src/controllers/$1",
       "^@repositories/(.*)$": "<rootDir>/src/repositories/$1",
-      "^@middlewares/(.*)$": "<rootDir>/src/middlewares/$1", 
+      "^@middlewares/(.*)$": "<rootDir>/src/middlewares/$1",
       "^@instrument$": "<rootDir>/src/instrument.js"
     },
     "moduleDirectories": [
