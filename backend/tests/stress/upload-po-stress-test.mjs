@@ -230,32 +230,34 @@ export default function () {
     'status is 200': (r) => r.status === 200,
   });
 
+  // 504 adalah timeout - harus dihitung sebagai error
   const isTimeout = res.status === 504;
   
   // PERBAIKAN: Selalu menganggap timeout sebagai kegagalan untuk error rate
-  const isError = !success || isTimeout;
-  
   if (isTimeout) {
     // Tambahkan penghitung khusus untuk timeout
     timeoutErrors.add(1);
     stageTimeoutErrors[currentStage].add(1);
     
-    // PERBAIKAN: Log timeout sebagai kegagalan untuk debugging
+    // Tandai sebagai error untuk metrik error rate
+    errorRate.add(true);
+    stageErrorRates[currentStage].add(true);
+    stageFailures[currentStage].add(1);
+    
+    // Log timeout sebagai kegagalan untuk debugging
     console.log(`Timeout detected (504): Stage: ${currentStage}, VUs: ${options.stages[currentStage].target}`);
+  } else {
+    // Untuk response non-timeout, gunakan hasil check
+    errorRate.add(!success);
+    stageErrorRates[currentStage].add(!success);
+    if (!success) stageFailures[currentStage].add(1);
   }
 
-  // PERBAIKAN: Catat metrik global - isError digunakan sebagai penanda kegagalan
-  errorRate.add(isError);  // Timeout dihitung sebagai error untuk errorRate
+  // Catat metrik lain
   latencyP95.add(duration);
   requests.add(1);
-  
-  // PERBAIKAN: Catat metrik per tahap - timeout dihitung sebagai error
-  stageErrorRates[currentStage].add(isError);
   stageLatencies[currentStage].add(duration);
   stageRequests[currentStage].add(1);
-  
-  // Catat kegagalan terlepas dari jenisnya
-  if (isError) stageFailures[currentStage].add(1);
 
   // Logging yang lebih informatif
   if (res.status !== 200) {
@@ -276,24 +278,18 @@ export function handleSummary(data) {
   try {
     let report = "\n=== Purchase Order Upload Stress Test Summary ===\n";
     
-    // PERBAIKAN: Mendapatkan error rate dan timeouts untuk perhitungan error rate yang tepat
+    // PERBAIKAN: Ambil metric error rate dan timeout count
     const errRate = data?.metrics?.error_rate?.rate ?? 0;
     const timeoutCount = data?.metrics?.timeout_errors?.values?.count ?? 0;
     const requestCount = data?.metrics?.requests?.values?.count ?? 0;
     
-    // PERBAIKAN: Menghitung error rate dengan memasukkan timeout sebagai error
-    // Jika timeout tidak dihitung dalam error_rate asli, kita hitung ulang
-    let adjustedErrorRate = errRate;
-    if (timeoutCount > 0 && requestCount > 0) {
-      adjustedErrorRate = timeoutCount / requestCount;
-    }
+    // Hitung persentase timeout dari total request
+    const timeoutPercent = (timeoutCount / requestCount * 100).toFixed(2);
     
-    const errPercent = (adjustedErrorRate * 100).toFixed(2);
-    
-    report += `📊 Error rate akhir (termasuk timeouts): ${errPercent}%\n`;
+    report += `📊 Error rate akhir (termasuk timeouts): ${(errRate * 100).toFixed(2)}%\n`;
     report += `⏱️ Jumlah timeout: ${timeoutCount}\n`;
 
-    if (adjustedErrorRate > 0.6) {
+    if (errRate > 0.6) {
       report += `⚠️ Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.\n`;
     } else {
       report += `✅ Error rate masih dalam batas yang dapat diterima.\n`;
@@ -338,6 +334,7 @@ export function handleSummary(data) {
       let stageTimeoutCount = 0;
       let stageRequestCount = 0;
       let stageLatencyP95 = 'N/A';
+      let stageErrorRateValue = 0;
       
       try {
         const stageTimeoutMetric = data?.metrics?.[`stage_${i}_timeout_errors`];
@@ -350,22 +347,25 @@ export function handleSummary(data) {
         if (stageLatencyMetric?.values && stageLatencyMetric.values['p(95)'] !== undefined) {
           stageLatencyP95 = stageLatencyMetric.values['p(95)'].toFixed(2);
         }
+        
+        // PERBAIKAN: Ambil nilai error rate langsung dari metrik
+        const stageErrorRateMetric = data?.metrics?.[`stage_${i}_error_rate`];
+        if (stageErrorRateMetric) {
+          stageErrorRateValue = stageErrorRateMetric.rate;
+        }
       } catch (e) {
         console.log(`Warning: Tidak dapat mengakses metrik stage ${i}:`, e.message);
       }
       
-      // Hitung error rate per stage dari timeout dan request
-      let stageErrorPercent = "0.00";
-      if (stageRequestCount > 0 && stageTimeoutCount > 0) {
-        const stageErrorRate = stageTimeoutCount / stageRequestCount;
-        stageErrorPercent = (stageErrorRate * 100).toFixed(2);
-      }
+      // Format error rate sebagai persentase
+      const stageErrorPercent = (stageErrorRateValue * 100).toFixed(2);
       
       stageData.push({
         stage: i,
         vuTarget: vuTargets[i],
         requests: stageRequestCount,
         errorRate: stageErrorPercent,
+        errorRateValue: stageErrorRateValue,
         timeouts: stageTimeoutCount,
         latency: stageLatencyP95
       });
@@ -377,31 +377,16 @@ export function handleSummary(data) {
       let stageStatus = "Normal";
       
       // Jika ada timeout atau error signifikan, tandai sebagai degradasi
-      const stageErrorRateValue = parseFloat(stage.errorRate);
-      
-      if (stage.timeouts > 0) {
+      if (stage.timeouts > 0 || parseFloat(stage.errorRate) > 0) {
         // Jika belum ada titik degradasi, set ini sebagai titik degradasi
         if (degradationPoint === null) {
           degradationPoint = i;
           stageStatus = "⚠️ Awal Degradasi";
         }
         // Jika error rate sangat tinggi, tandai sebagai crash point
-        if (stageErrorRateValue >= 50.0 && crashPoint === null) {
+        if (stage.errorRateValue >= 0.5 && crashPoint === null) {
           crashPoint = i;
           stageStatus = "💥 Crash Point";
-        }
-      }
-      
-      // Jika ada peningkatan latency signifikan, tandai sebagai degradasi latency
-      if (i > 0) {
-        const prevLatency = parseFloat(stageData[i-1].latency) || 0;
-        const currentLatency = parseFloat(stage.latency) || 0;
-        
-        if (!isNaN(prevLatency) && !isNaN(currentLatency) && 
-            currentLatency - prevLatency > 1000 &&
-            stageStatus === "Normal") {
-          if (degradationPoint === null) degradationPoint = i;
-          stageStatus = "⏱️ Degradasi Latency";
         }
       }
       
@@ -412,7 +397,15 @@ export function handleSummary(data) {
     // Kesimpulan analisis - lebih akurat berdasarkan data aktual
     report += `\n=== Ringkasan Ketahanan Sistem ===\n`;
     
-    // PERBAIKAN: Jangan melaporkan crash point jika tidak ada data yang mendukung
+    // Hanya laporkan degradasi jika benar-benar terjadi
+    if (degradationPoint !== null) {
+      const degradationStage = stageData[degradationPoint];
+      report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${degradationStage.vuTarget} VUs\n`;
+    } else {
+      report += `✅ Sistem tidak menunjukkan tanda-tanda degradasi yang signifikan selama pengujian\n`;
+    }
+    
+    // Hanya laporkan crash point jika benar-benar terjadi
     if (crashPoint !== null) {
       const crashStage = stageData[crashPoint];
       report += `💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${crashStage.vuTarget} VUs\n`;
@@ -420,24 +413,15 @@ export function handleSummary(data) {
       report += `✅ Tidak terdeteksi crash system selama pengujian\n`;
     }
     
-    // PERBAIKAN: Hanya laporkan degradasi jika benar-benar terjadi
-    if (degradationPoint !== null) {
-      const degradationStage = stageData[degradationPoint];
-      report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${degradationStage.vuTarget} VUs\n`;
-      
-      // Tentukan pola degradasi
-      const degradationPattern = isGradualDegradation ? 
-        "Bertahap (gradual degradation)" : 
-        (timeoutCount > 0 ? "Timeout (response delay)" : "Tidak terdeteksi pola degradasi yang jelas");
-      
-      report += `🔄 Pola Degradasi: ${degradationPattern}\n`;
-    } else {
-      report += `✅ Sistem tidak menunjukkan tanda-tanda degradasi yang signifikan selama pengujian\n`;
-    }
+    // Tentukan pola degradasi
+    const degradationPattern = isGradualDegradation ? 
+      "Bertahap (gradual degradation)" : 
+      (timeoutCount > 0 ? "Timeout (response delay)" : "Tidak terdeteksi pola degradasi yang jelas");
+    
+    report += `🔄 Pola Degradasi: ${degradationPattern}\n`;
     
     // PERBAIKAN: Hitung dan tampilkan persentase timeout yang akurat
     if (timeoutCount > 0 && requestCount > 0) {
-      const timeoutPercent = ((timeoutCount / requestCount) * 100).toFixed(2);
       report += `\n⏱️ Persentase request yang timeout: ${timeoutPercent}% (${timeoutCount} dari ${requestCount})\n`;
     }
     
@@ -449,9 +433,9 @@ export function handleSummary(data) {
       'stdout': report,  // Menampilkan ke konsol standar
       './stress-test-summary.txt': report,  // Menyimpan ke file teks
       './summary.json': JSON.stringify({
-        errorRate: adjustedErrorRate,
-        errorRatePercent: errPercent,
-        timeoutPercentage: timeoutCount > 0 ? (timeoutCount / requestCount) * 100 : 0,
+        errorRate: errRate,
+        errorRatePercent: (errRate * 100).toFixed(2),
+        timeoutPercentage: parseFloat(timeoutPercent),
         latencyP95: latencyP95Value,
         totalRequests: requestCount,
         timeoutErrors: timeoutCount,
@@ -460,7 +444,7 @@ export function handleSummary(data) {
         hasCrash: crashPoint !== null,
         degradationAtStage: degradationPoint,
         crashAtStage: crashPoint,
-        degradationPattern: isGradualDegradation ? "gradual" : crashPoint !== null ? "sudden" : "timeout",
+        degradationPattern: isGradualDegradation ? "gradual" : timeoutCount > 0 ? "timeout" : "none",
         stageData: stageData
       }, null, 2)  // Menyimpan ringkasan dalam format JSON
     };
