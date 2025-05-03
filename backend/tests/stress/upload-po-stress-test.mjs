@@ -322,11 +322,6 @@ export function handleSummary(data) {
     let degradationPoint = null;
     let crashPoint = null;
     let isGradualDegradation = false;
-    let previousErrorRate = 0;
-    let previousLatency = 0;
-    const degradationThreshold = 0.1; // 10% error rate sebagai threshold degradasi awal
-    const latencyDegradationThreshold = 1000; // 1000ms sebagai threshold peningkatan latency signifikan
-    const crashThreshold = 0.5; // 50% error rate sebagai threshold crash
     
     report += `\nPerforma Per Tahap Load Testing:\n`;
     report += `Stage | VUs Target | Requests | Error Rate | Timeouts | Latency p95 (ms) | Status\n`;
@@ -391,7 +386,7 @@ export function handleSummary(data) {
           stageStatus = "⚠️ Awal Degradasi";
         }
         // Jika error rate sangat tinggi, tandai sebagai crash point
-        if (stageErrorRateValue >= crashThreshold && crashPoint === null) {
+        if (stageErrorRateValue >= 50.0 && crashPoint === null) {
           crashPoint = i;
           stageStatus = "💥 Crash Point";
         }
@@ -403,7 +398,7 @@ export function handleSummary(data) {
         const currentLatency = parseFloat(stage.latency) || 0;
         
         if (!isNaN(prevLatency) && !isNaN(currentLatency) && 
-            currentLatency - prevLatency > latencyDegradationThreshold &&
+            currentLatency - prevLatency > 1000 &&
             stageStatus === "Normal") {
           if (degradationPoint === null) degradationPoint = i;
           stageStatus = "⏱️ Degradasi Latency";
