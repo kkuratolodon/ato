@@ -39,12 +39,13 @@ export const options = {
     { duration: '30s', target: 15},  // Tahap peningkatan beban 1
     { duration: '30s', target: 18},  // Tahap peningkatan beban 2
     { duration: '30s', target: 20},  // Tahap peningkatan beban 3
-    { duration: '30s', target: 30},  // Load medium
-    { duration: '1m', target: 40 },  // Menuju beban tingkat tinggi
-    { duration: '1m', target: 60 },  // Beban tingkat tinggi
-    { duration: '1m', target: 80 },  // Beban sangat tinggi
-    { duration: '1m', target: 100 }, // Beban ekstrem
-    { duration: '1m', target: 300 }, // Beban sangat ekstrem
+    { duration: '30s', target: 50},  // Load medium
+    { duration: '1m', target: 80 },   // Load tinggi
+    { duration: '1m', target: 100 },  // Load sangat tinggi
+    { duration: '1m', target: 150 },  // Load ekstrem
+    { duration: '1m', target: 200 },  // Load sangat ekstrem
+    { duration: '1m', target: 250 },  // Beban ekstrem
+    { duration: '1m', target: 300 },  // Beban sangat ekstrem
   ],
   thresholds: {
     error_rate: ['rate<0.6'], // gagal jika error rate > 60%

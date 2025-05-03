@@ -194,16 +194,7 @@ jobs:
               fi
             fi
             
-            echo "## 🚨 Total Error (504 Timeout) Count: $TIMEOUT_COUNT" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
             echo "## Overall Error Rate: ${ERROR_RATE}%" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Use performance_summary.md directly if available
-          if [ -f "backend/tests/stress/performance_summary.md" ]; then
-            echo "## Performa Per Tahap Load Testing" >> $GITHUB_STEP_SUMMARY
-            cat backend/tests/stress/performance_summary.md | grep -v "^## Performance Summary" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           
