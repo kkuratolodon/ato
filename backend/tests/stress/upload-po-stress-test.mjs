@@ -278,18 +278,19 @@ export function handleSummary(data) {
   try {
     let report = "\n=== Purchase Order Upload Stress Test Summary ===\n";
     
-    // PERBAIKAN: Ambil metric error rate dan timeout count
-    const errRate = data?.metrics?.error_rate?.rate ?? 0;
+    // PERBAIKAN: Ambil metrics timeout dan total requests
     const timeoutCount = data?.metrics?.timeout_errors?.values?.count ?? 0;
     const requestCount = data?.metrics?.requests?.values?.count ?? 0;
     
-    // Hitung persentase timeout dari total request
+    // PERBAIKAN: Hitung error rate berdasarkan timeout sebagai satu-satunya sumber error
     const timeoutPercent = requestCount > 0 ? (timeoutCount / requestCount * 100).toFixed(2) : "0.00";
+    const errorRateValue = parseFloat(timeoutPercent) / 100;
     
-    report += `📊 Error rate akhir (termasuk timeouts): ${(errRate * 100).toFixed(2)}%\n`;
+    // Menggunakan timeout percentage sebagai error rate
+    report += `📊 Error rate akhir (termasuk timeouts): ${timeoutPercent}%\n`;
     report += `⏱️ Jumlah timeout: ${timeoutCount}\n`;
 
-    if (errRate > 0.6) {
+    if (errorRateValue > 0.6) {
       report += `⚠️ Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.\n`;
     } else {
       report += `✅ Error rate masih dalam batas yang dapat diterima.\n`;
@@ -334,7 +335,6 @@ export function handleSummary(data) {
       let stageTimeoutCount = 0;
       let stageRequestCount = 0;
       let stageLatencyP95 = 'N/A';
-      let stageErrorRateValue = 0;
       
       try {
         const stageTimeoutMetric = data?.metrics?.[`stage_${i}_timeout_errors`];
@@ -347,20 +347,14 @@ export function handleSummary(data) {
         if (stageLatencyMetric?.values && stageLatencyMetric.values['p(95)'] !== undefined) {
           stageLatencyP95 = stageLatencyMetric.values['p(95)'].toFixed(2);
         }
-        
-        // PERBAIKAN: Ambil nilai error rate langsung dari metrik
-        const stageErrorRateMetric = data?.metrics?.[`stage_${i}_error_rate`];
-        if (stageErrorRateMetric) {
-          stageErrorRateValue = stageErrorRateMetric.rate;
-        }
       } catch (e) {
         console.log(`Warning: Tidak dapat mengakses metrik stage ${i}:`, e.message);
       }
       
-      // PERBAIKAN: Format error rate sebagai persentase, dengan penanganan khusus untuk NaN
+      // PERBAIKAN: Hitung error rate per stage berdasarkan timeout sebagai error
       let stageErrorPercent = '0.00';
-      if (!isNaN(stageErrorRateValue) && stageErrorRateValue !== null && stageErrorRateValue !== undefined) {
-        stageErrorPercent = (stageErrorRateValue * 100).toFixed(2);
+      if (stageRequestCount > 0 && stageTimeoutCount > 0) {
+        stageErrorPercent = ((stageTimeoutCount / stageRequestCount) * 100).toFixed(2);
       }
       
       stageData.push({
@@ -368,7 +362,7 @@ export function handleSummary(data) {
         vuTarget: vuTargets[i],
         requests: stageRequestCount,
         errorRate: stageErrorPercent,
-        errorRateValue: stageErrorRateValue,
+        errorRateValue: parseFloat(stageErrorPercent) / 100,
         timeouts: stageTimeoutCount,
         latency: stageLatencyP95
       });
@@ -379,30 +373,21 @@ export function handleSummary(data) {
       const stage = stageData[i];
       let stageStatus = "Normal";
       
-      // PERBAIKAN: Parse error rate dengan penanganan khusus untuk NaN/undefined
-      let errorRateValue = 0;
-      try {
-        errorRateValue = parseFloat(stage.errorRate);
-        if (isNaN(errorRateValue)) errorRateValue = 0;
-      } catch (e) {
-        errorRateValue = 0;
-      }
-      
-      // Jika ada timeout atau error signifikan, tandai sebagai degradasi
-      if (stage.timeouts > 0 || errorRateValue > 0) {
+      // Jika ada timeout, tandai sebagai degradasi
+      if (stage.timeouts > 0) {
         // Jika belum ada titik degradasi, set ini sebagai titik degradasi
         if (degradationPoint === null) {
           degradationPoint = i;
           stageStatus = "⚠️ Awal Degradasi";
         }
         // Jika error rate sangat tinggi, tandai sebagai crash point
-        if ((!isNaN(stage.errorRateValue) && stage.errorRateValue >= 0.5) && crashPoint === null) {
+        if (stage.errorRateValue >= 0.5 && crashPoint === null) {
           crashPoint = i;
           stageStatus = "💥 Crash Point";
         }
       }
       
-      // Format row untuk tabel performa
+      // Format row untuk tabel performa - menampilkan error rate yang sama dengan timeout percentage
       report += `${stage.stage} | ${stage.vuTarget} | ${stage.requests} | ${stage.errorRate}% | ${stage.timeouts} | ${stage.latency} | ${stageStatus}\n`;
     }
     
@@ -445,8 +430,8 @@ export function handleSummary(data) {
       'stdout': report,  // Menampilkan ke konsol standar
       './stress-test-summary.txt': report,  // Menyimpan ke file teks
       './summary.json': JSON.stringify({
-        errorRate: errRate,
-        errorRatePercent: (errRate * 100).toFixed(2),
+        errorRate: errorRateValue,
+        errorRatePercent: timeoutPercent,
         timeoutPercentage: parseFloat(timeoutPercent) || 0,
         latencyP95: latencyP95Value,
         totalRequests: requestCount,

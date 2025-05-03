@@ -180,31 +180,40 @@ jobs:
           echo "# Purchase Order Upload Stress Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Add raw stats for debugging
-          if [ -f "backend/tests/stress/raw_stats.txt" ]; then
-            echo "## Debug Stats" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat backend/tests/stress/raw_stats.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+          # Add total timeout count and error rate
+          if [ -f "backend/tests/stress/timeout_count.txt" ] && [ -f "backend/tests/stress/error_rate.txt" ]; then
+            TIMEOUT_COUNT=$(cat backend/tests/stress/timeout_count.txt)
+            ERROR_RATE=$(cat backend/tests/stress/error_rate.txt)
+            
+            # Ensure error rate matches timeout percentage - future-proofing for consistency
+            if [ -f "backend/tests/stress/summary.json" ]; then
+              # Extract timeout percentage from JSON using grep and basic text processing
+              TIMEOUT_PERCENTAGE=$(grep -o '"timeoutPercentage":[^,]*' backend/tests/stress/summary.json | cut -d':' -f2)
+              if [ ! -z "$TIMEOUT_PERCENTAGE" ]; then
+                ERROR_RATE=$TIMEOUT_PERCENTAGE
+              fi
+            fi
+            
+            echo "## 🚨 Total Error (504 Timeout) Count: $TIMEOUT_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Overall Error Rate: ${ERROR_RATE}%" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           
+          # Use performance_summary.md directly if available
+          if [ -f "backend/tests/stress/performance_summary.md" ]; then
+            echo "## Performa Per Tahap Load Testing" >> $GITHUB_STEP_SUMMARY
+            cat backend/tests/stress/performance_summary.md | grep -v "^## Performance Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Include the cleaner summary directly from the stress test output
           if [ -f "backend/tests/stress/summary.txt" ]; then
             echo "## Ringkasan Hasil Test" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat backend/tests/stress/summary.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Include performance summary table
-          if [ -f "backend/tests/stress/performance_summary.md" ]; then
-            echo "## Performa Per Tahap Load Testing" >> $GITHUB_STEP_SUMMARY
-            cat backend/tests/stress/performance_summary.md >> $GITHUB_STEP_SUMMARY
-          elif [ -f "backend/tests/stress/performance_table.txt" ]; then
-            echo "## Performa Per Tahap Load Testing (Raw)" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat backend/tests/stress/performance_table.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
           fi
           
           # Include conclusion
@@ -213,6 +222,7 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat backend/tests/stress/conclusion.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             
             # Extract specific information about degradation point and crash point for better visibility
             DEGRADATION_POINT=$(grep -E "Sistem mulai menunjukkan tanda-tanda degradasi" backend/tests/stress/conclusion.txt || echo "Tidak terdeteksi titik degradasi")
@@ -230,6 +240,4 @@ jobs:
             fi
             
             echo "🔄 **${DEGRADATION_PATTERN#*🔄 }**" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ File log tidak ditemukan atau analisis tidak dapat diekstrak" >> $GITHUB_STEP_SUMMARY
           fi
