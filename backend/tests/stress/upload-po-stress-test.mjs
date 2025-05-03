@@ -276,17 +276,24 @@ export function handleSummary(data) {
   try {
     let report = "\n=== Purchase Order Upload Stress Test Summary ===\n";
     
-    // PERBAIKAN: Mendapatkan error rate dengan safe access - termasuk timeouts
+    // PERBAIKAN: Mendapatkan error rate dan timeouts untuk perhitungan error rate yang tepat
     const errRate = data?.metrics?.error_rate?.rate ?? 0;
-    const errPercent = (errRate * 100).toFixed(2);
-    
-    // Mendapatkan jumlah timeout
     const timeoutCount = data?.metrics?.timeout_errors?.values?.count ?? 0;
+    const requestCount = data?.metrics?.requests?.values?.count ?? 0;
+    
+    // PERBAIKAN: Menghitung error rate dengan memasukkan timeout sebagai error
+    // Jika timeout tidak dihitung dalam error_rate asli, kita hitung ulang
+    let adjustedErrorRate = errRate;
+    if (timeoutCount > 0 && requestCount > 0) {
+      adjustedErrorRate = timeoutCount / requestCount;
+    }
+    
+    const errPercent = (adjustedErrorRate * 100).toFixed(2);
     
     report += `📊 Error rate akhir (termasuk timeouts): ${errPercent}%\n`;
     report += `⏱️ Jumlah timeout: ${timeoutCount}\n`;
 
-    if (errRate > 0.6) {
+    if (adjustedErrorRate > 0.6) {
       report += `⚠️ Error rate melebihi 60%! Sistem tidak mampu menangani jumlah pengguna tersebut.\n`;
     } else {
       report += `✅ Error rate masih dalam batas yang dapat diterima.\n`;
@@ -303,7 +310,6 @@ export function handleSummary(data) {
       console.log('Warning: Tidak dapat mengakses latency p95:', e.message);
     }
     
-    const requestCount = data?.metrics?.requests?.values?.count ?? 0;
     const maxVUs = data?.metrics?.vus?.values?.max ?? 0;
     
     report += `\nLatency (p95): ${latencyP95Value} ms\n`;
@@ -329,100 +335,112 @@ export function handleSummary(data) {
     // Definisikan array tetap dengan nilai target VU untuk setiap stage
     const vuTargets = [10, 15, 18, 20, 30, 40, 60, 80, 100, 300];
     
+    // Hitung total request dan timeout per stage
+    let stageData = [];
+    
     for (let i = 0; i < options.stages.length; i++) {
-      // Gunakan nilai tetap dari array vuTargets daripada mengakses options.stages[i].target
-      // yang bisa jadi objek kompleks yang tidak bisa diformat dengan baik
-      const vuTarget = vuTargets[i];
-      
       // Safe access ke nilai metrik
-      let stageErrorRate = 0;
-      let stageLatencyP95 = 'N/A';
-      let stageRequestCount = 0;
       let stageTimeoutCount = 0;
+      let stageRequestCount = 0;
+      let stageLatencyP95 = 'N/A';
       
       try {
-        const stageErrorRateMetric = data?.metrics?.[`stage_${i}_error_rate`];
-        stageErrorRate = stageErrorRateMetric?.rate ?? 0;
+        const stageTimeoutMetric = data?.metrics?.[`stage_${i}_timeout_errors`];
+        stageTimeoutCount = stageTimeoutMetric?.values?.count ?? 0;
+        
+        const stageRequestMetric = data?.metrics?.[`stage_${i}_requests`];
+        stageRequestCount = stageRequestMetric?.values?.count ?? 0;
         
         const stageLatencyMetric = data?.metrics?.[`stage_${i}_latency`];
         if (stageLatencyMetric?.values && stageLatencyMetric.values['p(95)'] !== undefined) {
           stageLatencyP95 = stageLatencyMetric.values['p(95)'].toFixed(2);
         }
-        
-        const stageRequestMetric = data?.metrics?.[`stage_${i}_requests`];
-        stageRequestCount = stageRequestMetric?.values?.count ?? 0;
-        
-        const stageTimeoutMetric = data?.metrics?.[`stage_${i}_timeout_errors`];
-        stageTimeoutCount = stageTimeoutMetric?.values?.count ?? 0;
       } catch (e) {
         console.log(`Warning: Tidak dapat mengakses metrik stage ${i}:`, e.message);
       }
       
-      // PERBAIKAN: Pastikan timeouts terhitung dalam error rate
-      const stageErrorPercent = (stageErrorRate * 100).toFixed(2);
-      
-      let stageStatus = "Normal";
-      
-      // PERBAIKAN: Deteksi titik degradasi - termasuk memeriksa timeouts
-      if (!degradationPoint && (stageErrorRate >= degradationThreshold || stageTimeoutCount > 0)) {
-        degradationPoint = i;
-        stageStatus = "⚠️ Awal Degradasi";
+      // Hitung error rate per stage dari timeout dan request
+      let stageErrorPercent = "0.00";
+      if (stageRequestCount > 0 && stageTimeoutCount > 0) {
+        const stageErrorRate = stageTimeoutCount / stageRequestCount;
+        stageErrorPercent = (stageErrorRate * 100).toFixed(2);
       }
       
-      // Deteksi apakah degradasi bertahap dengan melihat peningkatan error rate
-      if (i > 0 && !isGradualDegradation && !crashPoint) {
-        const errorRateIncrease = stageErrorRate - previousErrorRate;
-        let latencyIncrease = 0;
-        
-        if (previousLatency !== 'N/A' && stageLatencyP95 !== 'N/A') {
-          latencyIncrease = parseFloat(stageLatencyP95) - parseFloat(previousLatency);
+      stageData.push({
+        stage: i,
+        vuTarget: vuTargets[i],
+        requests: stageRequestCount,
+        errorRate: stageErrorPercent,
+        timeouts: stageTimeoutCount,
+        latency: stageLatencyP95
+      });
+    }
+    
+    // Deteksi stage dengan degradasi dan crash berdasarkan data aktual
+    for (let i = 0; i < stageData.length; i++) {
+      const stage = stageData[i];
+      let stageStatus = "Normal";
+      
+      // Jika ada timeout atau error signifikan, tandai sebagai degradasi
+      const stageErrorRateValue = parseFloat(stage.errorRate);
+      
+      if (stage.timeouts > 0) {
+        // Jika belum ada titik degradasi, set ini sebagai titik degradasi
+        if (degradationPoint === null) {
+          degradationPoint = i;
+          stageStatus = "⚠️ Awal Degradasi";
         }
-        
-        if (errorRateIncrease > 0 && errorRateIncrease < 0.2) {
-          isGradualDegradation = true;
-          stageStatus = "🔽 Degradasi Bertahap";
-        }
-        
-        // PERBAIKAN: Deteksi titik crash (lonjakan error rate yang signifikan atau banyak timeouts)
-        if (stageErrorRate >= crashThreshold || stageTimeoutCount >= stageRequestCount * 0.3) {
+        // Jika error rate sangat tinggi, tandai sebagai crash point
+        if (stageErrorRateValue >= crashThreshold && crashPoint === null) {
           crashPoint = i;
           stageStatus = "💥 Crash Point";
         }
+      }
+      
+      // Jika ada peningkatan latency signifikan, tandai sebagai degradasi latency
+      if (i > 0) {
+        const prevLatency = parseFloat(stageData[i-1].latency) || 0;
+        const currentLatency = parseFloat(stage.latency) || 0;
         
-        // Jika latency meningkat secara signifikan tanpa error rate tinggi, itu juga degradasi
-        if (latencyIncrease > latencyDegradationThreshold && stageStatus === "Normal") {
+        if (!isNaN(prevLatency) && !isNaN(currentLatency) && 
+            currentLatency - prevLatency > latencyDegradationThreshold &&
+            stageStatus === "Normal") {
+          if (degradationPoint === null) degradationPoint = i;
           stageStatus = "⏱️ Degradasi Latency";
-          if (!degradationPoint) degradationPoint = i;
         }
       }
       
-      // PERBAIKAN: Format yang lebih jelas untuk error rate dan timeouts
-      report += `${i} | ${vuTarget} | ${stageRequestCount} | ${stageErrorPercent}% | ${stageTimeoutCount} | ${stageLatencyP95} | ${stageStatus}\n`;
-      
-      previousErrorRate = stageErrorRate;
-      previousLatency = stageLatencyP95;
+      // Format row untuk tabel performa
+      report += `${stage.stage} | ${stage.vuTarget} | ${stage.requests} | ${stage.errorRate}% | ${stage.timeouts} | ${stage.latency} | ${stageStatus}\n`;
     }
     
-    // Kesimpulan analisis
+    // Kesimpulan analisis - lebih akurat berdasarkan data aktual
     report += `\n=== Ringkasan Ketahanan Sistem ===\n`;
     
-    if (degradationPoint !== null) {
-      const degradationVUs = vuTargets[degradationPoint];
-      report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${degradationVUs} VUs\n`;
-    } else {
-      report += `✅ Sistem tidak menunjukkan tanda-tanda degradasi yang signifikan selama pengujian\n`;
-    }
-    
+    // PERBAIKAN: Jangan melaporkan crash point jika tidak ada data yang mendukung
     if (crashPoint !== null) {
-      const crashVUs = vuTargets[crashPoint];
-      report += `💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${crashVUs} VUs\n`;
+      const crashStage = stageData[crashPoint];
+      report += `💥 Sistem mengalami crash/kegagalan signifikan pada Stage ${crashPoint} dengan target ${crashStage.vuTarget} VUs\n`;
     } else {
       report += `✅ Tidak terdeteksi crash system selama pengujian\n`;
     }
     
-    report += `🔄 Pola Degradasi: ${isGradualDegradation ? "Bertahap (gradual degradation)" : crashPoint !== null ? "Mendadak (crash)" : "Tidak terdeteksi pola degradasi"}\n`;
+    // PERBAIKAN: Hanya laporkan degradasi jika benar-benar terjadi
+    if (degradationPoint !== null) {
+      const degradationStage = stageData[degradationPoint];
+      report += `🔍 Sistem mulai menunjukkan tanda-tanda degradasi pada Stage ${degradationPoint} dengan target ${degradationStage.vuTarget} VUs\n`;
+      
+      // Tentukan pola degradasi
+      const degradationPattern = isGradualDegradation ? 
+        "Bertahap (gradual degradation)" : 
+        (timeoutCount > 0 ? "Timeout (response delay)" : "Tidak terdeteksi pola degradasi yang jelas");
+      
+      report += `🔄 Pola Degradasi: ${degradationPattern}\n`;
+    } else {
+      report += `✅ Sistem tidak menunjukkan tanda-tanda degradasi yang signifikan selama pengujian\n`;
+    }
     
-    // PERBAIKAN: Menambahkan informasi tambahan tentang persentase timeout
+    // PERBAIKAN: Hitung dan tampilkan persentase timeout yang akurat
     if (timeoutCount > 0 && requestCount > 0) {
       const timeoutPercent = ((timeoutCount / requestCount) * 100).toFixed(2);
       report += `\n⏱️ Persentase request yang timeout: ${timeoutPercent}% (${timeoutCount} dari ${requestCount})\n`;
@@ -436,7 +454,8 @@ export function handleSummary(data) {
       'stdout': report,  // Menampilkan ke konsol standar
       './stress-test-summary.txt': report,  // Menyimpan ke file teks
       './summary.json': JSON.stringify({
-        errorRate: errRate,
+        errorRate: adjustedErrorRate,
+        errorRatePercent: errPercent,
         timeoutPercentage: timeoutCount > 0 ? (timeoutCount / requestCount) * 100 : 0,
         latencyP95: latencyP95Value,
         totalRequests: requestCount,
@@ -446,8 +465,8 @@ export function handleSummary(data) {
         hasCrash: crashPoint !== null,
         degradationAtStage: degradationPoint,
         crashAtStage: crashPoint,
-        degradationPattern: isGradualDegradation ? "gradual" : crashPoint !== null ? "sudden" : "none",
-        vuTargets: vuTargets // Include the VU targets array for reference
+        degradationPattern: isGradualDegradation ? "gradual" : crashPoint !== null ? "sudden" : "timeout",
+        stageData: stageData
       }, null, 2)  // Menyimpan ringkasan dalam format JSON
     };
   } catch (e) {
