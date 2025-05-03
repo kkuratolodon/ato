@@ -100,17 +100,21 @@ jobs:
           echo "$TIMEOUT_COUNT" > timeout_count.txt
           echo "$ERROR_RATE" > error_rate.txt
           
-          # Extract sections of the log without sed replacements
-          SUMMARY=$(grep -A 20 "=== Purchase Order Upload Stress Test Summary ===" upload-po-stress-test.log || echo "Tidak dapat menemukan ringkasan hasil")
-          DEGRADATION_ANALYSIS=$(grep -A 50 "=== Analisis Degradasi Sistem ===" upload-po-stress-test.log || echo "Tidak dapat menemukan analisis degradasi")
-          PERFORMANCE_TABLE=$(grep -A 15 "Performa Per Tahap Load Testing:" upload-po-stress-test.log || echo "Tidak dapat menemukan tabel performa")
-          CONCLUSION=$(grep -A 10 "=== Ringkasan Ketahanan Sistem ===" upload-po-stress-test.log || echo "Tidak dapat menemukan kesimpulan analisis")
+          # Extract sections of the log for processing
+          grep -A 50 "=== Purchase Order Upload Stress Test Summary ===" upload-po-stress-test.log > raw_summary.txt || echo "Summary not found"
+          grep -A 50 "=== Analisis Degradasi Sistem ===" upload-po-stress-test.log > raw_degradation.txt || echo "Degradation analysis not found"
           
-          # Save to separate files for easier reference
-          echo "$SUMMARY" > summary.txt
-          echo "$DEGRADATION_ANALYSIS" > degradation_analysis.txt
-          echo "$PERFORMANCE_TABLE" > performance_table.txt
-          echo "$CONCLUSION" > conclusion.txt
+          # Process and format the summary text properly
+          cat raw_summary.txt | sed 's/^--$//' > summary.txt
+          cat raw_degradation.txt | sed 's/^--$//' > degradation_analysis.txt
+          
+          # Extract performance table - using more reliable approach
+          grep -A 15 "Performa Per Tahap Load Testing:" upload-po-stress-test.log > raw_performance.txt || echo "Performance table not found"
+          cat raw_performance.txt | sed 's/^--$//' > performance_table.txt
+          
+          # Extract conclusion for better readability
+          grep -A 10 "=== Ringkasan Ketahanan Sistem ===" upload-po-stress-test.log > raw_conclusion.txt || echo "Conclusion not found"
+          cat raw_conclusion.txt | sed 's/^--$//' > conclusion.txt
           
           # Create fallback table directly - bypass the complex sed command
           echo "Creating performance summary directly from test data..."
@@ -132,12 +136,16 @@ jobs:
             TOTAL_REQUESTS=$((STAGE_REQUESTS + STAGE_FAILURES))
             
             # Calculate error rate including timeouts in the error count
-            if [ "$TOTAL_REQUESTS" -gt 0 ]; then
+            if [ "$TOTAL_REQUESTS" -gt 0 ] || [ "$STAGE_TIMEOUTS" -gt 0 ]; then
               # Use bc for floating point calculation - include timeouts in error rate
               ERROR_RATE=$(echo "scale=2; ($STAGE_FAILURES + $STAGE_TIMEOUTS) * 100 / ($TOTAL_REQUESTS + $STAGE_TIMEOUTS)" | bc 2>/dev/null || echo "0.00")
-              ERROR_RATE="${ERROR_RATE}%"
             else
-              ERROR_RATE="0.00%"
+              ERROR_RATE="0.00"
+            fi
+            
+            # Handle potential empty or invalid results
+            if [ -z "$ERROR_RATE" ] || [ "$ERROR_RATE" = "0" ] || [ "$ERROR_RATE" = "" ]; then
+              ERROR_RATE="0.00"
             fi
             
             # Determine status based on timeouts and error rate
@@ -150,12 +158,17 @@ jobs:
             # Get latency from performance table if available
             LATENCY_P95=$(grep -E "^$i \|.*\|.*\|.*\|.*\|.*\|" performance_table.txt | awk -F'|' '{print $6}' | tr -d ' ' || echo "N/A")
             
+            # If latency is empty, use N/A
+            if [ -z "$LATENCY_P95" ] || [ "$LATENCY_P95" = "" ]; then
+              LATENCY_P95="N/A"
+            fi
+            
             # Create line for markdown table - use array reference with proper syntax
             VU_TARGET="${VU_TARGETS[$i]}"
-            echo "| $i | $VU_TARGET | $TOTAL_REQUESTS | $ERROR_RATE | $STAGE_TIMEOUTS | $LATENCY_P95 | $STATUS |" >> performance_summary.md
+            echo "| $i | $VU_TARGET | $TOTAL_REQUESTS | ${ERROR_RATE}% | $STAGE_TIMEOUTS | $LATENCY_P95 | $STATUS |" >> performance_summary.md
             
             # Save raw data for debugging
-            echo "Stage $i: Requests=$STAGE_REQUESTS, Failures=$STAGE_FAILURES, Timeouts=$STAGE_TIMEOUTS" >> raw_stats.txt
+            echo "Stage $i: Requests=$STAGE_REQUESTS, Failures=$STAGE_FAILURES, Timeouts=$STAGE_TIMEOUTS, Error Rate=${ERROR_RATE}%" >> raw_stats.txt
           done
           
           cat performance_summary.md

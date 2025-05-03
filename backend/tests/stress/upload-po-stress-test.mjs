@@ -284,7 +284,7 @@ export function handleSummary(data) {
     const requestCount = data?.metrics?.requests?.values?.count ?? 0;
     
     // Hitung persentase timeout dari total request
-    const timeoutPercent = (timeoutCount / requestCount * 100).toFixed(2);
+    const timeoutPercent = requestCount > 0 ? (timeoutCount / requestCount * 100).toFixed(2) : "0.00";
     
     report += `📊 Error rate akhir (termasuk timeouts): ${(errRate * 100).toFixed(2)}%\n`;
     report += `⏱️ Jumlah timeout: ${timeoutCount}\n`;
@@ -357,8 +357,11 @@ export function handleSummary(data) {
         console.log(`Warning: Tidak dapat mengakses metrik stage ${i}:`, e.message);
       }
       
-      // Format error rate sebagai persentase
-      const stageErrorPercent = (stageErrorRateValue * 100).toFixed(2);
+      // PERBAIKAN: Format error rate sebagai persentase, dengan penanganan khusus untuk NaN
+      let stageErrorPercent = '0.00';
+      if (!isNaN(stageErrorRateValue) && stageErrorRateValue !== null && stageErrorRateValue !== undefined) {
+        stageErrorPercent = (stageErrorRateValue * 100).toFixed(2);
+      }
       
       stageData.push({
         stage: i,
@@ -376,15 +379,24 @@ export function handleSummary(data) {
       const stage = stageData[i];
       let stageStatus = "Normal";
       
+      // PERBAIKAN: Parse error rate dengan penanganan khusus untuk NaN/undefined
+      let errorRateValue = 0;
+      try {
+        errorRateValue = parseFloat(stage.errorRate);
+        if (isNaN(errorRateValue)) errorRateValue = 0;
+      } catch (e) {
+        errorRateValue = 0;
+      }
+      
       // Jika ada timeout atau error signifikan, tandai sebagai degradasi
-      if (stage.timeouts > 0 || parseFloat(stage.errorRate) > 0) {
+      if (stage.timeouts > 0 || errorRateValue > 0) {
         // Jika belum ada titik degradasi, set ini sebagai titik degradasi
         if (degradationPoint === null) {
           degradationPoint = i;
           stageStatus = "⚠️ Awal Degradasi";
         }
         // Jika error rate sangat tinggi, tandai sebagai crash point
-        if (stage.errorRateValue >= 0.5 && crashPoint === null) {
+        if ((!isNaN(stage.errorRateValue) && stage.errorRateValue >= 0.5) && crashPoint === null) {
           crashPoint = i;
           stageStatus = "💥 Crash Point";
         }
@@ -435,7 +447,7 @@ export function handleSummary(data) {
       './summary.json': JSON.stringify({
         errorRate: errRate,
         errorRatePercent: (errRate * 100).toFixed(2),
-        timeoutPercentage: parseFloat(timeoutPercent),
+        timeoutPercentage: parseFloat(timeoutPercent) || 0,
         latencyP95: latencyP95Value,
         totalRequests: requestCount,
         timeoutErrors: timeoutCount,
