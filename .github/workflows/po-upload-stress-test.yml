@@ -180,19 +180,6 @@ jobs:
           echo "# Purchase Order Upload Stress Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Add total timeout count and error rate
-          if [ -f "backend/tests/stress/timeout_count.txt" ]; then
-            TIMEOUT_COUNT=$(cat backend/tests/stress/timeout_count.txt)
-            echo "## 🚨 Total Error (504 Timeout) Count: $TIMEOUT_COUNT" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -f "backend/tests/stress/error_rate.txt" ]; then
-            ERROR_RATE=$(cat backend/tests/stress/error_rate.txt)
-            echo "## Overall Error Rate: ${ERROR_RATE}%" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
           # Add raw stats for debugging
           if [ -f "backend/tests/stress/raw_stats.txt" ]; then
             echo "## Debug Stats" >> $GITHUB_STEP_SUMMARY
