@@ -1,5 +1,5 @@
-const FinancialDocumentController = require("../../src/controllers/financialDocumentController");
-const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require("../../src/utils/errors");
+const FinancialDocumentController = require("@controllers/financialDocumentController");
+const { ValidationError, AuthError, ForbiddenError, PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require("@utils/errors");
 
 describe("FinancialDocumentController", () => {
   let controller;
@@ -41,7 +41,7 @@ describe("FinancialDocumentController", () => {
   describe("validateUploadFile", () => {
     test("should detect encrypted PDF and return appropriate status", async () => {
       // Mock the pdfValidationService
-      const pdfValidationService = require("../../src/services/pdfValidationService");
+      const pdfValidationService = require("@services/pdfValidationService");
       jest.spyOn(pdfValidationService, "allValidations").mockResolvedValue({
         isValid: true,
         isEncrypted: true

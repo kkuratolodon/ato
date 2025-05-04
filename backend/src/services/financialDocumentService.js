@@ -1,9 +1,11 @@
 const s3Service = require("./s3Service")
-const DocumentStatus = require('../models/enums/DocumentStatus');
+const DocumentStatus = require('@models/enums/DocumentStatus');
 
 class FinancialDocumentService {
-  constructor(documentType) {
+  constructor(documentType, s3Service, logger = console) {
     this.documentType = documentType;
+    this.s3Service = s3Service;
+    this.logger = logger;
   }
 
   async uploadFile({ buffer, partnerId }) {

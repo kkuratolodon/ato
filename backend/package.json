@@ -62,6 +62,20 @@
       "!src/database/**",
       "!src/models/index.js"
     ],
-    "testEnvironment": "node"
+    "testEnvironment": "node", 
+    "rootDir": ".",
+    "moduleNameMapper": {
+      "^@models/(.*)$": "<rootDir>/src/models/$1",
+      "^@services/(.*)$": "<rootDir>/src/services/$1",
+      "^@utils/(.*)$": "<rootDir>/src/utils/$1",
+      "^@controllers/(.*)$": "<rootDir>/src/controllers/$1",
+      "^@repositories/(.*)$": "<rootDir>/src/repositories/$1",
+      "^@middlewares/(.*)$": "<rootDir>/src/middlewares/$1", 
+      "^@instrument$": "<rootDir>/src/instrument.js"
+    },
+    "moduleDirectories": [
+      "node_modules",
+      "src"
+    ]
   }
 }

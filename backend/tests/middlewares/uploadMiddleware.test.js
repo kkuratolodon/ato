@@ -1,4 +1,4 @@
-const handleMulterError = require('../../src/middlewares/multerErrorHandler');
+const handleMulterError = require('@middlewares/multerErrorHandler');
 
 // Mock dependencies
 jest.mock('multer', () => {
@@ -29,7 +29,7 @@ jest.mock('multer', () => {
   return mockMulter;
 });
 
-jest.mock('../../src/middlewares/multerErrorHandler', () => 
+jest.mock('@middlewares/multerErrorHandler', () => 
   jest.fn()
 );
 
@@ -57,7 +57,7 @@ describe('Upload Middleware', () => {
     multer = require('multer');
     
     // Import the middleware after mocking dependencies
-    uploadMiddleware = require('../../src/middlewares/uploadMiddleware');
+    uploadMiddleware = require('@middlewares/uploadMiddleware');
   });
 
   test('should call upload function with correct arguments in normal case', async () => {

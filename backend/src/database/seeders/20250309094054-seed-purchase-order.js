@@ -1,6 +1,6 @@
 'use strict';
 const { v4: uuidv4 } = require('uuid');
-const DocumentStatus = require('../../models/enums/DocumentStatus');
+const DocumentStatus = require('@models/enums/DocumentStatus');
 
 module.exports = {
   up: async (queryInterface) => {

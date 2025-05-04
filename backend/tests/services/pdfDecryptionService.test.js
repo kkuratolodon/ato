@@ -1,4 +1,4 @@
-const PdfDecryptionService = require('../../src/services/pdfDecryptionService');
+const PdfDecryptionService = require('@services/pdfDecryptionService');
 const PDFDecryptionStrategy = require('../../src/strategies/pdfDecryptionStrategy');
 
 class MockDecryptionStrategy extends PDFDecryptionStrategy {

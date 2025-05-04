@@ -1,17 +1,17 @@
-const invoiceService = require('../../../src/services/invoice/invoiceService');
+const invoiceService = require('@services/invoice/invoiceService');
 const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 
 // Mock repositories
-jest.mock('../../../src/repositories/invoiceRepository', () => {
+jest.mock('@repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findById: jest.fn()
   }));
 });
 
 // Mock other dependencies
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
-jest.mock('../../../src/repositories/itemRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@repositories/itemRepository');
 
 describe('getInvoiceStatus', () => {
   beforeEach(() => {

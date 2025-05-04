@@ -1,5 +1,5 @@
 const { DocumentAnalysisClient, AzureKeyCredential } = require("@azure/ai-form-recognizer");
-const Sentry = require("../../instrument");
+const Sentry = require("@instrument");
 const dotenv = require("dotenv");
 
 dotenv.config();

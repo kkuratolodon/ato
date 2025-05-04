@@ -1,19 +1,19 @@
 // Mock repositories instead of direct models
-jest.mock('../../../src/repositories/customerRepository', () => {
+jest.mock('@repositories/customerRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findByAttributes: jest.fn(),
     create: jest.fn()
   }));
 });
 
-jest.mock('../../../src/repositories/vendorRepository', () => {
+jest.mock('@repositories/vendorRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findByAttributes: jest.fn(),
     create: jest.fn()
   }));
 });
 
-jest.mock('../../../src/repositories/invoiceRepository', () => {
+jest.mock('@repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
     updateCustomerId: jest.fn(),
     updateVendorId: jest.fn()
@@ -21,14 +21,14 @@ jest.mock('../../../src/repositories/invoiceRepository', () => {
 });
 
 // Mock other repositories and dependencies
-jest.mock('../../../src/repositories/itemRepository');
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/invoice/invoiceValidator');
-jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
-jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
+jest.mock('@repositories/itemRepository');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/invoice/invoiceValidator');
+jest.mock('@services/invoice/invoiceResponseFormatter');
+jest.mock('@services/invoiceMapperService/invoiceMapperService');
 
 // Mock Sentry
-jest.mock('../../../src/instrument', () => ({
+jest.mock('@instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),
@@ -41,7 +41,7 @@ jest.mock('../../../src/instrument', () => ({
 }));
 
 // Now require the service
-const invoiceService = require('../../../src/services/invoice/invoiceService');
+const invoiceService = require('@services/invoice/invoiceService');
 
 describe('updateCustomerAndVendorData', () => {
   beforeEach(() => {

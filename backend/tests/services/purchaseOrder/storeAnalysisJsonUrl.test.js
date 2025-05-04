@@ -1,9 +1,9 @@
-const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
+const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
 const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 const Sentry = require("../../../src/instrument");
 
 // Mock repositories
-jest.mock('../../../src/repositories/purchaseOrderRepository', () => {
+jest.mock('@repositories/purchaseOrderRepository', () => {
   return jest.fn().mockImplementation(() => ({
     update: jest.fn().mockResolvedValue([1]),
     updateStatus: jest.fn().mockResolvedValue([1]),
@@ -12,7 +12,7 @@ jest.mock('../../../src/repositories/purchaseOrderRepository', () => {
 });
 
 // Mock dependencies
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
 jest.mock('../../../src/instrument', () => ({
   addBreadcrumb: jest.fn(),
   captureMessage: jest.fn(),

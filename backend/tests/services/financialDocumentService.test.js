@@ -1,9 +1,9 @@
-const DocumentStatus = require('../../src/models/enums/DocumentStatus');
-const FinancialDocumentService = require('../../src/services/financialDocumentService');
-const s3Service = require('../../src/services/s3Service');
+const DocumentStatus = require('@models/enums/DocumentStatus');
+const FinancialDocumentService = require('@services/financialDocumentService');
+const s3Service = require('@services/s3Service');
 
 // Mock the s3Service with a sophisticated implementation
-jest.mock('../../src/services/s3Service', () => ({
+jest.mock('@services/s3Service', () => ({
   uploadFile: jest.fn(),
   uploadJsonResult: jest.fn().mockImplementation((jsonData) => {
     // Handle null/undefined cases for analysis results

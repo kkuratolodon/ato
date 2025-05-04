@@ -1,19 +1,19 @@
 // Mock repositories instead of direct models
-jest.mock('../../../src/repositories/customerRepository', () => {
+jest.mock('@repositories/customerRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findByAttributes: jest.fn(),
     create: jest.fn()
   }));
 });
 
-jest.mock('../../../src/repositories/vendorRepository', () => {
+jest.mock('@repositories/vendorRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findByAttributes: jest.fn(),
     create: jest.fn()
   }));
 });
 
-jest.mock('../../../src/repositories/purchaseOrderRepository', () => {
+jest.mock('@repositories/purchaseOrderRepository', () => {
   return jest.fn().mockImplementation(() => ({
     updateCustomerId: jest.fn(),
     updateVendorId: jest.fn()
@@ -21,11 +21,11 @@ jest.mock('../../../src/repositories/purchaseOrderRepository', () => {
 });
 
 // Mock other repositories and dependencies
-jest.mock('../../../src/repositories/itemRepository');
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
-jest.mock('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
+jest.mock('@repositories/itemRepository');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/purchaseOrder/purchaseOrderValidator');
+jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
+jest.mock('@services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 // Mock Sentry
 jest.mock('../../../src/instrument', () => ({
@@ -41,7 +41,7 @@ jest.mock('../../../src/instrument', () => ({
 }));
 
 // Now require the service
-const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
+const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
 
 describe('updateCustomerAndVendorData for purchase orders', () => {
   beforeEach(() => {

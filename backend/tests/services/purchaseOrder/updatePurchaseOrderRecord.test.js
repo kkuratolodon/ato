@@ -1,22 +1,22 @@
-const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
+const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
 
 // Mock the repository instead of the model
-jest.mock('../../../src/repositories/purchaseOrderRepository', () => {
+jest.mock('@repositories/purchaseOrderRepository', () => {
   return jest.fn().mockImplementation(() => ({
     update: jest.fn()
   }));
 });
 
 // Mock other repositories that PurchaseOrderService might need
-jest.mock('../../../src/repositories/customerRepository');
-jest.mock('../../../src/repositories/vendorRepository');
-jest.mock('../../../src/repositories/itemRepository');
+jest.mock('@repositories/customerRepository');
+jest.mock('@repositories/vendorRepository');
+jest.mock('@repositories/itemRepository');
 
 // Mock other dependencies
-jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');
-jest.mock('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
-jest.mock('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
+jest.mock('@services/analysis/azureDocumentAnalyzer');
+jest.mock('@services/purchaseOrder/purchaseOrderValidator');
+jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
+jest.mock('@services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 // Mock console methods to verify they are called
 global.console = {

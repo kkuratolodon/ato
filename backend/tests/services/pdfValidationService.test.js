@@ -1,4 +1,4 @@
-const pdfValidationService = require("../../src/services/pdfValidationService");
+const pdfValidationService = require("@services/pdfValidationService");
 const fs = require("fs");
 const path = require("path");
 const pdfjsLib = require("pdfjs-dist");

@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { controller } = require('../controllers/purchaseOrderController');
-const authMiddleware = require('../middlewares/authMiddleware');
-// const apiLimiter = require('../middlewares/rateLimitMiddleware');
-const uploadMiddleware = require('../middlewares/uploadMiddleware');
+const { controller } = require('@controllers/purchaseOrderController');
+const authMiddleware = require('@middlewares/authMiddleware');
+const uploadMiddleware = require('@middlewares/uploadMiddleware');
 
 router.post(
     '/upload',

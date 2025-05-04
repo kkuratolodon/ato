@@ -1,5 +1,5 @@
 const multer = require('multer'); 
-const multerErrorHandler = require('../../src/middlewares/multerErrorHandler')
+const multerErrorHandler = require('@middlewares/multerErrorHandler')
 
 describe('Multer Error Handling Middleware', () => {
   let req, res, next;
