@@ -1,24 +1,24 @@
-const invoiceService = require('@services/invoice/invoiceService');
+const invoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock repositories directly
-jest.mock('@repositories/itemRepository', () => {
+jest.mock('../../../src/repositories/itemRepository', () => {
   return jest.fn().mockImplementation(() => ({
     createDocumentItem: jest.fn(),
     findItemsByDocumentId: jest.fn()
   }));
 });
 
-jest.mock('@repositories/invoiceRepository');
-jest.mock('@repositories/customerRepository');
-jest.mock('@repositories/vendorRepository');
+jest.mock('../../../src/repositories/invoiceRepository');
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
 
 // Mock other dependencies
 jest.mock('@azure/ai-form-recognizer');
-jest.mock('@services/s3Service', () => ({ uploadFile: jest.fn() }));
-jest.mock('@services/analysis/azureDocumentAnalyzer');
-jest.mock('@services/invoice/invoiceValidator');
-jest.mock('@services/invoice/invoiceResponseFormatter');
-jest.mock('@services/invoiceMapperService/invoiceMapperService');
+jest.mock('../../../src/services/s3Service', () => ({ uploadFile: jest.fn() }));
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('../../../src/services/invoice/invoiceValidator');
+jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Mock uuid
 jest.mock('uuid', () => ({
@@ -26,7 +26,7 @@ jest.mock('uuid', () => ({
 }));
 
 // Mock Sentry
-jest.mock('@instrument', () => ({
+jest.mock('../../../src/instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),
@@ -42,7 +42,7 @@ describe('saveInvoiceItems', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reassign mocked ItemRepository instance to service (ensure mock applies)
-    const ItemRepository = require('@repositories/itemRepository');
+    const ItemRepository = require('../../../src/repositories/itemRepository');
     invoiceService.itemRepository = new ItemRepository();
     // Ensure createDocumentItem resolves by default
     invoiceService.itemRepository.createDocumentItem.mockResolvedValue();

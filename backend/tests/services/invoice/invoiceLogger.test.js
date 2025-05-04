@@ -1,5 +1,5 @@
 const winston = require('winston');
-const InvoiceLogger = require('@services/invoice/invoiceLogger');
+const InvoiceLogger = require('../../../src/services/invoice/invoiceLogger');
 
 // Mock winston logger
 jest.mock('winston', () => {

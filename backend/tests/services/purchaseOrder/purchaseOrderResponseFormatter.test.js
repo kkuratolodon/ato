@@ -1,4 +1,4 @@
-const PurchaseOrderResponseFormatter = require('@services/purchaseOrder/purchaseOrderResponseFormatter');
+const PurchaseOrderResponseFormatter = require('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
 
 describe('PurchaseOrderResponseFormatter', () => {
   let formatter;

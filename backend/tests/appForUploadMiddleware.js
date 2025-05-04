@@ -1,5 +1,5 @@
 const express = require('express');
-const { uploadMiddleware } = require('@controllers/invoiceController');
+const { uploadMiddleware } = require('../src/controllers/invoiceController');
 const app = express();
 
 app.post('/test-upload', uploadMiddleware, (req, res) => {

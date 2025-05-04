@@ -1,11 +1,11 @@
-const FinancialDocumentService = require('@services/financialDocumentService');
-const s3Service = require('@services/s3Service');
-const invoiceService = require('@services/invoice/invoiceService'); // Import as singleton instance
-const { Invoice } = require('@models/');
-const DocumentStatus = require('@models/enums/DocumentStatus');
+const FinancialDocumentService = require('../../src/services/financialDocumentService');
+const s3Service = require('../../src/services/s3Service');
+const invoiceService = require('../../src/services/invoice/invoiceService'); // Import as singleton instance
+const { Invoice } = require('../../src/models');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 
 // Mock dependencies
-jest.mock('@services/s3Service', () => ({
+jest.mock('../../src/services/s3Service', () => ({
   uploadFile: jest.fn(),
   uploadJsonResult: jest.fn().mockImplementation((jsonData, documentId) => {
     if (!jsonData) {
@@ -30,7 +30,7 @@ jest.mock('@services/s3Service', () => ({
   })
 }));
 
-jest.mock('@models/', () => ({
+jest.mock('../../src/models', () => ({
   Invoice: {
     update: jest.fn().mockResolvedValue([1]),
     findByPk: jest.fn()
@@ -38,7 +38,7 @@ jest.mock('@models/', () => ({
 }));
 
 jest.mock('@azure/ai-form-recognizer');
-jest.mock('@instrument');
+jest.mock('../../src/instrument');
 
 describe('S3 Analysis JSON Upload - FinancialDocumentService', () => {
   let service;

@@ -1,25 +1,29 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { PurchaseOrderController } = require("@controllers/purchaseOrderController");
-const purchaseOrderService = require("@services/purchaseOrder/purchaseOrderService");
-const pdfValidationService = require("@services/pdfValidationService");
-const validateDeletionService = require('@services/validateDeletion');
-const s3Service = require('@services/s3Service');
-const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError, ValidationError } = require("@utils/errors");
+const { PurchaseOrderController } = require("../../src/controllers/purchaseOrderController");
+const purchaseOrderService = require("../../src/services/purchaseOrder/purchaseOrderService");
+const pdfValidationService = require("../../src/services/pdfValidationService");
+const validateDeletionService = require('../../src/services/validateDeletion');
+const s3Service = require('../../src/services/s3Service');
+const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError, ValidationError } = require("../../src/utils/errors");
 const { of, throwError, from } = require('rxjs');
 
 const Sentry = require("@sentry/node");
 
-jest.mock("@services/purchaseOrder/purchaseOrderService");
-jest.mock("@services/pdfValidationService");
-jest.mock("@services/validateDeletion");
-jest.mock("@services/s3Service");
+jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
+jest.mock("../../src/services/pdfValidationService");
+jest.mock("../../src/services/validateDeletion");
+jest.mock("../../src/services/s3Service");
 jest.mock("@sentry/node");
+
+jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
+jest.mock("../../src/services/pdfValidationService");
 jest.mock('rxjs', () => ({
   ...jest.requireActual('rxjs'),
   of: jest.fn().mockImplementation(val => jest.requireActual('rxjs').of(val)),
   throwError: jest.fn().mockImplementation(val => jest.requireActual('rxjs').throwError(val)),
   from: jest.fn().mockImplementation(val => jest.requireActual('rxjs').from(val))
 }));
+
 
 describe("PurchaseOrderController constructor", () => {
   test("should throw error when invalid service is provided", () => {

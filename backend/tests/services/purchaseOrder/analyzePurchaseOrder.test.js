@@ -1,7 +1,7 @@
-const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
+const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
 
 // Mock AzureDocumentAnalyzer
-jest.mock('@services/analysis/azureDocumentAnalyzer', () => {
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer', () => {
   return jest.fn().mockImplementation(() => {
     return {
       analyzeDocument: jest.fn()
@@ -10,13 +10,13 @@ jest.mock('@services/analysis/azureDocumentAnalyzer', () => {
 });
 
 // Mock other dependencies
-jest.mock('@repositories/purchaseOrderRepository');
-jest.mock('@repositories/customerRepository');
-jest.mock('@repositories/vendorRepository');
-jest.mock('@repositories/itemRepository');
-jest.mock('@services/purchaseOrder/purchaseOrderValidator');
-jest.mock('@services/purchaseOrder/purchaseOrderResponseFormatter');
-jest.mock('@services/purchaseOrderMapperService/purchaseOrderMapperService');
+jest.mock('../../../src/repositories/purchaseOrderRepository');
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('../../../src/repositories/itemRepository');
+jest.mock('../../../src/services/purchaseOrder/purchaseOrderValidator');
+jest.mock('../../../src/services/purchaseOrder/purchaseOrderResponseFormatter');
+jest.mock('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 describe('analyzePurchaseOrder', () => {
   beforeEach(() => {

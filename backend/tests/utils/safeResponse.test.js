@@ -1,4 +1,4 @@
-const { safeResponse } = require("@utils/responseHelper");
+const { safeResponse } = require("../../src/utils/responseHelper");
 
 describe("safeResponse Utility Function", () => {
   

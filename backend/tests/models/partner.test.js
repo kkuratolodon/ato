@@ -1,5 +1,5 @@
 const { Sequelize, DataTypes } = require("sequelize");
-const partnerModel = require("@models/partner");
+const partnerModel = require("../../src/models/partner");
 
 describe("Partner Model", () => {
   let sequelize, Partner;

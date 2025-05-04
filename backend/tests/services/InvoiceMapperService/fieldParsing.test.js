@@ -1,4 +1,4 @@
-const { AzureInvoiceMapper } = require('@services/invoiceMapperService/invoiceMapperService');
+const { AzureInvoiceMapper } = require('../../../src/services/invoiceMapperService/invoiceMapperService');
 const { getMapper, partnerId } = require('./setupAzureInvoiceMapper');
 
 describe('Field Parsing', () => {
