@@ -1,17 +1,17 @@
-const purchaseOrderService = require('@services/purchaseOrder/purchaseOrderService');
+const purchaseOrderService = require('../../../src/services/purchaseOrder/purchaseOrderService');
 const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 
 // Mock repositories
-jest.mock('@repositories/purchaseOrderRepository', () => {
+jest.mock('../../../src/repositories/purchaseOrderRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findById: jest.fn()
   }));
 });
 
 // Mock other dependencies
-jest.mock('@repositories/customerRepository');
-jest.mock('@repositories/vendorRepository');
-jest.mock('@repositories/itemRepository');
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('../../../src/repositories/itemRepository');
 
 describe('getPurchaseOrderStatus', () => {
   beforeEach(() => {

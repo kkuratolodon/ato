@@ -1,13 +1,13 @@
-const { InvoiceController } = require("@controllers/invoiceController");
-const pdfValidationService = require("@services/pdfValidationService");
+const { InvoiceController } = require("../../src/controllers/invoiceController");
+const pdfValidationService = require("../../src/services/pdfValidationService");
 
 // Jest-mock-req-res untuk unit test
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require("@utils/errors");
+const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError } = require("../../src/utils/errors");
 
 // Mock services
-jest.mock("@services/pdfValidationService");
-// jest.mock("@services/invoiceService");
+jest.mock("../../src/services/pdfValidationService");
+// jest.mock("../../src/services/invoiceService");
 
 describe("Invoice Controller", () => {
   let req, res, controller, mockInvoiceService;

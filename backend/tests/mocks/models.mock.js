@@ -1,4 +1,4 @@
-jest.mock('@models/', () => ({  
+jest.mock('../../../src/models', () => ({  
   Invoice: {  
     build: jest.fn().mockImplementation(data => data),  
     findOne: jest.fn(),  

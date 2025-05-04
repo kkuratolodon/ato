@@ -1,16 +1,16 @@
-const Sentry = require('@instrument');
-const DocumentStatus = require('@models/enums/DocumentStatus');
-const InvoiceService = require('@services/invoice/invoiceService');
+const Sentry = require('../../../src/instrument');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
+const InvoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock dependencies
-jest.mock('@instrument', () => ({
+jest.mock('../../../src/instrument', () => ({
   addBreadcrumb: jest.fn(),
   captureMessage: jest.fn(),
   captureException: jest.fn()
 }));
 
 // Mock the InvoiceLogger
-jest.mock('@services/invoice/invoiceLogger', () => ({
+jest.mock('../../../src/services/invoice/invoiceLogger', () => ({
   logUploadStart: jest.fn(),
   logUploadSuccess: jest.fn(),
   logProcessingStart: jest.fn(),
@@ -21,15 +21,15 @@ jest.mock('@services/invoice/invoiceLogger', () => ({
   logValidationError: jest.fn()
 }));
 
-jest.mock('@repositories/invoiceRepository');
-jest.mock('@repositories/customerRepository');
-jest.mock('@repositories/vendorRepository');
-jest.mock('@repositories/itemRepository');
-jest.mock('@services/analysis/azureDocumentAnalyzer');
-jest.mock('@services/invoiceMapperService/invoiceMapperService');
+jest.mock('../../../src/repositories/invoiceRepository');
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('../../../src/repositories/itemRepository');
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Import the mocked logger
-const InvoiceLogger = require('@services/invoice/invoiceLogger');
+const InvoiceLogger = require('../../../src/services/invoice/invoiceLogger');
 
 describe('InvoiceService.processInvoiceAsync direct implementation', () => {
   beforeEach(() => {

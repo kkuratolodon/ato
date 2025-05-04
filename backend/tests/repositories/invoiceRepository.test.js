@@ -1,8 +1,8 @@
-const { Invoice } = require('@models/');
-const InvoiceRepository = require('@repositories/invoiceRepository');
+const { Invoice } = require('../../src/models');
+const InvoiceRepository = require('../../src/repositories/invoiceRepository');
 
 // Mock the models
-jest.mock('@models/', () => ({
+jest.mock('../../src/models', () => ({
     Invoice: {
         create: jest.fn(),
         findOne: jest.fn(),

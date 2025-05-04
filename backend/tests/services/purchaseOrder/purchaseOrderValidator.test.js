@@ -1,4 +1,4 @@
-const PurchaseOrderValidator = require('@services/purchaseOrder/purchaseOrderValidator');
+const PurchaseOrderValidator = require('../../../src/services/purchaseOrder/purchaseOrderValidator');
 
 describe('PurchaseOrderValidator', () => {
   let validator;
