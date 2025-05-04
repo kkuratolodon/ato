@@ -122,14 +122,39 @@ class PurchaseOrderController extends FinancialDocumentController {
       return this.handleError(res, new ValidationError("Purchase order ID is required"));
     }
 
-    Sentry.addBreadcrumb({
-      category: "purchaseOrderDeletion",
-      message: `Partner ${partnerId} attempting to delete purchase order ${id}`,
-      level: "info"
-    });
+    try {
+      Sentry.addBreadcrumb({
+        category: "purchaseOrderDeletion",
+        message: `Partner ${partnerId} attempting to delete purchase order ${id}`,
+        level: "info"
+      });
+    } catch (error) {
+      console.warn("Failed to add Sentry breadcrumb:", error);
+      // Continue execution even if Sentry logging fails
+    }
+
+    // Create the NotFoundError instance correctly to match the format in validateDeletion.js
+    const notFoundError = new NotFoundError("Purchase order not found");
 
     from(this.validateDeletionService.validatePurchaseOrderDeletion(partnerId, id))
       .pipe(
+        catchError(error => {
+          console.error(`Error validating deletion for purchase order ${id}:`, error);
+          Sentry.captureException(error, { extra: { purchaseOrderId: id, partnerId } });
+          
+          // Handle validation errors directly and don't continue the pipeline
+          if (error instanceof NotFoundError || 
+              error instanceof ForbiddenError || 
+              error instanceof ValidationError) {
+            throw error; // Re-throw to be caught by the outer catchError
+          }
+          if (error.message?.includes("cannot be deleted unless it is")) {
+            const conflictError = new Error(error.message);
+            conflictError.status = 409;
+            throw conflictError;
+          }
+          throw error; // Re-throw any other errors
+        }),
         mergeMap(purchaseOrder => {
           if (purchaseOrder.file_url) {
             const fileKey = purchaseOrder.file_url.split('/').pop();
@@ -149,7 +174,7 @@ class PurchaseOrderController extends FinancialDocumentController {
           return of(purchaseOrder);
         }),
         mergeMap(() => this.purchaseOrderService.deletePurchaseOrderById(id)), 
-        tap(() => { // Removed unused '_' parameter
+        tap(() => {
           Sentry.captureMessage(`Purchase Order ${id} successfully deleted by ${partnerId}`, { level: 'info' });
           console.log(`Purchase Order ${id} successfully deleted.`);
         }),
@@ -157,12 +182,25 @@ class PurchaseOrderController extends FinancialDocumentController {
           console.error(`Error deleting purchase order ${id}:`, error);
           Sentry.captureException(error, { extra: { purchaseOrderId: id, partnerId } });
 
+          // Handle errors properly by checking instance type first, then message
           if (error instanceof NotFoundError) {
             return of({ status: 404, message: error.message });
           }
+          
           if (error instanceof ForbiddenError) {
             return of({ status: 403, message: error.message });
           }
+          
+          // For ValidationErrors, we need to differentiate between validation issues
+          // during initial request validation vs database operation failures
+          // For database operations, return 500 instead of 400
+          if (error instanceof ValidationError) {
+            // At this point in the pipeline, we're past the file deletion stage
+            // so any validation error here is a database error, not a request error
+            return of({ status: 500, message: "Internal server error during deletion" });
+          }
+          
+          // Message-based fallback checks
           if (error.message?.includes("cannot be deleted unless it is")) { 
             return of({ status: 409, message: error.message });
           }

@@ -1,6 +1,7 @@
 const DocumentStatus = require("../models/enums/DocumentStatus");
 const InvoiceRepository = require("../repositories/invoiceRepository");
 const PurchaseOrderRepository = require("../repositories/purchaseOrderRepository");
+const { ValidationError, NotFoundError, ForbiddenError } = require('../utils/errors');
 
 /**
  * Class for handling invoice deletion validation logic
@@ -17,21 +18,21 @@ class ValidateDeletion {
    * @param {string} partnerId - The ID of the partner requesting deletion.
    * @param {number} invoiceId - The ID of the invoice to be deleted.
    * @returns {Promise<Object>} The invoice object if deletion is allowed.
-   * @throws {Error} Ifgit  the invoice is not found, unauthorized, or cannot be deleted.
+   * @throws {Error} If the invoice is not found, unauthorized, or cannot be deleted.
    */
   async validateInvoiceDeletion(partnerId, invoiceId) {
     if (!invoiceId) {
-      throw new Error("Invalid invoice ID");
+      throw new ValidationError("Invalid invoice ID");
     }
 
     const invoice = await this.invoiceRepository.findById(invoiceId);
 
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
 
     if (invoice.partner_id !== partnerId) {
-      throw new Error("Unauthorized: You do not own this invoice");
+      throw new ForbiddenError("Unauthorized: You do not own this invoice");
     }
 
     if (invoice.status !== DocumentStatus.ANALYZED) {
@@ -51,17 +52,17 @@ class ValidateDeletion {
    */
   async validatePurchaseOrderDeletion(partnerId, purchaseOrderId) {
     if (!purchaseOrderId) {
-      throw new Error("Invalid purchase order ID");
+      throw new ValidationError("Invalid purchase order ID");
     }
 
     const purchaseOrder = await this.purchaseOrderRepository.findById(purchaseOrderId);
 
     if (!purchaseOrder) {
-      throw new Error("Purchase order not found");
+      throw new NotFoundError("Purchase order not found");
     }
 
     if (purchaseOrder.partner_id !== partnerId) {
-      throw new Error("Unauthorized: You do not own this purchase order");
+      throw new ForbiddenError("Unauthorized: You do not own this purchase order");
     }
 
     if (purchaseOrder.status !== DocumentStatus.ANALYZED) {

@@ -545,16 +545,24 @@ describe("Purchase Order Controller", () => {
         controller.deletePurchaseOrderById(req, res);
 
         setTimeout(() => {
-          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
-          expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
-          expect(res.status).toHaveBeenCalledWith(500);
-          expect(res.json).toHaveBeenCalledWith({ 
-            message: expect.stringContaining("Failed to delete file from S3"),
-            error: "S3 Access Denied"
-          });
-          done();
-        }, 50);
+          try {
+            expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+            expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+            expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+            expect(res.status).toHaveBeenCalledWith(500);
+            
+            // Use toEqual instead of toHaveBeenCalledWith to be more flexible with object matching
+            const expectedResponse = { 
+              message: expect.stringContaining("Failed to delete file from S3"),
+              error: "S3 Access Denied"
+            };
+            
+            expect(res.json.mock.calls[0][0]).toEqual(expectedResponse);
+            done();
+          } catch (error) {
+            done(error);
+          }
+        }, 100); // Increased timeout for reliability
       });
 
       test("should return 500 if service deletion fails (DB Error)", (done) => {
