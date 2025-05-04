@@ -38,9 +38,7 @@ class PurchaseOrderRepository {
         const purchaseOrder = await PurchaseOrder.findByPk(id);
         if (purchaseOrder) {
             await purchaseOrder.destroy();
-            return 1;
         }
-        return 0;
     }
     
     async hardDelete(id) {
