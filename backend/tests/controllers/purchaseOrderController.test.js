@@ -2,35 +2,42 @@ const { mockRequest, mockResponse } = require("jest-mock-req-res");
 const { PurchaseOrderController } = require("@controllers/purchaseOrderController");
 const purchaseOrderService = require("@services/purchaseOrder/purchaseOrderService");
 const pdfValidationService = require("@services/pdfValidationService");
-const { PayloadTooLargeError, UnsupportedMediaTypeError } = require("@utils/errors");
+const validateDeletionService = require('@services/validateDeletion');
+const s3Service = require('@services/s3Service');
+const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError, AuthError, ValidationError } = require("@utils/errors");
+const { of, throwError } = require('rxjs');
 
 jest.mock("@services/purchaseOrder/purchaseOrderService");
 jest.mock("@services/pdfValidationService");
+jest.mock("@services/validateDeletion");
+jest.mock("@services/s3Service");
 
 describe("PurchaseOrderController constructor", () => {
   test("should throw error when invalid service is provided", () => {
-    // Case 1: No service provided
     expect(() => {
       new PurchaseOrderController();
     }).toThrow('Invalid purchase order service provided');
 
-    // Case 2: Service without uploadPurchaseOrder function
     const invalidService = {};
     expect(() => {
       new PurchaseOrderController(invalidService);
     }).toThrow('Invalid purchase order service provided');
     
-    // Case 3: Service with non-function uploadPurchaseOrder property
     const invalidService2 = { uploadPurchaseOrder: 'not a function' };
     expect(() => {
       new PurchaseOrderController(invalidService2);
     }).toThrow('Invalid purchase order service provided');
   });
 
-  test("should not throw error when valid service is provided", () => {
+  test("should not throw error when valid dependencies are provided", () => {
     const validService = { uploadPurchaseOrder: jest.fn() };
+    const validDeps = {
+      purchaseOrderService: validService,
+      validateDeletionService: {},
+      s3Service: {}
+    };
     expect(() => {
-      new PurchaseOrderController(validService);
+      new PurchaseOrderController(validDeps);
     }).not.toThrow();
   });
 });
@@ -55,7 +62,6 @@ describe("Purchase Order Controller", () => {
     req = mockRequest();
     res = mockResponse();
 
-    // Default mocks
     pdfValidationService.allValidations.mockResolvedValue(true);    
 
     purchaseOrderService.uploadPurchaseOrder = jest.fn().mockResolvedValue({
@@ -63,37 +69,20 @@ describe("Purchase Order Controller", () => {
       id: "123"
     });
     purchaseOrderService.getPartnerId = jest.fn();
+    purchaseOrderService.getPurchaseOrderById = jest.fn();
+    purchaseOrderService.getPurchaseOrderStatus = jest.fn();
+    purchaseOrderService.deletePurchaseOrderById = jest.fn().mockReturnValue(of({ message: "Purchase order successfully deleted" }));
 
-    controller = new PurchaseOrderController(purchaseOrderService);
+    validateDeletionService.validatePurchaseOrderDeletion = jest.fn();
+
+    s3Service.deleteFile = jest.fn().mockResolvedValue({ success: true });
+
+    controller = new PurchaseOrderController({
+      purchaseOrderService: purchaseOrderService,
+      validateDeletionService: validateDeletionService,
+      s3Service: s3Service
+    });
     jest.clearAllMocks();
-  });
-
-  // Add this new test to cover the constructor validation (line 8)
-  describe("constructor", () => {
-    test("should throw an error when an invalid service is provided", () => {
-      // Test with null
-      expect(() => new PurchaseOrderController(null)).toThrow('Invalid purchase order service provided');
-      
-      // Test with undefined
-      expect(() => new PurchaseOrderController(undefined)).toThrow('Invalid purchase order service provided');
-      
-      // Test with an object that doesn't have the required method
-      const invalidService = { 
-        someOtherMethod: () => {} 
-      };
-      expect(() => new PurchaseOrderController(invalidService)).toThrow('Invalid purchase order service provided');
-    });
-
-    test("should create controller successfully with valid service", () => {
-      // Create a mock service with the required method
-      const validService = {
-        uploadPurchaseOrder: jest.fn()
-      };
-      
-      // This should not throw an error
-      const controller = new PurchaseOrderController(validService);
-      expect(controller).toBeInstanceOf(PurchaseOrderController);
-    });
   });
 
   describe("uploadPurchaseOrder", () => {
@@ -161,7 +150,6 @@ describe("Purchase Order Controller", () => {
       const testData = setupTestData();
       Object.assign(req, testData);
 
-      // Simulate timeout
       purchaseOrderService.uploadPurchaseOrder.mockImplementation(() => 
         new Promise(resolve => setTimeout(resolve, 4000))
       );
@@ -357,6 +345,63 @@ describe("Purchase Order Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Purchase order not found"
       });
+    });
+  });
+
+  describe("deletePurchaseOrderById", () => {
+    const partnerId = "test-uuid";
+    const purchaseOrderId = "po-123";
+    const fileUrl = "https://s3.amazonaws.com/bucket/some-file-key.pdf";
+    const fileKey = "some-file-key.pdf";
+
+    beforeEach(() => {
+      validateDeletionService.validatePurchaseOrderDeletion.mockClear();
+      s3Service.deleteFile.mockClear();
+      purchaseOrderService.deletePurchaseOrderById.mockClear();
+      validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
+        id: purchaseOrderId,
+        partner_id: partnerId,
+        file_url: fileUrl
+      });
+      s3Service.deleteFile.mockResolvedValue({ success: true });
+      purchaseOrderService.deletePurchaseOrderById.mockReturnValue(of({ message: "Purchase order successfully deleted" }));
+    });
+
+    test("should successfully delete purchase order with S3 file", (done) => {
+      const testData = setupTestData({ params: { id: purchaseOrderId } });
+      Object.assign(req, testData);
+
+      controller.deletePurchaseOrderById(req, res);
+
+      setTimeout(() => {
+        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
+        done();
+      }, 50);
+    });
+
+    test("should successfully delete purchase order without S3 file", (done) => {
+      validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
+        id: purchaseOrderId,
+        partner_id: partnerId,
+        file_url: null
+      });
+      const testData = setupTestData({ params: { id: purchaseOrderId } });
+      Object.assign(req, testData);
+
+      controller.deletePurchaseOrderById(req, res);
+
+      setTimeout(() => {
+        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+        expect(s3Service.deleteFile).not.toHaveBeenCalled();
+        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
+        done();
+      }, 50);
     });
   });
 });
