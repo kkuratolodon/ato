@@ -133,8 +133,6 @@ class PurchaseOrderController extends FinancialDocumentController {
       // Continue execution even if Sentry logging fails
     }
 
-    // Create the NotFoundError instance correctly to match the format in validateDeletion.js
-    const notFoundError = new NotFoundError("Purchase order not found");
 
     from(this.validateDeletionService.validatePurchaseOrderDeletion(partnerId, id))
       .pipe(
