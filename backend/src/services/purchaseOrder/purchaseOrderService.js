@@ -1,6 +1,4 @@
 const { v4: uuidv4 } = require('uuid');
-const { from } = require('rxjs');
-const { catchError, map, switchMap } = require('rxjs/operators');
 const FinancialDocumentService = require('@services/financialDocumentService');
 const Sentry = require("@instrument");
 const PurchaseOrderRepository = require('@repositories/purchaseOrderRepository');
@@ -289,30 +287,6 @@ class PurchaseOrderService extends FinancialDocumentService {
       // Wrap other errors
       throw new Error(`Failed to get purchase order status: ${error.message}`);
     }
-  }
-
-  /**
-   * Delete a purchase order by ID
-   * @param {string} id - Purchase order ID to delete
-   * @returns {Observable} Observable with success message or error
-   */
-  deletePurchaseOrderById(id) {
-    return from(Promise.resolve())
-      .pipe(
-        switchMap(() => from(this.purchaseOrderRepository.delete(id))),
-        map(result => {
-          if (result === 0) {
-            const err = new Error(`Failed to delete purchase order with ID: ${id}`);
-            Sentry.captureException(err);
-            throw err;
-          }
-          return { message: "Purchase order successfully deleted" };
-        }),
-        catchError(error => {
-          Sentry.captureException(error);
-          throw new Error(error.message);
-        })
-      );
   }
 }
 
