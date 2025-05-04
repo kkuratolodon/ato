@@ -220,7 +220,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow('Failed to delete purchase order with ID:');
+                .rejects.toThrow(`Failed to delete purchase order with ID: ${mockId}`);
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();
