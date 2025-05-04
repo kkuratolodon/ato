@@ -1,30 +1,30 @@
-const DocumentStatus = require('@models/enums/DocumentStatus');
-const invoiceService = require('@services/invoice/invoiceService');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
+const invoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock repositories instead of models
-jest.mock('@repositories/invoiceRepository', () => {
+jest.mock('../../../src/repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
     createInitial: jest.fn()
   }));
 });
 
-jest.mock('@repositories/customerRepository');
-jest.mock('@repositories/vendorRepository');
-jest.mock('@repositories/itemRepository');
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('../../../src/repositories/itemRepository');
 
 // Mock Azure Document Intelligence
 jest.mock("@azure/ai-form-recognizer");
 
 // Mock S3 Service
-jest.mock('@services/s3Service', () => ({
+jest.mock('../../../src/services/s3Service', () => ({
   uploadFile: jest.fn()
 }));
 
 // Mock other dependencies
-jest.mock('@services/analysis/azureDocumentAnalyzer');
-jest.mock('@services/invoice/invoiceValidator');
-jest.mock('@services/invoice/invoiceResponseFormatter');
-jest.mock('@services/invoiceMapperService/invoiceMapperService');
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('../../../src/services/invoice/invoiceValidator');
+jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Mock UUID
 jest.mock('uuid', () => ({
@@ -32,7 +32,7 @@ jest.mock('uuid', () => ({
 }));
 
 // Mock Sentry
-jest.mock('@instrument', () => ({
+jest.mock('../../../src/instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),

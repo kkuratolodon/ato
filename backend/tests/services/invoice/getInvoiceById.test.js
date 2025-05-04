@@ -1,20 +1,20 @@
-const DocumentStatus = require('@models/enums/DocumentStatus');
-const invoiceService = require('@services/invoice/invoiceService');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
+const invoiceService = require('../../../src/services/invoice/invoiceService');
 
 // Mock the repositories
-jest.mock('@repositories/invoiceRepository');
-jest.mock('@repositories/customerRepository');
-jest.mock('@repositories/vendorRepository');
-jest.mock('@repositories/itemRepository');
-jest.mock('@services/invoice/invoiceResponseFormatter');
+jest.mock('../../../src/repositories/invoiceRepository');
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('../../../src/repositories/itemRepository');
+jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
 
 // Other mocks needed for invoiceService to initialize properly
-jest.mock('@services/analysis/azureDocumentAnalyzer');
-jest.mock('@services/invoice/invoiceValidator');
-jest.mock('@services/invoiceMapperService/invoiceMapperService');
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('../../../src/services/invoice/invoiceValidator');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
 
 // Sentry mock
-jest.mock('@instrument', () => ({
+jest.mock('../../../src/instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),

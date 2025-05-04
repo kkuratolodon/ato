@@ -1,6 +1,6 @@
 // Mock the InvoiceService module instead of requiring the real one
 // Note: Correct casing to match your actual file (InvoiceService.js vs invoiceService.js)
-jest.mock('@services/invoice/invoiceService', () => {
+jest.mock('../../src/services/invoice/invoiceService', () => {
   // Return a mock of the instance that's exported from the module
   return {
     // The mock implementation of buildResponse
@@ -20,9 +20,9 @@ jest.mock('@services/invoice/invoiceService', () => {
   };
 });
 
-const DocumentStatus = require('@models/enums/DocumentStatus');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 // Now require the mocked module with correct path and casing
-const invoiceService = require('@services/invoice/invoiceService');
+const invoiceService = require('../../src/services/invoice/invoiceService');
 
 describe('buildResponse method', () => {
   // Rest of the test file remains unchanged
