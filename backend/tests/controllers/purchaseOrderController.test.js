@@ -618,6 +618,30 @@ describe("Purchase Order Controller", () => {
           done();
         }, 50);
       });
+
+      test("should return 500 if validation throws an unexpected error", (done) => {
+        // Create a generic error (not one of the specific error types)
+        const unexpectedError = new Error("Unexpected system error during validation");
+        validateDeletionService.validatePurchaseOrderDeletion.mockRejectedValue(unexpectedError);
+        
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).not.toHaveBeenCalled();
+          expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({ message: "Internal server error during deletion" });
+          expect(Sentry.captureException).toHaveBeenCalledWith(
+            unexpectedError, 
+            { extra: { purchaseOrderId: purchaseOrderId, partnerId } }
+          );
+          done();
+        }, 50);
+      });
     });
 
     describe("Corner Cases", () => {
@@ -722,6 +746,36 @@ describe("Purchase Order Controller", () => {
           expect(res.status).toHaveBeenCalledWith(500);
           expect(res.json).toHaveBeenCalledWith({ message: "Internal server error during deletion" });
           expect(Sentry.captureException).toHaveBeenCalled();
+          done();
+        }, 50);
+      });
+    });
+
+    describe("Edge Cases", () => {
+      test("should continue execution if Sentry.addBreadcrumb fails", (done) => {
+        // Setup console.warn spy
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        
+        // Mock Sentry.addBreadcrumb to throw an error
+        const sentryError = new Error("Sentry service unavailable");
+        Sentry.addBreadcrumb.mockImplementationOnce(() => {
+          throw sentryError;
+        });
+        
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          // Verify console.warn was called
+          expect(consoleWarnSpy).toHaveBeenCalledWith("Failed to add Sentry breadcrumb:", sentryError);
+          
+          // Verify the operation still continues
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          
+          // Clean up spy
+          consoleWarnSpy.mockRestore();
           done();
         }, 50);
       });
