@@ -4,13 +4,22 @@ const purchaseOrderService = require("@services/purchaseOrder/purchaseOrderServi
 const pdfValidationService = require("@services/pdfValidationService");
 const validateDeletionService = require('@services/validateDeletion');
 const s3Service = require('@services/s3Service');
-const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError, AuthError, ValidationError } = require("@utils/errors");
-const { of, throwError } = require('rxjs');
+const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError } = require("@utils/errors");
+const { of, throwError, from } = require('rxjs');
+
+const Sentry = require("@sentry/node");
 
 jest.mock("@services/purchaseOrder/purchaseOrderService");
 jest.mock("@services/pdfValidationService");
 jest.mock("@services/validateDeletion");
 jest.mock("@services/s3Service");
+jest.mock("@sentry/node");
+jest.mock('rxjs', () => ({
+  ...jest.requireActual('rxjs'),
+  of: jest.fn().mockImplementation(val => jest.requireActual('rxjs').of(val)),
+  throwError: jest.fn().mockImplementation(val => jest.requireActual('rxjs').throwError(val)),
+  from: jest.fn().mockImplementation(val => jest.requireActual('rxjs').from(val))
+}));
 
 describe("PurchaseOrderController constructor", () => {
   test("should throw error when invalid service is provided", () => {
@@ -44,6 +53,7 @@ describe("PurchaseOrderController constructor", () => {
 
 describe("Purchase Order Controller", () => {
   let req, res, controller;
+  let consoleErrorSpy;
 
   const setupTestData = (overrides = {}) => {  
     return {  
@@ -61,6 +71,7 @@ describe("Purchase Order Controller", () => {
   beforeEach(() => {
     req = mockRequest();
     res = mockResponse();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     pdfValidationService.allValidations.mockResolvedValue(true);    
 
@@ -83,6 +94,10 @@ describe("Purchase Order Controller", () => {
       s3Service: s3Service
     });
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   describe("uploadPurchaseOrder", () => {
@@ -365,6 +380,7 @@ describe("Purchase Order Controller", () => {
       });
       s3Service.deleteFile.mockResolvedValue({ success: true });
       purchaseOrderService.deletePurchaseOrderById.mockReturnValue(of({ message: "Purchase order successfully deleted" }));
+      Sentry.captureException.mockClear();
     });
 
     test("should successfully delete purchase order with S3 file", (done) => {
@@ -542,6 +558,92 @@ describe("Purchase Order Controller", () => {
         expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
         expect(res.status).toHaveBeenCalledWith(404); 
         expect(res.json).toHaveBeenCalledWith({ message: `Failed to delete purchase order with ID: ${purchaseOrderId}` });
+        done();
+      }, 50);
+    });
+
+    test("should return 500 for other service deletion errors", (done) => {
+      const genericServiceError = new Error("Failed to delete purchase order due to constraint violation");
+      purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => genericServiceError));
+      const testData = setupTestData({ params: { id: purchaseOrderId } });
+      Object.assign(req, testData);
+
+      controller.deletePurchaseOrderById(req, res);
+
+      setTimeout(() => {
+        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+        expect(res.status).toHaveBeenCalledWith(500); 
+        expect(res.json).toHaveBeenCalledWith({ message: "Failed to delete purchase order due to constraint violation" }); 
+        done();
+      }, 50);
+    });
+
+    test("should default to status 500 if S3 deletion error has no status field", (done) => {
+      // Instead of mocking resolved value, we'll set up to throw an error in the mergeMap
+      const s3Error = new Error("Failed to delete file from S3 for PO unknown reason");
+      // Note: intentionally NOT setting an s3Error.status property
+      
+      // First let validation pass
+      validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
+        file_url: `https://s3.amazonaws.com/bucket/${fileKey}`
+      });
+      
+      // Then make s3Service throw our error
+      s3Service.deleteFile.mockRejectedValue(s3Error);
+      
+      const testData = setupTestData({ params: { id: purchaseOrderId } });
+      Object.assign(req, testData);
+    
+      controller.deletePurchaseOrderById(req, res);
+    
+      setTimeout(() => {
+        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+        expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(500); // Should default to 500
+        expect(res.json).toHaveBeenCalledWith({ message: s3Error.message });
+        done();
+      }, 50);
+    });
+    test("should handle unhandled errors in subscription with 500 status", (done) => {
+      // Setup to create an Observable that throws during subscription
+      const subscriptionError = new Error("Subscription processing error");
+      const mockObservable = {
+        pipe: jest.fn().mockReturnThis(),
+        subscribe: jest.fn(callbacks => {
+          // Force an error in the subscription process
+          setTimeout(() => callbacks.error(subscriptionError), 10);
+          return { unsubscribe: jest.fn() };
+        })
+      };
+    
+      // Replace real observable with our mocked one
+      from.mockImplementationOnce(() => mockObservable);
+      
+      const testData = setupTestData({ params: { id: purchaseOrderId } });
+      Object.assign(req, testData);
+    
+      controller.deletePurchaseOrderById(req, res);
+    
+      setTimeout(() => {
+        expect(console.error).toHaveBeenCalledWith(
+          "Unhandled error in deletePurchaseOrderById subscription:", 
+          subscriptionError
+        );
+        expect(Sentry.captureException).toHaveBeenCalledWith(
+          subscriptionError, 
+          { 
+            extra: { 
+              purchaseOrderId: purchaseOrderId, 
+              partnerId: partnerId, 
+              context: 'Subscription Error' 
+            } 
+          }
+        );
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: "An unexpected error occurred" });
         done();
       }, 50);
     });
