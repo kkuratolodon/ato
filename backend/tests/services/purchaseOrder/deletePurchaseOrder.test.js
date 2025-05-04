@@ -96,7 +96,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow('Failed to delete purchase order: Failed to delete purchase order with ID: nonexistent-po');
+                .rejects.toThrow('Failed to delete purchase order with ID: nonexistent-po');
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();
@@ -114,7 +114,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow('Failed to delete purchase order: Database connection error');
+                .rejects.toThrow('Database connection error');
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalledWith(mockError);
@@ -132,7 +132,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow('Failed to delete purchase order: Request timeout');
+                .rejects.toThrow('Request timeout');
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalledWith(mockError);
@@ -150,7 +150,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow('Failed to delete purchase order: Authorization failed');
+                .rejects.toThrow('Authorization failed');
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalledWith(mockError);
@@ -172,7 +172,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow(`Failed to delete purchase order: Failed to delete purchase order with ID: ${mockId}`);
+                .rejects.toThrow(`Failed to delete purchase order with ID: ${mockId}`);
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();
@@ -188,7 +188,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow(`Failed to delete purchase order: Failed to delete purchase order with ID: ${mockId}`);
+                .rejects.toThrow(`Failed to delete purchase order with ID: ${mockId}`);
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();
@@ -204,7 +204,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow(`Failed to delete purchase order: Failed to delete purchase order with ID: ${mockId}`);
+                .rejects.toThrow(`Failed to delete purchase order with ID: ${mockId}`);
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();
@@ -220,7 +220,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow('Failed to delete purchase order: Failed to delete purchase order with ID:');
+                .rejects.toThrow('Failed to delete purchase order with ID:');
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();
@@ -236,7 +236,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow(`Failed to delete purchase order: Failed to delete purchase order with ID: ${mockId}`);
+                .rejects.toThrow(`Failed to delete purchase order with ID: ${mockId}`);
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();
@@ -252,7 +252,7 @@ describe('deletePurchaseOrderById', () => {
             });
             
             await expect(purchaseOrderService.deletePurchaseOrderById(mockId).toPromise())
-                .rejects.toThrow(`Failed to delete purchase order: Failed to delete purchase order with ID: ${mockId}`);
+                .rejects.toThrow(`Failed to delete purchase order with ID: ${mockId}`);
             
             expect(purchaseOrderService.purchaseOrderRepository.delete).toHaveBeenCalledWith(mockId);
             expect(Sentry.captureException).toHaveBeenCalled();

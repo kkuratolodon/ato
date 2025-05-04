@@ -310,7 +310,7 @@ class PurchaseOrderService extends FinancialDocumentService {
         }),
         catchError(error => {
           Sentry.captureException(error);
-          throw new Error("Failed to delete purchase order: " + error.message);
+          throw new Error(error.message);
         })
       );
   }
