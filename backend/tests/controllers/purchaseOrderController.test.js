@@ -4,8 +4,8 @@ const purchaseOrderService = require("@services/purchaseOrder/purchaseOrderServi
 const pdfValidationService = require("@services/pdfValidationService");
 const validateDeletionService = require('@services/validateDeletion');
 const s3Service = require('@services/s3Service');
-const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError, AuthError, ValidationError } = require("@utils/errors");
-const { of, throwError } = require('rxjs');
+const { PayloadTooLargeError, UnsupportedMediaTypeError } = require("@utils/errors");
+const { of } = require('rxjs');
 
 jest.mock("@services/purchaseOrder/purchaseOrderService");
 jest.mock("@services/pdfValidationService");

@@ -149,7 +149,7 @@ class PurchaseOrderController extends FinancialDocumentController {
           return of(purchaseOrder);
         }),
         mergeMap(() => this.purchaseOrderService.deletePurchaseOrderById(id)), 
-        tap(result => {
+        tap(() => { // Removed unused '_' parameter
           Sentry.captureMessage(`Purchase Order ${id} successfully deleted by ${partnerId}`, { level: 'info' });
           console.log(`Purchase Order ${id} successfully deleted.`);
         }),
