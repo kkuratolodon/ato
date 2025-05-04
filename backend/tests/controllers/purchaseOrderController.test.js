@@ -4,7 +4,7 @@ const purchaseOrderService = require("@services/purchaseOrder/purchaseOrderServi
 const pdfValidationService = require("@services/pdfValidationService");
 const validateDeletionService = require('@services/validateDeletion');
 const s3Service = require('@services/s3Service');
-const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError } = require("@utils/errors");
+const { PayloadTooLargeError, UnsupportedMediaTypeError, NotFoundError, ForbiddenError, ValidationError } = require("@utils/errors");
 const { of, throwError, from } = require('rxjs');
 
 const Sentry = require("@sentry/node");
@@ -383,269 +383,333 @@ describe("Purchase Order Controller", () => {
       Sentry.captureException.mockClear();
     });
 
-    test("should successfully delete purchase order with S3 file", (done) => {
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
+    describe("Positive Cases", () => {
+      test("should successfully delete purchase order with S3 file", (done) => {
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
 
-      controller.deletePurchaseOrderById(req, res);
+        controller.deletePurchaseOrderById(req, res);
 
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
-        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
-        expect(res.status).toHaveBeenCalledWith(200);
-        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
-        done();
-      }, 50);
-    });
-
-    test("should successfully delete purchase order without S3 file", (done) => {
-      validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
-        id: purchaseOrderId,
-        partner_id: partnerId,
-        file_url: null
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(200);
+          expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
+          done();
+        }, 50);
       });
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
 
-      controller.deletePurchaseOrderById(req, res);
+      test("should successfully delete purchase order without S3 file", (done) => {
+        validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
+          id: purchaseOrderId,
+          partner_id: partnerId,
+          file_url: null
+        });
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
 
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).not.toHaveBeenCalled();
-        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
-        expect(res.status).toHaveBeenCalledWith(200);
-        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
-        done();
-      }, 50);
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).not.toHaveBeenCalled();
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(200);
+          expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
+          done();
+        }, 50);
+      });
+
+      test("should successfully delete purchase order with empty file_url string", (done) => {
+        validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
+          id: purchaseOrderId,
+          partner_id: partnerId,
+          file_url: ""
+        });
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).not.toHaveBeenCalled();
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(200);
+          expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
+          done();
+        }, 50);
+      });
     });
 
-    test("should return 401 if user is not authenticated", () => {
-      const testData = setupTestData({ user: undefined, params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
+    describe("Negative Cases", () => {
+      test("should return 401 if user is not authenticated", () => {
+        const testData = setupTestData({ user: undefined, params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
 
-      controller.deletePurchaseOrderById(req, res);
+        controller.deletePurchaseOrderById(req, res);
 
-      expect(validateDeletionService.validatePurchaseOrderDeletion).not.toHaveBeenCalled();
-      expect(s3Service.deleteFile).not.toHaveBeenCalled();
-      expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ message: "Unauthorized" });
-    });
-    
-    test("should return 400 if purchase order ID is missing", () => {
-      const testData = setupTestData({ params: {} });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      expect(validateDeletionService.validatePurchaseOrderDeletion).not.toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Purchase order ID is required" });
-    });
-    
-    test("should return 400 if purchase order ID is null", () => {
-      const testData = setupTestData({ params: { id: null } }); 
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      expect(validateDeletionService.validatePurchaseOrderDeletion).not.toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Purchase order ID is required" });
-    });
-
-    test("should return 404 if validation fails (Not Found)", (done) => {
-      const error = new NotFoundError("Purchase order not found");
-      validateDeletionService.validatePurchaseOrderDeletion.mockRejectedValue(error);
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+        expect(validateDeletionService.validatePurchaseOrderDeletion).not.toHaveBeenCalled();
         expect(s3Service.deleteFile).not.toHaveBeenCalled();
         expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(404);
-        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order not found" });
-        done();
-      }, 50);
-    });
-
-    test("should return 403 if validation fails (Forbidden)", (done) => {
-      const error = new ForbiddenError("Forbidden: You do not own this purchase order");
-      validateDeletionService.validatePurchaseOrderDeletion.mockRejectedValue(error);
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).not.toHaveBeenCalled();
-        expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(403);
-        expect(res.json).toHaveBeenCalledWith({ message: "Forbidden: You do not own this purchase order" });
-        done();
-      }, 50);
-    });
-
-    test("should return 409 if validation fails (Conflict - e.g., wrong status)", (done) => {
-      const error = new Error("Purchase order cannot be deleted unless it is Analyzed");
-      validateDeletionService.validatePurchaseOrderDeletion.mockRejectedValue(error);
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).not.toHaveBeenCalled();
-        expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(409);
-        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order cannot be deleted unless it is Analyzed" });
-        done();
-      }, 50);
-    });
-
-    test("should return 500 if S3 deletion fails", (done) => {
-      s3Service.deleteFile.mockResolvedValue({ success: false, error: "S3 Access Denied" });
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
-        expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({ message: expect.stringContaining("Failed to delete file from S3") });
-        done();
-      }, 50);
-    });
-
-    test("should return 500 if service deletion fails (DB Error)", (done) => {
-      const dbError = new Error("Database connection error");
-      purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => dbError));
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
-        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({ message: "Internal server error during deletion" }); 
-        done();
-      }, 50);
-    });
-     
-    test("should return 404 if service deletion indicates PO not found (0 rows affected)", (done) => {
-      const serviceError = new Error(`Failed to delete purchase order with ID: ${purchaseOrderId}`);
-      purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => serviceError));
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
-        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
-        expect(res.status).toHaveBeenCalledWith(404); 
-        expect(res.json).toHaveBeenCalledWith({ message: `Failed to delete purchase order with ID: ${purchaseOrderId}` });
-        done();
-      }, 50);
-    });
-
-    test("should return 500 for other service deletion errors", (done) => {
-      const genericServiceError = new Error("Failed to delete purchase order due to constraint violation");
-      purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => genericServiceError));
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-
-      controller.deletePurchaseOrderById(req, res);
-
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
-        expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
-        expect(res.status).toHaveBeenCalledWith(500); 
-        expect(res.json).toHaveBeenCalledWith({ message: "Failed to delete purchase order due to constraint violation" }); 
-        done();
-      }, 50);
-    });
-
-    test("should default to status 500 if S3 deletion error has no status field", (done) => {
-      // Instead of mocking resolved value, we'll set up to throw an error in the mergeMap
-      const s3Error = new Error("Failed to delete file from S3 for PO unknown reason");
-      // Note: intentionally NOT setting an s3Error.status property
-      
-      // First let validation pass
-      validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
-        file_url: `https://s3.amazonaws.com/bucket/${fileKey}`
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith({ message: "Unauthorized" });
       });
       
-      // Then make s3Service throw our error
-      s3Service.deleteFile.mockRejectedValue(s3Error);
+      test("should return 400 if purchase order ID is missing", () => {
+        const testData = setupTestData({ params: {} });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        expect(validateDeletionService.validatePurchaseOrderDeletion).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order ID is required" });
+      });
       
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-    
-      controller.deletePurchaseOrderById(req, res);
-    
-      setTimeout(() => {
-        expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
-        expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
-        expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(500); // Should default to 500
-        expect(res.json).toHaveBeenCalledWith({ message: s3Error.message });
-        done();
-      }, 50);
+      test("should return 400 if purchase order ID is null", () => {
+        const testData = setupTestData({ params: { id: null } }); 
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        expect(validateDeletionService.validatePurchaseOrderDeletion).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: "Purchase order ID is required" });
+      });
+
+      test("should return 404 if validation fails (Not Found)", (done) => {
+        const error = new NotFoundError("Purchase order not found");
+        validateDeletionService.validatePurchaseOrderDeletion.mockRejectedValue(error);
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).not.toHaveBeenCalled();
+          expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(404);
+          expect(res.json).toHaveBeenCalledWith({ message: "Purchase order not found" });
+          done();
+        }, 50);
+      });
+
+      test("should return 403 if validation fails (Forbidden)", (done) => {
+        const error = new ForbiddenError("Forbidden: You do not own this purchase order");
+        validateDeletionService.validatePurchaseOrderDeletion.mockRejectedValue(error);
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).not.toHaveBeenCalled();
+          expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(403);
+          expect(res.json).toHaveBeenCalledWith({ message: "Forbidden: You do not own this purchase order" });
+          done();
+        }, 50);
+      });
+
+      test("should return 409 if validation fails (Conflict - e.g., wrong status)", (done) => {
+        const error = new Error("Purchase order cannot be deleted unless it is Analyzed");
+        validateDeletionService.validatePurchaseOrderDeletion.mockRejectedValue(error);
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).not.toHaveBeenCalled();
+          expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(409);
+          expect(res.json).toHaveBeenCalledWith({ message: "Purchase order cannot be deleted unless it is Analyzed" });
+          done();
+        }, 50);
+      });
+
+      test("should return 500 if S3 deletion fails", (done) => {
+        s3Service.deleteFile.mockResolvedValue({ success: false, error: "S3 Access Denied" });
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+          expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({ message: expect.stringContaining("Failed to delete file from S3") });
+          done();
+        }, 50);
+      });
+
+      test("should return 500 if service deletion fails (DB Error)", (done) => {
+        const dbError = new Error("Database connection error");
+        purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => dbError));
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({ message: "Internal server error during deletion" }); 
+          done();
+        }, 50);
+      });
+       
+      test("should return 404 if service deletion indicates PO not found (0 rows affected)", (done) => {
+        const serviceError = new Error(`Failed to delete purchase order with ID: ${purchaseOrderId}`);
+        purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => serviceError));
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(404); 
+          expect(res.json).toHaveBeenCalledWith({ message: `Failed to delete purchase order with ID: ${purchaseOrderId}` });
+          done();
+        }, 50);
+      });
+
+      test("should return 500 for other service deletion errors", (done) => {
+        const genericServiceError = new Error("Failed to delete purchase order due to constraint violation");
+        purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => genericServiceError));
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(500); 
+          expect(res.json).toHaveBeenCalledWith({ message: "Failed to delete purchase order due to constraint violation" }); 
+          done();
+        }, 50);
+      });
     });
-    test("should handle unhandled errors in subscription with 500 status", (done) => {
-      // Setup to create an Observable that throws during subscription
-      const subscriptionError = new Error("Subscription processing error");
-      const mockObservable = {
-        pipe: jest.fn().mockReturnThis(),
-        subscribe: jest.fn(callbacks => {
-          // Force an error in the subscription process
-          setTimeout(() => callbacks.error(subscriptionError), 10);
-          return { unsubscribe: jest.fn() };
-        })
-      };
-    
-      // Replace real observable with our mocked one
-      from.mockImplementationOnce(() => mockObservable);
+
+    describe("Corner Cases", () => {
+      test("should default to status 500 if S3 deletion error has no status field", (done) => {
+        const s3Error = new Error("Failed to delete file from S3 for PO unknown reason");
+        
+        validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
+          file_url: `https://s3.amazonaws.com/bucket/${fileKey}`
+        });
+        
+        s3Service.deleteFile.mockRejectedValue(s3Error);
+        
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
       
-      const testData = setupTestData({ params: { id: purchaseOrderId } });
-      Object.assign(req, testData);
-    
-      controller.deletePurchaseOrderById(req, res);
-    
-      setTimeout(() => {
-        expect(console.error).toHaveBeenCalledWith(
-          "Unhandled error in deletePurchaseOrderById subscription:", 
-          subscriptionError
-        );
-        expect(Sentry.captureException).toHaveBeenCalledWith(
-          subscriptionError, 
-          { 
-            extra: { 
-              purchaseOrderId: purchaseOrderId, 
-              partnerId: partnerId, 
-              context: 'Subscription Error' 
-            } 
-          }
-        );
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({ message: "An unexpected error occurred" });
-        done();
-      }, 50);
+        controller.deletePurchaseOrderById(req, res);
+      
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+          expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({ message: s3Error.message });
+          done();
+        }, 50);
+      });
+
+      test("should handle unhandled errors in subscription with 500 status", (done) => {
+        const subscriptionError = new Error("Subscription processing error");
+        const mockObservable = {
+          pipe: jest.fn().mockReturnThis(),
+          subscribe: jest.fn(callbacks => {
+            setTimeout(() => callbacks.error(subscriptionError), 10);
+            return { unsubscribe: jest.fn() };
+          })
+        };
+      
+        from.mockImplementationOnce(() => mockObservable);
+        
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+      
+        controller.deletePurchaseOrderById(req, res);
+      
+        setTimeout(() => {
+          expect(console.error).toHaveBeenCalledWith(
+            "Unhandled error in deletePurchaseOrderById subscription:", 
+            subscriptionError
+          );
+          expect(Sentry.captureException).toHaveBeenCalledWith(
+            subscriptionError, 
+            { 
+              extra: { 
+                purchaseOrderId: purchaseOrderId, 
+                partnerId: partnerId, 
+                context: 'Subscription Error' 
+              } 
+            }
+          );
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({ message: "An unexpected error occurred" });
+          done();
+        }, 50);
+      });
+
+      test("should handle malformed S3 file URL gracefully", (done) => {
+        validateDeletionService.validatePurchaseOrderDeletion.mockResolvedValue({
+          id: purchaseOrderId,
+          partner_id: partnerId,
+          file_url: "invalid-url-with-no-slashes"
+        });
+        
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith("invalid-url-with-no-slashes");
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(200);
+          expect(res.json).toHaveBeenCalledWith({ message: "Purchase order successfully deleted" });
+          done();
+        }, 50);
+      });
+
+      test("should handle successful file deletion but failed database deletion", (done) => {
+        s3Service.deleteFile.mockResolvedValue({ success: true });
+        const dbError = new ValidationError("Cannot delete due to database constraints");
+        purchaseOrderService.deletePurchaseOrderById.mockReturnValue(throwError(() => dbError));
+        
+        const testData = setupTestData({ params: { id: purchaseOrderId } });
+        Object.assign(req, testData);
+
+        controller.deletePurchaseOrderById(req, res);
+
+        setTimeout(() => {
+          expect(validateDeletionService.validatePurchaseOrderDeletion).toHaveBeenCalledWith(partnerId, purchaseOrderId);
+          expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
+          expect(purchaseOrderService.deletePurchaseOrderById).toHaveBeenCalledWith(purchaseOrderId);
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({ message: "Internal server error during deletion" });
+          expect(Sentry.captureException).toHaveBeenCalled();
+          done();
+        }, 50);
+      });
     });
   });
 });
