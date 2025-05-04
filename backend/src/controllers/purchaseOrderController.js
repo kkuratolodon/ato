@@ -139,7 +139,7 @@ class PurchaseOrderController extends FinancialDocumentController {
                   const s3Error = new Error(`Failed to delete file from S3 for PO ${id}`);
                   s3Error.status = 500; 
                   Sentry.captureException(s3Error, { extra: { s3Response: deleteResult.error } });
-                  return throwError(() => s3Error);
+                  return throwError(() => ({ status: 500, message: s3Error.message, error: deleteResult.error }));
                 }
                 console.log(`File ${fileKey} deleted from S3 for PO ${id}`);
                 return of(purchaseOrder); 
@@ -167,7 +167,7 @@ class PurchaseOrderController extends FinancialDocumentController {
             return of({ status: 409, message: error.message });
           }
           if (error.message?.includes("Failed to delete file from S3")) {
-             return of({ status: error.status || 500, message: error.message });
+             return of({ status: error.status || 500, message: error.message, error: error.error });
           }
           if (error.message?.includes(`Failed to delete purchase order with ID: ${id}`)) {
              return of({ status: 404, message: error.message });
@@ -182,9 +182,12 @@ class PurchaseOrderController extends FinancialDocumentController {
       .subscribe({
         next: (result) => {
           if (result && result.status) {
-            return res.status(result.status).json({ message: result.message });
+            // Create response with properties in specific order to match test expectations
+            const responseObj = { message: result.message };
+            if (result.error) responseObj.error = result.error;
+            return res.status(result.status).json(responseObj);
           }
-          return res.status(200).json(result); 
+          return res.status(200).json({ message: "Purchase order successfully deleted" });
         },
         error: (err) => {
           console.error("Unhandled error in deletePurchaseOrderById subscription:", err);

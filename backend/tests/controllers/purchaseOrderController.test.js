@@ -549,7 +549,10 @@ describe("Purchase Order Controller", () => {
           expect(s3Service.deleteFile).toHaveBeenCalledWith(fileKey);
           expect(purchaseOrderService.deletePurchaseOrderById).not.toHaveBeenCalled();
           expect(res.status).toHaveBeenCalledWith(500);
-          expect(res.json).toHaveBeenCalledWith({ message: expect.stringContaining("Failed to delete file from S3") });
+          expect(res.json).toHaveBeenCalledWith({ 
+            message: expect.stringContaining("Failed to delete file from S3"),
+            error: "S3 Access Denied"
+          });
           done();
         }, 50);
       });
