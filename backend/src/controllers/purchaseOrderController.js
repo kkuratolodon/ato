@@ -216,7 +216,7 @@ class PurchaseOrderController extends FinancialDocumentController {
       )
       .subscribe({
         next: (result) => {
-          if (result && result.status) {
+          if (result?.status) {
             // Create response with properties in specific order to match test expectations
             const responseObj = { message: result.message };
             if (result?.error) responseObj.error = result.error;
