@@ -348,3 +348,66 @@ describe('uploadInvoice - Corner Cases', () => {
     );
   });
 });
+
+describe('uploadInvoice with skipAnalysis option', () => {
+  const TEST_FILE = { buffer: Buffer.from('mock pdf content') };
+  const mockPartnerId = '123';
+  const mockParams = {
+    buffer: TEST_FILE.buffer,
+    partnerId: mockPartnerId,
+    originalname: 'test-invoice.pdf'
+  };
+  const TEST_S3_URL = 'https://s3.amazonaws.com/test-bucket/test-file.pdf';
+  let originalProcessInvoiceAsync;
+
+  beforeEach(() => {
+    // Save original method
+    originalProcessInvoiceAsync = invoiceService.processInvoiceAsync;
+
+    // Mock setup
+    jest.clearAllMocks();
+    invoiceService.validator.validateFileData = jest.fn();
+    invoiceService.uploadFile = jest.fn().mockResolvedValue({
+      file_url: TEST_S3_URL
+    });
+    invoiceService.invoiceRepository.createInitial = jest.fn().mockResolvedValue({
+      id: 'mocked-uuid-123',
+      status: DocumentStatus.PROCESSING
+    });
+    invoiceService.processInvoiceAsync = jest.fn();
+  });
+
+  afterEach(() => {
+    invoiceService.processInvoiceAsync = originalProcessInvoiceAsync;
+  });
+
+  test('should call processInvoiceAsync with skipAnalysis=true when specified', async () => {
+    // Act
+    await invoiceService.uploadInvoice(mockParams, true);
+    
+    // Assert
+    expect(invoiceService.processInvoiceAsync).toHaveBeenCalledWith(
+      'mocked-uuid-123', 
+      mockParams.buffer, 
+      mockPartnerId, 
+      mockParams.originalname, 
+      'mocked-uuid-123',
+      true // skipAnalysis parameter is true
+    );
+  });
+
+  test('should call processInvoiceAsync with skipAnalysis=false by default', async () => {
+    // Act
+    await invoiceService.uploadInvoice(mockParams);
+    
+    // Assert
+    expect(invoiceService.processInvoiceAsync).toHaveBeenCalledWith(
+      'mocked-uuid-123', 
+      mockParams.buffer, 
+      mockPartnerId, 
+      mockParams.originalname, 
+      'mocked-uuid-123',
+      false // skipAnalysis parameter defaults to false
+    );
+  });
+});
