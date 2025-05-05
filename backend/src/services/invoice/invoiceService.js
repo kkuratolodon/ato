@@ -144,7 +144,7 @@ class InvoiceService extends FinancialDocumentService {
 
   async loadSampleData() {
     try {
-      const filePath = path.resolve(__dirname, '../analysis/sample1.json');
+      const filePath = path.resolve(__dirname, '../analysis/sample-invoice.json');
       const fileContent = await fs.readFile(filePath, 'utf8');
       return { data: JSON.parse(fileContent) };
     } catch (error) {
