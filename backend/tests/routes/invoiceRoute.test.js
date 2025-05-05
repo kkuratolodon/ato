@@ -152,6 +152,48 @@ describe('Invoice Routes', () => {
     // Since this endpoint explicitly throws an error, expect 500 status
     expect(response.status).toBe(500);
   });
+
+  test('GET /api/invoices/status/:id calls authMiddleware and getInvoiceStatus', async () => {
+    // 1. Mock middlewares and controller
+    authMiddleware.mockImplementation((req, res, next) => {
+      // Assume authentication passes
+      return next();
+    });
+    
+    invoiceController.getInvoiceStatus.mockImplementation((req, res) => {
+      return res.status(200).json({ status: 'Analyzed' });
+    });
+
+    // 2. Make request to the new route format
+    const response = await request(app)
+      .get('/api/invoices/status/123');
+
+    // 3. Verify response
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: 'Analyzed' });
+
+    // 4. Verify middleware and controller called
+    expect(authMiddleware).toHaveBeenCalledTimes(1);
+    expect(invoiceController.getInvoiceStatus).toHaveBeenCalledTimes(1);
+  });
+
+  test('GET /api/invoices/status/:id returns 401 if authMiddleware fails', async () => {
+    // 1. Mock authentication failure
+    authMiddleware.mockImplementation((req, res) => {
+      return res.status(401).json({ message: 'Unauthorized' });
+    });
+
+    // 2. Make request
+    const response = await request(app)
+      .get('/api/invoices/status/123');
+
+    // 3. Verify response
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ message: 'Unauthorized' });
+    
+    // 4. Verify controller not called
+    expect(invoiceController.getInvoiceStatus).not.toHaveBeenCalled();
+  });
 });
 
 
