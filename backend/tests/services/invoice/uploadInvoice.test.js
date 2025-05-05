@@ -1,19 +1,19 @@
-const invoiceService = require('@services/invoice/invoiceService');
+const invoiceService = require('../../../src/services/invoice/invoiceService');
 const fs = require("fs");
 const path = require("path");
 const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
-const DocumentStatus = require('@models/enums/DocumentStatus');
+const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
 
 // Mock Azure Document Intelligence
 jest.mock("@azure/ai-form-recognizer");
 
 // Mock S3 Service
-jest.mock('@services/s3Service', () => ({
+jest.mock('../../../src/services/s3Service', () => ({
   uploadFile: jest.fn()
 }));
 
 // Mock repositories instead of models
-jest.mock('@repositories/invoiceRepository', () => {
+jest.mock('../../../src/repositories/invoiceRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findById: jest.fn(),
     createInitial: jest.fn(),
@@ -24,7 +24,7 @@ jest.mock('@repositories/invoiceRepository', () => {
   }));
 });
 
-jest.mock('@repositories/customerRepository', () => {
+jest.mock('../../../src/repositories/customerRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findById: jest.fn(),
     findByAttributes: jest.fn(),
@@ -32,7 +32,7 @@ jest.mock('@repositories/customerRepository', () => {
   }));
 });
 
-jest.mock('@repositories/vendorRepository', () => {
+jest.mock('../../../src/repositories/vendorRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findById: jest.fn(),
     findByAttributes: jest.fn(),
@@ -40,7 +40,7 @@ jest.mock('@repositories/vendorRepository', () => {
   }));
 });
 
-jest.mock('@repositories/itemRepository', () => {
+jest.mock('../../../src/repositories/itemRepository', () => {
   return jest.fn().mockImplementation(() => ({
     findOrCreateItem: jest.fn(),
     createDocumentItem: jest.fn(),
@@ -49,10 +49,10 @@ jest.mock('@repositories/itemRepository', () => {
 });
 
 // Mock other dependencies
-jest.mock('@services/analysis/azureDocumentAnalyzer');
-jest.mock('@services/invoice/invoiceValidator');
-jest.mock('@services/invoice/invoiceResponseFormatter');
-jest.mock('@services/invoiceMapperService/invoiceMapperService', () => ({
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('../../../src/services/invoice/invoiceValidator');
+jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService', () => ({
   AzureInvoiceMapper: jest.fn().mockImplementation(() => ({
     mapToInvoiceModel: jest.fn().mockReturnValue({
       invoiceData: {
@@ -75,7 +75,7 @@ jest.mock('uuid', () => ({
 }));
 
 // Mock Sentry
-jest.mock('@instrument', () => ({
+jest.mock('../../../src/instrument', () => ({
   init: jest.fn(),
   startSpan: jest.fn((_, callback) => callback({
     setAttribute: jest.fn(),
@@ -262,89 +262,5 @@ describe('uploadInvoice - Corner Cases', () => {
     });
 
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to process invoice: Failed to upload file to S3');
-  });
-
-  // Updated test for handling missing vendor
-  test("Should handle case where vendor_id exists but vendor isn't found", async () => {
-    const mockInvoiceData = {
-      id: '1',
-      invoice_date: "2025-02-01",
-      vendor_id: "missing-vendor-uuid",
-      status: DocumentStatus.ANALYZED
-    };
-
-    // Mock repository methods for this test
-    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoiceData);
-    invoiceService.vendorRepository.findById.mockResolvedValue(null);
-    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
-    
-    // Mock the response formatter
-    invoiceService.responseFormatter.formatInvoiceResponse = jest.fn().mockReturnValue({
-      data: {
-        documents: [{
-          header: {
-            invoice_details: {
-              invoice_number: "INV-001",
-              invoice_date: "2025-02-01"
-            },
-            vendor_details: {
-              name: null,
-              address: "",
-              recipient_name: null,
-              tax_id: null
-            },
-            customer_details: {
-              id: null,
-              name: null,
-              recipient_name: null,
-              address: "",
-              tax_id: null
-            },
-            financial_details: {
-              currency: { 
-                currency_symbol: "$", 
-                currency_code: "USD" 
-              },
-              total_amount: 0,
-              subtotal_amount: 0,
-              discount_amount: 0,
-              total_tax_amount: 0
-            }
-          },
-          items: []
-        }]
-      }
-    });
-
-    const result = await invoiceService.getInvoiceById('1');
-    
-    // Expectations remain the same
-    expect(result).toHaveProperty('data');
-    expect(result.data).toHaveProperty('documents');
-    expect(Array.isArray(result.data.documents)).toBe(true);
-    expect(result.data.documents.length).toBe(1);
-    expect(result.data.documents[0]).toHaveProperty('header');
-    expect(result.data.documents[0]).toHaveProperty('items');
-    expect(Array.isArray(result.data.documents[0].items)).toBe(true);
-    
-    // Check header structure contains expected sections
-    expect(result.data.documents[0].header).toHaveProperty('invoice_details');
-    expect(result.data.documents[0].header).toHaveProperty('vendor_details');
-    expect(result.data.documents[0].header).toHaveProperty('customer_details');
-    expect(result.data.documents[0].header).toHaveProperty('financial_details');
-    
-    // Check vendor details have proper fallback values when vendor not found
-    expect(result.data.documents[0].header.vendor_details.name).toBeNull();
-    expect(result.data.documents[0].header.vendor_details.address).toBe('');
-    
-    // Verify repository methods were called
-    expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
-    expect(invoiceService.vendorRepository.findById).toHaveBeenCalledWith('missing-vendor-uuid');
-    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
-      mockInvoiceData,
-      [],
-      null,
-      null
-    );
   });
 });

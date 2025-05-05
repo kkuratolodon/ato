@@ -1,5 +1,5 @@
 'use strict';
-const DocumentStatus = require('@models/enums/DocumentStatus');
+const DocumentStatus = require('../../models/enums/DocumentStatus');
 const FieldParser = require('./FieldParserService');
 const EntityExtractor = require('./entityExtractorService');
 

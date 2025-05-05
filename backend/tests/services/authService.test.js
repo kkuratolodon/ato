@@ -1,4 +1,4 @@
-const authService = require('@services/authService');
+const authService = require('../../src/services/authService');
 const mysql = require('mysql2/promise');
 
 // Mock mysql2/promise agar tidak benar-benar terhubung ke DB

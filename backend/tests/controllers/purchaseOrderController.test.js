@@ -1,11 +1,11 @@
 const { mockRequest, mockResponse } = require("jest-mock-req-res");
-const { PurchaseOrderController } = require("@controllers/purchaseOrderController");
-const purchaseOrderService = require("@services/purchaseOrder/purchaseOrderService");
-const pdfValidationService = require("@services/pdfValidationService");
-const { PayloadTooLargeError, UnsupportedMediaTypeError } = require("@utils/errors");
+const { PurchaseOrderController } = require("../../src/controllers/purchaseOrderController");
+const purchaseOrderService = require("../../src/services/purchaseOrder/purchaseOrderService");
+const pdfValidationService = require("../../src/services/pdfValidationService");
+const { PayloadTooLargeError, UnsupportedMediaTypeError } = require("../../src/utils/errors");
 
-jest.mock("@services/purchaseOrder/purchaseOrderService");
-jest.mock("@services/pdfValidationService");
+jest.mock("../../src/services/purchaseOrder/purchaseOrderService");
+jest.mock("../../src/services/pdfValidationService");
 
 describe("PurchaseOrderController constructor", () => {
   test("should throw error when invalid service is provided", () => {

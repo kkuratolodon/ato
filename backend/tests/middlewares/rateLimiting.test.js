@@ -1,6 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const apiLimiter = require('@middlewares/rateLimitMiddleware'); // To be implemented
+const apiLimiter = require('../../src/middlewares/rateLimitMiddleware'); // To be implemented
 
 const app = express();
 app.use('/api', apiLimiter);

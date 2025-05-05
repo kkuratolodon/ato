@@ -1,10 +1,10 @@
 // Mock the repository before requiring the module that uses it
-jest.mock('@repositories/invoiceRepository');
+jest.mock('../../src/repositories/invoiceRepository');
 
 // Now import the modules
-const validateDeletion = require('@services/validateDeletion');
-const InvoiceRepository = require('@repositories/invoiceRepository');
-const DocumentStatus = require('@models/enums/DocumentStatus');
+const validateDeletion = require('../../src/services/validateDeletion');
+const InvoiceRepository = require('../../src/repositories/invoiceRepository');
+const DocumentStatus = require('../../src/models/enums/DocumentStatus');
 
 describe('ValidateDeletion Service', () => {
   let mockFindById;

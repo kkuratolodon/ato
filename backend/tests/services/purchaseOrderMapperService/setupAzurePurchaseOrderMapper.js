@@ -1,4 +1,4 @@
-const { AzurePurchaseOrderMapper } = require('@services/purchaseOrderMapperService/purchaseOrderMapperService');
+const { AzurePurchaseOrderMapper } = require('../../../src/services/purchaseOrderMapperService/purchaseOrderMapperService');
 
 /**  
  * @typedef {Object} MapperConfig  
