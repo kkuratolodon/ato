@@ -7,7 +7,7 @@ describe('loadSampleData', () => {
   beforeEach(() => {
     // Use spyOn to mock specific methods instead of replacing the entire modules
     jest.spyOn(fs, 'readFile').mockImplementation(() => Promise.resolve('{"test":"data"}'));
-    jest.spyOn(path, 'resolve').mockReturnValue('/mocked/path/to/sample1.json');
+    jest.spyOn(path, 'resolve').mockReturnValue('/mocked/path/to/sample-invoice.json');
     
     // Mock console.error to avoid cluttering test output
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -27,7 +27,7 @@ describe('loadSampleData', () => {
     
     // Assert
     expect(path.resolve).toHaveBeenCalled();
-    expect(fs.readFile).toHaveBeenCalledWith('/mocked/path/to/sample1.json', 'utf8');
+    expect(fs.readFile).toHaveBeenCalledWith('/mocked/path/to/sample-invoice.json', 'utf8');
     expect(result).toEqual({ data: sampleData });
   });
 
