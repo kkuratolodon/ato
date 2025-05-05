@@ -54,7 +54,8 @@
       "/node_modules/",
       "/tests/",
       "/src/instrument.js",
-      "/src/strategies/pdfDecryptionStrategy.js"
+      "/src/strategies/pdfDecryptionStrategy.js",
+      "/features/"
     ],
     "coverageReporters": [
       "json",
