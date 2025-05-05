@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { from } = require('rxjs');
+const { from, of, forkJoin, throwError } = require('rxjs');
 const { catchError, map, switchMap } = require('rxjs/operators');
 const FinancialDocumentService = require("../financialDocumentService.js");
 const Sentry = require("../../instrument.js");
@@ -225,50 +225,50 @@ class InvoiceService extends FinancialDocumentService {
     return invoice.partner_id;
   }
 
-  async getInvoiceById(invoiceId) {
-    try {
-      const invoice = await this.invoiceRepository.findById(invoiceId);
-      
-      if (!invoice) {
-        throw new NotFoundError("Invoice not found");
-      }
-
-      // Check invoice status first
-      if (invoice.status === DocumentStatus.PROCESSING) {
-        return {
-          message: "Invoice is still being processed. Please try again later.",
-          data: { documents: [] }
-        };
-      }
-
-      if (invoice.status === DocumentStatus.FAILED) {
-        return {
-          message: "Invoice processing failed. Please re-upload the document.",
-          data: { documents: [] }
-        };
-      }
-
-      const items = await this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice');
-
-      let customer = null;
-      if (invoice.customer_id) {
-        customer = await this.customerRepository.findById(invoice.customer_id);
-      }
-
-      let vendor = null;
-      if (invoice.vendor_id) {
-        vendor = await this.vendorRepository.findById(invoice.vendor_id);
-      }
-
-      return this.responseFormatter.formatInvoiceResponse(invoice, items, customer, vendor);
-    } catch (error) {
-      console.error("Error retrieving invoice:", error);
-      if (error.message === "Invoice not found") {
-        throw error;
-      } else {
-        throw new Error("Failed to retrieve invoice: " + error.message);
-      }
-    }
+  getInvoiceById(invoiceId) {
+    return from(this.invoiceRepository.findById(invoiceId)).pipe(
+      switchMap(invoice => {
+        if (!invoice) {
+          return throwError(() => new NotFoundError("Invoice not found"));
+        }
+  
+        if (invoice.status === DocumentStatus.PROCESSING) {
+          return of({
+            message: "Invoice is still being processed. Please try again later.",
+            data: { documents: [] }
+          });
+        }
+  
+        if (invoice.status === DocumentStatus.FAILED) {
+          return of({
+            message: "Invoice processing failed. Please re-upload the document.",
+            data: { documents: [] }
+          });
+        }
+  
+        const items$ = from(this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice'));
+        const customer$ = invoice.customer_id 
+          ? from(this.customerRepository.findById(invoice.customer_id)) 
+          : of(null);
+        const vendor$ = invoice.vendor_id 
+          ? from(this.vendorRepository.findById(invoice.vendor_id)) 
+          : of(null);
+  
+        return forkJoin({ items: items$, customer: customer$, vendor: vendor$ }).pipe(
+          map(({ items, customer, vendor }) => 
+            this.responseFormatter.formatInvoiceResponse(invoice, items, customer, vendor)
+          )
+        );
+      }),
+      catchError(error => {
+        console.error("Error retrieving invoice:", error);
+        return throwError(() => 
+          error.message === "Invoice not found" 
+            ? error 
+            : new Error("Failed to retrieve invoice: " + error.message)
+        );
+      })
+    );
   }
 
   deleteInvoiceById(id) {
