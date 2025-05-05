@@ -1,4 +1,4 @@
-const InvoiceValidator = require('@services/invoice/invoiceValidator');
+const InvoiceValidator = require('../../../src/services/invoice/invoiceValidator');
 
 // No need to mock models or services since the validator doesn't use them directly
 jest.mock('@sentry/node', () => ({
