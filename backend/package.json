@@ -7,7 +7,7 @@
     "test": "jest",
     "build": "echo 'No build step needed'",
     "lint": "eslint .", 
-    "test:functional": "newman run postman_collection.json -e postman_environment.json",
+    "test:functional": "newman run \"../functional_test_files/functional-test.json\" -e environment.json -r htmlextra",
     "test:cucumber": "cucumber-js"
   },
   "keywords": [],

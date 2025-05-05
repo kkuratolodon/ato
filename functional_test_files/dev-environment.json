@@ -1,0 +1,56 @@
+{
+  "id": "local-env",
+  "name": "Local Environment",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "enabled": true
+    },
+    {
+      "key": "client_id",
+      "value": "client_fcd7263c",
+      "enabled": true
+    },
+    {
+      "key": "client_secret",
+      "value": "secret_45ebf991",
+      "enabled": true
+    },
+    {
+      "key": "invoice_id",
+      "value": "601f8ac0-b798-4da3-8a0b-c20a70215730",
+      "enabled": true
+    },
+    {
+      "key": "po_id",
+      "value": "3a3af3eb-efe8-4e23-8018-548ca151c839",
+      "enabled": true
+    },
+    {
+      "key": "invoice_id_forbidden",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "po_id_forbidden",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "po_id_processing",
+      "value": "8670049c-be1c-4f59-81a8-5ca2f19e8820",
+      "enabled": true
+    },
+    {
+      "key": "po_id_failed",
+      "value": "364f5a74-cddd-4b1e-a42f-9b706dbf1f20", 
+      "enabled": true
+    },
+    {
+      "key": "invoice_id_to_delete",
+      "value": "",
+      "enabled": true
+    }
+  ]
+}
