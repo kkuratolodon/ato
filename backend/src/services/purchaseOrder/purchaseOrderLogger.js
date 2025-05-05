@@ -1,63 +1,46 @@
-const winston = require('winston');
-const { format } = winston;
+const PurchaseOrderLogger = require('../../utils/logger/PurchaseOrderLogger');
 
-// Configure the logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: format.combine(
-    format.timestamp(),
-    format.json(),
-    format.errors({ stack: true })
-  ),
-  defaultMeta: { service: 'purchase-order-service' },
-  transports: [
-    // Write all logs to console
-    new winston.transports.Console({
-      format: format.combine(
-        format.colorize(),
-        format.simple()
-      )
-    }),
-    // Write all logs with level 'error' and below to 'error.log'
-    new winston.transports.File({ 
-      filename: 'logs/purchase-order-error.log', 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    // Write all logs with level 'info' and below to 'purchase-order.log'
-    new winston.transports.File({ 
-      filename: 'logs/purchase-order.log',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    })
-  ]
-});
-
-class PurchaseOrderLogger {
+/**
+ * This is a compatibility adapter for the PurchaseOrderLogger class
+ * It maintains backward compatibility with code that expects the previous static class methods
+ * while using the new, more SOLID logger implementation under the hood
+ */
+class PurchaseOrderLoggerAdapter {
   static logStatusRequest(purchaseOrderId, status) {
-    logger.info('Purchase order status requested', {
-      purchaseOrderId,
-      status,
-      event: 'STATUS_REQUEST'
-    });
+    return PurchaseOrderLogger.getInstance().logStatusRequest(purchaseOrderId, status);
   }
 
   static logStatusNotFound(purchaseOrderId) {
-    logger.warn('Purchase order status not found', {
-      purchaseOrderId,
-      event: 'STATUS_NOT_FOUND'
-    });
+    return PurchaseOrderLogger.getInstance().logStatusNotFound(purchaseOrderId);
   }
 
   static logStatusError(purchaseOrderId, error) {
-    logger.error('Error retrieving purchase order status', {
-      purchaseOrderId,
-      error: error?.message || 'Unknown error',
-      stack: error?.stack || '',
-      event: 'STATUS_ERROR'
-    });
+    return PurchaseOrderLogger.getInstance().logStatusError(purchaseOrderId, error);
+  }
+
+  static logUploadStart(purchaseOrderId, partnerId, filename) {
+    return PurchaseOrderLogger.getInstance().logUploadStart(purchaseOrderId, partnerId, filename);
+  }
+
+  static logUploadSuccess(purchaseOrderId, s3Url) {
+    return PurchaseOrderLogger.getInstance().logUploadSuccess(purchaseOrderId, s3Url);
+  }
+
+  static logProcessingStart(purchaseOrderId) {
+    return PurchaseOrderLogger.getInstance().logProcessingStart(purchaseOrderId);
+  }
+
+  static logAnalysisComplete(purchaseOrderId, jsonUrl) {
+    return PurchaseOrderLogger.getInstance().logAnalysisComplete(purchaseOrderId, jsonUrl);
+  }
+
+  static logProcessingComplete(purchaseOrderId) {
+    return PurchaseOrderLogger.getInstance().logProcessingComplete(purchaseOrderId);
+  }
+
+  static logError(purchaseOrderId, error, stage) {
+    return PurchaseOrderLogger.getInstance().logError(purchaseOrderId, error, stage);
   }
 }
 
-module.exports = PurchaseOrderLogger;
+module.exports = PurchaseOrderLoggerAdapter;

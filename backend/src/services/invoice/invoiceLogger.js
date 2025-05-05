@@ -1,104 +1,42 @@
-const winston = require('winston');
-const { format } = winston;
+const InvoiceLogger = require('../../utils/logger/InvoiceLogger');
 
-// Configure the logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: format.combine(
-    format.timestamp(),
-    format.json(),
-    format.errors({ stack: true })
-  ),
-  defaultMeta: { service: 'invoice-service' },
-  transports: [
-    // Write all logs to console
-    new winston.transports.Console({
-      format: format.combine(
-        format.colorize(),
-        format.simple()
-      )
-    }),
-    // Write all logs with level 'error' and below to 'error.log'
-    new winston.transports.File({ 
-      filename: 'logs/invoice-error.log', 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    // Write all logs with level 'info' and below to 'invoice.log'
-    new winston.transports.File({ 
-      filename: 'logs/invoice.log',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    })
-  ]
-});
-
-class InvoiceLogger {
+/**
+ * This is a compatibility adapter for the InvoiceLogger class
+ * It maintains backward compatibility with code that expects the previous static class methods
+ * while using the new, more SOLID logger implementation under the hood
+ */
+class InvoiceLoggerAdapter {
   static logUploadStart(invoiceId, partnerId, filename) {
-    logger.info('Invoice upload initiated', {
-      invoiceId,
-      partnerId,
-      filename,
-      event: 'UPLOAD_START'
-    });
+    return InvoiceLogger.getInstance().logUploadStart(invoiceId, partnerId, filename);
   }
 
   static logUploadSuccess(invoiceId, s3Url) {
-    logger.info('Invoice uploaded to S3', {
-      invoiceId,
-      s3Url,
-      event: 'UPLOAD_SUCCESS'
-    });
+    return InvoiceLogger.getInstance().logUploadSuccess(invoiceId, s3Url);
   }
 
   static logProcessingStart(invoiceId) {
-    logger.info('Starting invoice processing', {
-      invoiceId,
-      event: 'PROCESSING_START'
-    });
+    return InvoiceLogger.getInstance().logProcessingStart(invoiceId);
   }
 
   static logAnalysisComplete(invoiceId, jsonUrl) {
-    logger.info('Invoice analysis completed', {
-      invoiceId,
-      jsonUrl,
-      event: 'ANALYSIS_COMPLETE'
-    });
+    return InvoiceLogger.getInstance().logAnalysisComplete(invoiceId, jsonUrl);
   }
 
   static logDataMappingComplete(invoiceId, dataSummary) {
-    logger.info('Invoice data mapping completed', {
-      invoiceId,
-      dataSummary,
-      event: 'MAPPING_COMPLETE'
-    });
+    return InvoiceLogger.getInstance().logDataMappingComplete(invoiceId, dataSummary);
   }
 
   static logProcessingComplete(invoiceId) {
-    logger.info('Invoice processing completed successfully', {
-      invoiceId,
-      event: 'PROCESSING_COMPLETE'
-    });
+    return InvoiceLogger.getInstance().logProcessingComplete(invoiceId);
   }
 
   static logError(invoiceId, error, stage) {
-    logger.error('Error during invoice processing', {
-      invoiceId,
-      error: error.message,
-      stack: error.stack,
-      stage,
-      event: 'PROCESSING_ERROR'
-    });
+    return InvoiceLogger.getInstance().logError(invoiceId, error, stage);
   }
 
   static logValidationError(invoiceId, error) {
-    logger.warn('Invoice validation failed', {
-      invoiceId,
-      error: error.message,
-      event: 'VALIDATION_ERROR'
-    });
+    return InvoiceLogger.getInstance().logValidationError(invoiceId, error);
   }
 }
 
-module.exports = InvoiceLogger; 
+module.exports = InvoiceLoggerAdapter;
