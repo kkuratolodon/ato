@@ -1,8 +1,8 @@
 const FinancialDocumentController = require('./financialDocumentController');
 const Sentry = require("../instrument");
 const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
-const { from, of, throwError } = require('rxjs');
-const { catchError, mergeMap, tap } = require('rxjs/operators');
+const { from, of, EMPTY, throwError } = require('rxjs');
+const { catchError, mergeMap, tap, switchMap, map} = require('rxjs/operators');
 
 class InvoiceController extends FinancialDocumentController {
   /**
@@ -76,18 +76,23 @@ class InvoiceController extends FinancialDocumentController {
     }
   }
 
-  async getInvoiceById(req, res) {
-    try {
-      const { id } = req.params;
-      await this.validateGetRequest(req, id);
-      const invoiceDetail = await this.service.getInvoiceById(id);
-      if (!invoiceDetail) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-      return res.status(200).json(invoiceDetail);
-    } catch (error) {
-      return this.handleError(res, error);
-    }
+  getInvoiceById(req, res) {
+    const { id } = req.params;
+  
+    from(this.validateGetRequest(req, id)).pipe(
+      switchMap(() => from(this.service.getInvoiceById(id))),
+      map((invoiceDetail) => {
+        console.log("Invoice detail:", invoiceDetail);
+        if (!invoiceDetail) {
+          return res.status(404).json({ message: "Invoice not found" });
+        }
+        return res.status(200).json(invoiceDetail);
+      }),
+      catchError((error) => {
+        this.handleError(res, error);
+        return EMPTY; 
+      })
+    ).subscribe();
   }
 
   async validateGetRequest(req, id) {
