@@ -110,6 +110,80 @@ describe("Invoice Controller", () => {
       });
     });
 
+    test("should successfully upload with skipAnalysis set to true", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      // Fix the test to match what we expect in the real application
+      req.body = { 'skipAnalysis': 'true' }; // No space - this is what we expect from well-behaved clients
+      
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buffer: expect.any(Buffer),
+          originalname: "test.pdf",
+          mimetype: "application/pdf",
+          partnerId: "test-uuid"
+        }),
+        true  // skipAnalysis should be true
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    // Add test for the case with a space in the parameter name
+    test("should handle skipAnalysis parameter with space in name", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      // Set parameter with space at the end to simulate the problematic case
+      req.body = { 'skipAnalysis ': 'true' }; 
+      
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buffer: expect.any(Buffer),
+          originalname: "test.pdf",
+          mimetype: "application/pdf",
+          partnerId: "test-uuid"
+        }),
+        true  // skipAnalysis should still be detected as true
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("should default skipAnalysis to false when not provided", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      // No skipAnalysis in body
+
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buffer: expect.any(Buffer),
+          originalname: "test.pdf",
+          mimetype: "application/pdf",
+          partnerId: "test-uuid"
+        }),
+        false  // skipAnalysis should be false by default
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("should handle skipAnalysis with value other than 'true' as false", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      req.body = { skipAnalysis: 'yes' };  // Not exactly 'true'
+
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.any(Object),
+        false  // Should be treated as false
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
     test("should return 401 when user is not authenticated", async () => {
       const testData = setupTestData({ user: undefined });
       Object.assign(req, testData);
@@ -215,6 +289,66 @@ describe("Invoice Controller", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Only PDF files are allowed"
       });
+    });
+
+    test("should handle undefined req.body and default skipAnalysis to false", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      // Explicitly set req.body to undefined
+      req.body = undefined;
+      
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.any(Object),
+        false  // skipAnalysis should be false when req.body is undefined
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("should handle null req.body and default skipAnalysis to false", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      // Set req.body to null
+      req.body = null;
+      
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.any(Object),
+        false  // skipAnalysis should be false when req.body is null
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("should handle non-object req.body and default skipAnalysis to false", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      // Set req.body to a string (non-object)
+      req.body = "not an object";
+      
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.any(Object),
+        false  // skipAnalysis should be false when req.body is not an object
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("should handle empty object req.body and default skipAnalysis to false", async () => {
+      const testData = setupTestData();
+      Object.assign(req, testData);
+      // Set req.body to an empty object
+      req.body = {};
+      
+      await controller.uploadInvoice(req, res);
+
+      expect(mockInvoiceService.uploadInvoice).toHaveBeenCalledWith(
+        expect.any(Object),
+        false  // skipAnalysis should be false when req.body is an empty object
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
     });
   });
 

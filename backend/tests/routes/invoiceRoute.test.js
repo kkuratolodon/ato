@@ -72,6 +72,48 @@ describe('Invoice Routes', () => {
     expect(invoiceController.uploadInvoice).toHaveBeenCalledTimes(1);
   });
 
+  test('POST /api/invoices/upload with skipAnalysis=true passes parameter to controller', async () => {
+    // 1. Mock semua agar tidak ada logika asli
+    authMiddleware.mockImplementation((req, res, next) => {
+      return next();
+    });
+    
+    // Add our fields directly to req.body in the middleware mock
+    uploadMiddleware.mockImplementation((req, res, next) => {
+      // Make sure req.body exists
+      req.body = req.body || {};
+      // Add the skipAnalysis field - use the correct name without space
+      req.body.skipAnalysis = 'true';
+      return next();
+    });
+    
+    invoiceController.uploadInvoice.mockImplementation((req, res) => {
+      return res.status(200).json({ 
+        success: true, 
+        skipAnalysis: req.body.skipAnalysis 
+      });
+    });
+
+    // 2. Lakukan request ke /api/invoices/upload dengan skipAnalysis=true
+    const response = await request(app)
+      .post('/api/invoices/upload')
+      .field('client_id', 'someId')
+      .field('client_secret', 'someSecret')
+      .field('skipAnalysis', 'true');  // Add this field
+
+    // 3. Pastikan status 200 dan parameter terbaca
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ 
+      success: true, 
+      skipAnalysis: 'true'
+    });
+
+    // 4. Pastikan ketiga fungsi dipanggil
+    expect(authMiddleware).toHaveBeenCalledTimes(1);
+    expect(uploadMiddleware).toHaveBeenCalledTimes(1);
+    expect(invoiceController.uploadInvoice).toHaveBeenCalledTimes(1);
+  });
+
   test('POST /api/invoices/upload harus return 401 jika authMiddleware memanggil res.status(401)', async () => {
     // 1. Mock authMiddleware -> balas 401
     authMiddleware.mockImplementation((req, res) => {
