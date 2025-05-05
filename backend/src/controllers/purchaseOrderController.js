@@ -9,9 +9,8 @@ const s3Service = require('../services/s3Service');
 
 class PurchaseOrderController extends FinancialDocumentController {
   constructor(dependencies = {}) {
-    if (!dependencies.purchaseOrderService || 
-        !dependencies.purchaseOrderService.uploadPurchaseOrder || 
-        typeof dependencies.purchaseOrderService.uploadPurchaseOrder !== 'function') {
+    if (!dependencies.purchaseOrderService?.uploadPurchaseOrder ||
+        typeof dependencies.purchaseOrderService?.uploadPurchaseOrder !== 'function') {
       throw new Error('Invalid purchase order service provided');
     }
     
@@ -220,7 +219,7 @@ class PurchaseOrderController extends FinancialDocumentController {
           if (result && result.status) {
             // Create response with properties in specific order to match test expectations
             const responseObj = { message: result.message };
-            if (result.error) responseObj.error = result.error;
+            if (result?.error) responseObj.error = result.error;
             return res.status(result.status).json(responseObj);
           }
           return res.status(200).json({ message: "Purchase order successfully deleted" });
