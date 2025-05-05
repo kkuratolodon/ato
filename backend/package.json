@@ -6,7 +6,8 @@
     "start": "node server.js",
     "test": "jest",
     "build": "echo 'No build step needed'",
-    "lint": "eslint .",
+    "lint": "eslint .", 
+    "test:functional": "newman run postman_collection.json -e postman_environment.json",
     "test:cucumber": "cucumber-js"
   },
   "keywords": [],
