@@ -13,6 +13,8 @@ const InvoiceResponseFormatter = require('./invoiceResponseFormatter.js');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService.js');
 const DocumentStatus = require('../../models/enums/DocumentStatus.js');
 const { NotFoundError } = require('../../utils/errors.js');
+const fs = require('fs').promises;
+const path = require('path');
 
 class InvoiceService extends FinancialDocumentService {
   constructor(dependencies = {}) {
@@ -35,7 +37,7 @@ class InvoiceService extends FinancialDocumentService {
     this.logger = dependencies.logger || this.logger;
   }
   
-  async uploadInvoice(fileData) {
+  async uploadInvoice(fileData, skipAnalysis = false) {
     try {
       this.validator.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
@@ -61,7 +63,7 @@ class InvoiceService extends FinancialDocumentService {
         file_size: buffer.length,
       });
 
-      this.processInvoiceAsync(invoiceUuid, buffer, partnerId, originalname, invoiceUuid);
+      this.processInvoiceAsync(invoiceUuid, buffer, partnerId, originalname, invoiceUuid, skipAnalysis);
 
       return {
         message: "Invoice upload initiated",
@@ -78,7 +80,7 @@ class InvoiceService extends FinancialDocumentService {
      * Process invoice asynchronously in background
      * @private
      */
-  async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid) {
+  async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid, skipAnalysis = false) {
     try {
       this.logger.logProcessingStart(invoiceId);
       Sentry.addBreadcrumb({
@@ -87,12 +89,22 @@ class InvoiceService extends FinancialDocumentService {
         level: "info"
       });
 
-      // 1. Analisis invoice menggunakan Azure
-      const analysisResult = await this.analyzeInvoice(buffer);
+      let analysisResult;
+      
+      if (skipAnalysis) {
+        // Use sample data instead of analyzing with Azure
+        analysisResult = await this.loadSampleData();
+        this.logger.logAnalysisComplete(invoiceId, "Using sample data");
+      } else {
+        // 1. Analisis invoice menggunakan Azure
+        analysisResult = await this.analyzeInvoice(buffer);
+      }
 
       // 2. Upload hasil OCR ke S3 sebagai JSON dan dapatkan URL-nya
       const jsonUrl = await this.uploadAnalysisResults(analysisResult, invoiceId);
-      this.logger.logAnalysisComplete(invoiceId, jsonUrl);
+      if (!skipAnalysis) {
+        this.logger.logAnalysisComplete(invoiceId, jsonUrl);
+      }
 
       // 3. Map hasil analisis ke model data
       const { invoiceData, customerData, vendorData, itemsData } =
@@ -127,6 +139,17 @@ class InvoiceService extends FinancialDocumentService {
 
       // Update status menjadi "Failed" jika processing gagal
       await this.invoiceRepository.updateStatus(invoiceId, DocumentStatus.FAILED);
+    }
+  }
+
+  async loadSampleData() {
+    try {
+      const filePath = path.resolve(__dirname, '../analysis/sample-invoice.json');
+      const fileContent = await fs.readFile(filePath, 'utf8');
+      return { data: JSON.parse(fileContent) };
+    } catch (error) {
+      console.error('Error loading sample data:', error);
+      throw new Error(`Failed to load sample data: ${error.message}`);
     }
   }
 

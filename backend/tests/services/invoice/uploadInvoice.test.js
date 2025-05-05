@@ -263,4 +263,151 @@ describe('uploadInvoice - Corner Cases', () => {
 
     await expect(invoiceService.uploadInvoice(mockParams)).rejects.toThrow('Failed to process invoice: Failed to upload file to S3');
   });
+
+  // Updated test for handling missing vendor
+  test("Should handle case where vendor_id exists but vendor isn't found", async () => {
+    const mockInvoiceData = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      vendor_id: "missing-vendor-uuid",
+      status: DocumentStatus.ANALYZED
+    };
+
+    // Mock repository methods for this test
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoiceData);
+    invoiceService.vendorRepository.findById.mockResolvedValue(null);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+    
+    // Mock the response formatter
+    invoiceService.responseFormatter.formatInvoiceResponse = jest.fn().mockReturnValue({
+      data: {
+        documents: [{
+          header: {
+            invoice_details: {
+              invoice_number: "INV-001",
+              invoice_date: "2025-02-01"
+            },
+            vendor_details: {
+              name: null,
+              address: "",
+              recipient_name: null,
+              tax_id: null
+            },
+            customer_details: {
+              id: null,
+              name: null,
+              recipient_name: null,
+              address: "",
+              tax_id: null
+            },
+            financial_details: {
+              currency: { 
+                currency_symbol: "$", 
+                currency_code: "USD" 
+              },
+              total_amount: 0,
+              subtotal_amount: 0,
+              discount_amount: 0,
+              total_tax_amount: 0
+            }
+          },
+          items: []
+        }]
+      }
+    });
+
+    const result = await invoiceService.getInvoiceById('1');
+    
+    // Expectations remain the same
+    expect(result).toHaveProperty('data');
+    expect(result.data).toHaveProperty('documents');
+    expect(Array.isArray(result.data.documents)).toBe(true);
+    expect(result.data.documents.length).toBe(1);
+    expect(result.data.documents[0]).toHaveProperty('header');
+    expect(result.data.documents[0]).toHaveProperty('items');
+    expect(Array.isArray(result.data.documents[0].items)).toBe(true);
+    
+    // Check header structure contains expected sections
+    expect(result.data.documents[0].header).toHaveProperty('invoice_details');
+    expect(result.data.documents[0].header).toHaveProperty('vendor_details');
+    expect(result.data.documents[0].header).toHaveProperty('customer_details');
+    expect(result.data.documents[0].header).toHaveProperty('financial_details');
+    
+    // Check vendor details have proper fallback values when vendor not found
+    expect(result.data.documents[0].header.vendor_details.name).toBeNull();
+    expect(result.data.documents[0].header.vendor_details.address).toBe('');
+    
+    // Verify repository methods were called
+    expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+    expect(invoiceService.vendorRepository.findById).toHaveBeenCalledWith('missing-vendor-uuid');
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoiceData,
+      [],
+      null,
+      null
+    );
+  });
+});
+
+describe('uploadInvoice with skipAnalysis option', () => {
+  const TEST_FILE = { buffer: Buffer.from('mock pdf content') };
+  const mockPartnerId = '123';
+  const mockParams = {
+    buffer: TEST_FILE.buffer,
+    partnerId: mockPartnerId,
+    originalname: 'test-invoice.pdf'
+  };
+  const TEST_S3_URL = 'https://s3.amazonaws.com/test-bucket/test-file.pdf';
+  let originalProcessInvoiceAsync;
+
+  beforeEach(() => {
+    // Save original method
+    originalProcessInvoiceAsync = invoiceService.processInvoiceAsync;
+
+    // Mock setup
+    jest.clearAllMocks();
+    invoiceService.validator.validateFileData = jest.fn();
+    invoiceService.uploadFile = jest.fn().mockResolvedValue({
+      file_url: TEST_S3_URL
+    });
+    invoiceService.invoiceRepository.createInitial = jest.fn().mockResolvedValue({
+      id: 'mocked-uuid-123',
+      status: DocumentStatus.PROCESSING
+    });
+    invoiceService.processInvoiceAsync = jest.fn();
+  });
+
+  afterEach(() => {
+    invoiceService.processInvoiceAsync = originalProcessInvoiceAsync;
+  });
+
+  test('should call processInvoiceAsync with skipAnalysis=true when specified', async () => {
+    // Act
+    await invoiceService.uploadInvoice(mockParams, true);
+    
+    // Assert
+    expect(invoiceService.processInvoiceAsync).toHaveBeenCalledWith(
+      'mocked-uuid-123', 
+      mockParams.buffer, 
+      mockPartnerId, 
+      mockParams.originalname, 
+      'mocked-uuid-123',
+      true // skipAnalysis parameter is true
+    );
+  });
+
+  test('should call processInvoiceAsync with skipAnalysis=false by default', async () => {
+    // Act
+    await invoiceService.uploadInvoice(mockParams);
+    
+    // Assert
+    expect(invoiceService.processInvoiceAsync).toHaveBeenCalledWith(
+      'mocked-uuid-123', 
+      mockParams.buffer, 
+      mockPartnerId, 
+      mockParams.originalname, 
+      'mocked-uuid-123',
+      false // skipAnalysis parameter defaults to false
+    );
+  });
 });

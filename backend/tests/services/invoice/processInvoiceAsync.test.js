@@ -269,3 +269,89 @@ describe('InvoiceService.processInvoiceAsync direct implementation', () => {
     expect(Sentry.captureException).toHaveBeenCalledWith(error);
   });
 });
+
+describe('InvoiceService.processInvoiceAsync with skipAnalysis', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Basic mocks for all methods
+    InvoiceService.analyzeInvoice = jest.fn().mockResolvedValue({ data: 'test data' });
+    InvoiceService.loadSampleData = jest.fn().mockResolvedValue({ data: 'sample data' });
+    InvoiceService.uploadAnalysisResults = jest.fn().mockResolvedValue('https://example.com/analysis.json');
+    InvoiceService.mapAnalysisResult = jest.fn().mockReturnValue({
+      invoiceData: { invoice_number: 'INV-001' },
+      customerData: { name: 'Test Customer' },
+      vendorData: { name: 'Test Vendor' },
+      itemsData: [{ description: 'Test Item' }]
+    });
+    
+    InvoiceService.updateInvoiceRecord = jest.fn().mockResolvedValue();
+    InvoiceService.updateCustomerAndVendorData = jest.fn().mockResolvedValue();
+    InvoiceService.saveInvoiceItems = jest.fn().mockResolvedValue();
+    InvoiceService.invoiceRepository.update = jest.fn().mockResolvedValue();
+    InvoiceService.invoiceRepository.updateStatus = jest.fn().mockResolvedValue();
+  });
+
+  test('should use sample data when skipAnalysis is true', async () => {
+    // Arrange
+    const invoiceId = 'skip-analysis-invoice-123';
+    const buffer = Buffer.from('test data');
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const uuid = 'test-uuid-123';
+
+    // Act
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid, true);
+
+    // Assert
+    expect(InvoiceService.loadSampleData).toHaveBeenCalled();
+    expect(InvoiceService.analyzeInvoice).not.toHaveBeenCalled();
+    expect(InvoiceService.uploadAnalysisResults).toHaveBeenCalledWith(
+      { data: 'sample data' }, invoiceId
+    );
+    expect(InvoiceService.mapAnalysisResult).toHaveBeenCalledWith(
+      { data: 'sample data' }, partnerId, originalname, buffer.length
+    );
+    expect(InvoiceLogger.logAnalysisComplete).toHaveBeenCalledWith(invoiceId, 'Using sample data');
+  });
+
+  test('should use Azure analysis when skipAnalysis is false', async () => {
+    // Arrange
+    const invoiceId = 'regular-invoice-123';
+    const buffer = Buffer.from('test data');
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const uuid = 'test-uuid-123';
+
+    // Act
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid, false);
+
+    // Assert
+    expect(InvoiceService.loadSampleData).not.toHaveBeenCalled();
+    expect(InvoiceService.analyzeInvoice).toHaveBeenCalledWith(buffer);
+    expect(InvoiceLogger.logAnalysisComplete).toHaveBeenCalledWith(
+      invoiceId, 'https://example.com/analysis.json'
+    );
+  });
+
+  test('should handle errors when loading sample data', async () => {
+    // Arrange
+    const invoiceId = 'error-invoice-123';
+    const buffer = Buffer.from('test data');
+    const partnerId = 'partner-123';
+    const originalname = 'test.pdf';
+    const uuid = 'error-uuid-123';
+
+    const error = new Error('Failed to load sample data');
+    InvoiceService.loadSampleData.mockRejectedValue(error);
+
+    // Act
+    await InvoiceService.processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid, true);
+
+    // Assert
+    expect(InvoiceService.loadSampleData).toHaveBeenCalled();
+    expect(InvoiceLogger.logError).toHaveBeenCalledWith(invoiceId, error, 'PROCESSING');
+    expect(Sentry.captureException).toHaveBeenCalledWith(error);
+    expect(InvoiceService.invoiceRepository.updateStatus).toHaveBeenCalledWith(invoiceId, 'Failed');
+  });
+});
