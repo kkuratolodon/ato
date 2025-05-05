@@ -36,6 +36,22 @@ class InvoiceController extends FinancialDocumentController {
   async processUpload(req) {
     const { buffer, originalname, mimetype } = req.file;
     const partnerId = req.user.uuid;
+    
+    // Fix the skipAnalysis check to handle parameter name with spaces
+    let skipAnalysis = false;
+    
+    // Check req.body exists and is an object
+    if (req.body && typeof req.body === 'object') {
+      // Look for any parameter that matches skipAnalysis (case insensitive, allowing for spaces)
+      Object.keys(req.body).forEach(key => {
+        const normalizedKey = key.trim().toLowerCase();
+        if (normalizedKey === 'skipanalysis' && req.body[key] === 'true') {
+          skipAnalysis = true;
+        }
+      });
+    }
+
+    console.log("Skip analysis parameter detected:", skipAnalysis);
 
     Sentry.addBreadcrumb({
       category: 'upload',
@@ -43,7 +59,8 @@ class InvoiceController extends FinancialDocumentController {
       data: {
         filename: originalname,
         partnerId,
-        fileSize: buffer.length
+        fileSize: buffer.length,
+        skipAnalysis
       }
     });
 
@@ -53,13 +70,14 @@ class InvoiceController extends FinancialDocumentController {
         originalname,
         mimetype,
         partnerId
-      });
+      }, skipAnalysis);
 
       Sentry.captureMessage('Invoice upload successful', {
         level: 'info',
         extra: {
           invoiceId: result.invoiceId,
-          partnerId
+          partnerId,
+          skipAnalysis
         }
       });
 
@@ -69,7 +87,8 @@ class InvoiceController extends FinancialDocumentController {
         extra: {
           filename: originalname,
           partnerId,
-          fileSize: buffer.length
+          fileSize: buffer.length,
+          skipAnalysis
         }
       });
       throw error;
