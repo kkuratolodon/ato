@@ -9,12 +9,12 @@
     },
     {
       "key": "client_id",
-      "value": "client_fcd7263c",
+      "value": "client_0b0d9fc8",
       "enabled": true
     },
     {
       "key": "client_secret",
-      "value": "secret_45ebf991",
+      "value": "secret_5dbe0d59",
       "enabled": true
     },
     {
@@ -29,12 +29,12 @@
     },
     {
       "key": "invoice_id_forbidden",
-      "value": "",
+      "value": "04e08c10-bb9f-4adf-a63e-6d27531a9341",
       "enabled": true
     },
     {
       "key": "po_id_forbidden",
-      "value": "",
+      "value": "92a51792-0e28-4a54-b964-e51ae561683d",
       "enabled": true
     },
     {
