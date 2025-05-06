@@ -10,6 +10,7 @@ const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
 const { AzurePurchaseOrderMapper } = require('../purchaseOrderMapperService/purchaseOrderMapperService');
 const DocumentStatus = require('../../models/enums/DocumentStatus');
+const PurchaseOrderLogger = require('./purchaseOrderLogger');
 const { NotFoundError } = require('../../utils/errors');
 const { from } = require('rxjs');
 const { catchError, map, switchMap } = require('rxjs/operators');
@@ -266,17 +267,22 @@ class PurchaseOrderService extends FinancialDocumentService {
    */
   async getPurchaseOrderStatus(id) {
     try {
-
       const purchaseOrder = await this.purchaseOrderRepository.findById(id);
 
       if (!purchaseOrder) {
+        PurchaseOrderLogger.logStatusNotFound(id);
         throw new NotFoundError("Purchase order not found");
       }
-
-      return {
+      
+      const statusResult = {
         id: purchaseOrder.id,
         status: purchaseOrder.status
       };
+
+      // Log successful status request - moved before return statement
+      PurchaseOrderLogger.logStatusRequest(id, purchaseOrder.status);
+      
+      return statusResult;
     } catch (error) {
       // Re-throw NotFoundError and ValidationError as is
       if (error.name === "NotFoundError" || error.name === "ValidationError") {
@@ -284,6 +290,7 @@ class PurchaseOrderService extends FinancialDocumentService {
       }
 
       console.error(`Error getting purchase order status: ${error.message}`, error);
+      PurchaseOrderLogger.logStatusError(id, error);
       Sentry.captureException(error);
 
       // Wrap other errors

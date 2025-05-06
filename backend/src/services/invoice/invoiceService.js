@@ -314,19 +314,35 @@ class InvoiceService extends FinancialDocumentService {
   }
     
   async getInvoiceStatus(invoiceId) {
-    const invoice = await this.invoiceRepository.findById(invoiceId);
+    try {
+      const invoice = await this.invoiceRepository.findById(invoiceId);
 
-    if (!invoice) {
-      throw new NotFoundError("Invoice not found");
+      if (!invoice) {
+        this.logger.logStatusNotFound?.(invoiceId);
+        throw new NotFoundError("Invoice not found");
+      }
+
+      const status = {
+        id: invoice.id,
+        status: invoice.status
+      };
+      
+      // Log successful status request
+      this.logger.logStatusRequest?.(invoiceId, invoice.status);
+
+      return status;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      
+      // Log error during status retrieval
+      this.logger.logStatusError?.(invoiceId, error);
+      Sentry.captureException(error);
+      console.error("Error getting invoice status:", error);
+      throw new Error(`Failed to get invoice status: ${error.message}`);
     }
-
-    return {
-      id: invoice.id,
-      status: invoice.status
-    };
   }
-
-  
 
   async analyzeInvoice(documentUrl) {
     return this.documentAnalyzer.analyzeDocument(documentUrl);
