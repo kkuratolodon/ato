@@ -1,16 +1,25 @@
-const InvoiceService = require('../services/invoice/invoiceService');
 const FinancialDocumentController = require('./financialDocumentController');
-const validateDeletion = require('../services/validateDeletion');
-const s3Service = require('../services/s3Service');
 const Sentry = require("../instrument");
 const { ValidationError, AuthError, ForbiddenError } = require('../utils/errors');
-const { from, of, throwError } = require('rxjs');
-const { catchError, mergeMap, tap } = require('rxjs/operators');
-
+const { from, of, EMPTY, throwError } = require('rxjs');
+const { catchError, mergeMap, tap, switchMap, map} = require('rxjs/operators');
 
 class InvoiceController extends FinancialDocumentController {
-  constructor(invoiceService) {
-    super(invoiceService, "Invoice");
+  /**
+   * @param {Object} dependencies - Controller dependencies
+   * @param {Object} dependencies.invoiceService - Service for invoice operations
+   * @param {Object} dependencies.validateDeletionService - Service for validation deletion
+   * @param {Object} dependencies.s3Service - Service for file s3 operations
+   */
+  constructor(dependencies = {}) {  // Add default empty object here
+    if (!dependencies.invoiceService || typeof dependencies.invoiceService.uploadInvoice !== 'function') {
+      throw new Error('Invalid invoice service provided');
+    }
+
+    super(dependencies.invoiceService, "Invoice");
+
+    this.validateDeletionService = dependencies.validateDeletionService;
+    this.s3Service = dependencies.s3Service;
 
     // Bind methods to ensure correct context
     this.uploadInvoice = this.uploadInvoice.bind(this);
@@ -20,43 +29,29 @@ class InvoiceController extends FinancialDocumentController {
     this.validateGetRequest = this.validateGetRequest.bind(this);
   }
 
-  /**
- * Handles the upload and validation of invoice PDF files with an automatic 3-second timeout.
- *
- * This function performs multiple validation steps on the uploaded file:
- * 1. Authentication: Verifies client credentials before processing.
- * 2. Timeout Protection: Automatically terminates the request if it exceeds 3 seconds.
- * 3. File Type Validation: Ensures the uploaded file is a valid PDF.
- * 4. Encryption Check: Rejects encrypted PDFs.
- * 5. Integrity Check: Verifies the PDF is not corrupted.
- * 6. Size Validation: Ensures the file does 2not exceed the allowed size limit.
- * 7. Upload Process: Uploads the validated invoice file.
- *
- * The function uses a Promise.race mechanism to implement the timeout, ensuring that
- * the server responds in a timely manner even when processing large files or experiencing
- * unexpected delays in the validation or upload process.
- *
- * @param {Object} req - Express request object containing the uploaded file and request data.
- * @param {Object} req.file - Uploaded file information from Multer middleware.
- * @param {Buffer} req.file.buffer - File content in buffer format.
- * @param {string} req.file.originalname - Original filename including extension.
- * @param {string} req.file.mimetype - MIME type of the file.
- * @param {Object} req.user - Request containing authentication credentials.
- * @param {string} req.user.uuid - Unique identifier for the partner/user uploading the file.
- * @param {Object} res - Express response object.
- * @returns {Promise<Object>} JSON response with appropriate status code and message.
- *
- * @throws {Error} Returns specific error messages for each validation failure.
- * Returns a 504 Gateway Timeout response if processing exceeds 3 seconds.
- * Logs internal server errors to the console but provides a generic response to the client.
- */
   async uploadInvoice(req, res) {
-    return await this.uploadFile(req, res)
+    return await this.uploadFile(req, res);
   }
 
   async processUpload(req) {
     const { buffer, originalname, mimetype } = req.file;
     const partnerId = req.user.uuid;
+    
+    // Fix the skipAnalysis check to handle parameter name with spaces
+    let skipAnalysis = false;
+    
+    // Check req.body exists and is an object
+    if (req.body && typeof req.body === 'object') {
+      // Look for any parameter that matches skipAnalysis (case insensitive, allowing for spaces)
+      Object.keys(req.body).forEach(key => {
+        const normalizedKey = key.trim().toLowerCase();
+        if (normalizedKey === 'skipanalysis' && req.body[key] === 'true') {
+          skipAnalysis = true;
+        }
+      });
+    }
+
+    console.log("Skip analysis parameter detected:", skipAnalysis);
 
     Sentry.addBreadcrumb({
       category: 'upload',
@@ -64,7 +59,8 @@ class InvoiceController extends FinancialDocumentController {
       data: {
         filename: originalname,
         partnerId,
-        fileSize: buffer.length
+        fileSize: buffer.length,
+        skipAnalysis
       }
     });
 
@@ -74,13 +70,14 @@ class InvoiceController extends FinancialDocumentController {
         originalname,
         mimetype,
         partnerId
-      });
+      }, skipAnalysis);
 
       Sentry.captureMessage('Invoice upload successful', {
         level: 'info',
-        extra: { 
+        extra: {
           invoiceId: result.invoiceId,
-          partnerId 
+          partnerId,
+          skipAnalysis
         }
       });
 
@@ -90,34 +87,31 @@ class InvoiceController extends FinancialDocumentController {
         extra: {
           filename: originalname,
           partnerId,
-          fileSize: buffer.length
+          fileSize: buffer.length,
+          skipAnalysis
         }
       });
       throw error;
     }
   }
 
-  /**
-   * @description Retrieves an invoice by ID with authorization check.
-   *
-   * @throws {400} Invalid invoice ID (non-numeric, null, or negative)
-   * @throws {401} Unauthorized if req.user is missing
-   * @throws {403} Forbidden if invoice does not belong to the authenticated user
-   * @throws {404} Not Found if invoice is not found
-   * @throws {500} Internal Server Error 
-   */
-  async getInvoiceById(req, res) {
-    try {
-      const { id } = req.params;
-      await this.validateGetRequest(req, id);
-      const invoiceDetail = await this.service.getInvoiceById(id);
-      if (!invoiceDetail) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-      return res.status(200).json(invoiceDetail);
-    } catch (error) {
-      return this.handleError(res, error);
-    }
+  getInvoiceById(req, res) {
+    const { id } = req.params;
+  
+    from(this.validateGetRequest(req, id)).pipe(
+      switchMap(() => from(this.service.getInvoiceById(id))),
+      map((invoiceDetail) => {
+        console.log("Invoice detail:", invoiceDetail);
+        if (!invoiceDetail) {
+          return res.status(404).json({ message: "Invoice not found" });
+        }
+        return res.status(200).json(invoiceDetail);
+      }),
+      catchError((error) => {
+        this.handleError(res, error);
+        return EMPTY; 
+      })
+    ).subscribe();
   }
 
   async validateGetRequest(req, id) {
@@ -223,8 +217,18 @@ class InvoiceController extends FinancialDocumentController {
   }
 }
 
-// TODO: check again this part, might want to export class instead
-const controller = new InvoiceController(InvoiceService);
+// Import dependencies for factory function
+const InvoiceService = require('../services/invoice/invoiceService');
+const validateDeletion = require('../services/validateDeletion');
+const s3Service = require('../services/s3Service');
+
+// Create controller instance with dependencies
+const controller = new InvoiceController({
+  invoiceService: InvoiceService,
+  validateDeletionService: validateDeletion,
+  s3Service: s3Service
+});
+
 module.exports = {
   InvoiceController,  // Export the class for testing
   controller         // Export instance for routes
