@@ -267,7 +267,6 @@ class PurchaseOrderService extends FinancialDocumentService {
    */
   async getPurchaseOrderStatus(id) {
     try {
-
       const purchaseOrder = await this.purchaseOrderRepository.findById(id);
 
       if (!purchaseOrder) {
@@ -280,8 +279,7 @@ class PurchaseOrderService extends FinancialDocumentService {
         status: purchaseOrder.status
       };
 
-      return statusResult;
-
+      // Log successful status request - moved before return statement
       PurchaseOrderLogger.logStatusRequest(id, purchaseOrder.status);
       
       return statusResult;
