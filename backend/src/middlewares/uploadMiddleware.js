@@ -8,6 +8,19 @@ const upload = multer({
 }).single('file');
 
 module.exports = (req, res, next) => {
-  // Pass the original next function directly to upload
-  upload(req, res, next);
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ 
+          message: 'File size exceeds 20MB limit'
+        });
+      }
+      return res.status(400).json({ 
+        message: `Upload error: ${err.message}`
+      });
+    } else if (err) {
+      return next(err);
+    }
+    next();
+  });
 };

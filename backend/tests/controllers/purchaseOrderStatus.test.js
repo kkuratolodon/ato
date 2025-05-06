@@ -12,6 +12,9 @@ describe("Purchase Order Controller - Status Endpoint", () => {
     getPartnerId: jest.fn()
   };
 
+  const mockValidateDeletionService = {};
+  const mockS3Service = {};
+
   beforeEach(() => {
     req = mockRequest({
       params: {
@@ -22,7 +25,11 @@ describe("Purchase Order Controller - Status Endpoint", () => {
       }
     });
     res = mockResponse();
-    controller = new PurchaseOrderController(mockPurchaseOrderService);
+    controller = new PurchaseOrderController({
+      purchaseOrderService: mockPurchaseOrderService,
+      validateDeletionService: mockValidateDeletionService,
+      s3Service: mockS3Service
+    });
     jest.clearAllMocks();
   });
 

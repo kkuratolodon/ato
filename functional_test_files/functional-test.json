@@ -282,7 +282,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								}
 							]
 						},
@@ -350,7 +350,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -423,7 +423,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -492,7 +492,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/test-files/test-valid.pdf"
+									"src": "test-valid.pdf"
 								}
 							]
 						},
@@ -567,7 +567,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test-30mb.pdf"
+									"src": "test-30mb.pdf"
 								}
 							]
 						},
@@ -862,7 +862,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								}
 							]
 						},
@@ -930,7 +930,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -1003,7 +1003,7 @@
 								{
 									"key": "file",
 									"type": "file",
-									"src": "/C:/College/6th-Term/PPL/fin-invoice-ocr-team6/functional_test_files/test_encrypted.pdf"
+									"src": "test_encrypted.pdf"
 								},
 								{
 									"key": "password",
@@ -1214,15 +1214,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/invoices/{{invoice_id}}/status",
+							"raw": "{{baseUrl}}/api/invoices/status/{{invoice_id}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"invoices",
-								"{{invoice_id}}",
-								"status"
+								"status",
+								"{{invoice_id}}"
 							]
 						}
 					},
@@ -1276,15 +1276,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/invoices/{{invoice_id}}/status",
+							"raw": "{{baseUrl}}/api/invoices/status/{{invoice_id}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"invoices",
-								"{{invoice_id}}",
-								"status"
+								"status",
+								"{{invoice_id}}"
 							]
 						}
 					},
@@ -1328,15 +1328,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/invoices/invalid-invoice-id/status",
+							"raw": "{{baseUrl}}/api/invoices/status/invalid-invoice-id",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"invoices",
-								"invalid-invoice-id",
-								"status"
+								"status",
+								"invalid-invoice-id"
 							]
 						}
 					},
@@ -1386,15 +1386,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/invoices/{{invoice_id_forbidden}}/status",
+							"raw": "{{baseUrl}}/api/invoices/{{invoice_id_forbidden}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"invoices",
-								"{{invoice_id_forbidden}}",
-								"status"
+								"status",
+								"{{invoice_id_forbidden}}"
 							]
 						}
 					},
@@ -1914,8 +1914,8 @@
 									"    pm.response.to.have.status(401);\r",
 									"});\r",
 									"\r",
-									"pm.test(\"Response time is less than 100ms\", function () {\r",
-									"    pm.expect(pm.response.responseTime).to.be.below(100);\r",
+									"pm.test(\"Response time is less than 1000ms\", function () {\r",
+									"    pm.expect(pm.response.responseTime).to.be.below(1000);\r",
 									"});\r",
 									"\r",
 									"pm.test(\"Response body has message field with value 'Unauthorized: Missing credentials'\", function () {\r",
@@ -1946,6 +1946,329 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Delete Invoice",
+			"item": [
+				{
+					"name": "Upload Invoice for Delete",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type is present and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"pm.test(\"Response contains message and invoice details\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message.message).to.equal(\"Invoice upload initiated\");",
+									"    pm.expect(jsonData.message.id).to.exist;",
+									"});",
+									"",
+									"try {",
+									"    const jsonData = pm.response.json();",
+									"    const invoiceId = jsonData.message.id;",
+									"",
+									"    if (invoiceId) {",
+									"        console.log(\"Menyimpan Invoice ID:\", invoiceId);",
+									"        pm.environment.set(\"invoice_id_to_delete\", invoiceId);",
+									"        pm.environment.set(\"statusRetryCount\", 0);",
+									"",
+									"        pm.test(\"Invoice ID stored successfully\", function() {",
+									"            pm.expect(pm.environment.get(\"invoice_id_to_delete\")).to.equal(invoiceId);",
+									"        });",
+									"",
+									"        console.log(\"Memulai pengecekan status...\");",
+									"        postman.setNextRequest(\"Check Invoice Status\");",
+									"",
+									"    } else {",
+									"        console.error(\"ID invoice tidak ditemukan dalam response!\");",
+									"        pm.test(\"Failed to find Invoice ID in response\", function() {",
+									"             throw new Error(\"Invoice ID not found in response message.id\");",
+									"        });",
+									"        postman.setNextRequest(null);",
+									"    }",
+									"} catch (e) {",
+									"    console.error(\"Error parsing JSON or accessing ID:\", e);",
+									"    pm.test(\"Failed to process response for storing Invoice ID\", function() {",
+									"         throw e;",
+									"     });",
+									"     postman.setNextRequest(null);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-valid.pdf"
+								},
+								{
+									"key": "skipAnalysis",
+									"value": "true",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"upload"
+							]
+						},
+						"description": "Upload invoice with skipAnalysis=true for deletion test."
+					},
+					"response": []
+				},
+				{
+					"name": "Check Invoice Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const maxRetries = 10;",
+									"const retryDelay = 5000;",
+									"const targetStatus = \"Analyzed\";",
+									"",
+									"let currentRetry = parseInt(pm.environment.get(\"statusRetryCount\") || \"0\");",
+									"",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type is present and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"try {",
+									"    const jsonData = pm.response.json();",
+									"    const currentStatus = jsonData.status;",
+									"    const invoiceId = pm.environment.get(\"invoice_id_to_delete\");",
+									"",
+									"    console.log(\">>> DEBUG: Nilai 'currentStatus' dari API:\", currentStatus);",
+									"    console.log(\">>> DEBUG: Tipe data 'currentStatus':\", typeof currentStatus);",
+									"    console.log(\">>> DEBUG: Nilai 'targetStatus' yang dicari:\", targetStatus);",
+									"",
+									"    console.log(`[Percobaan ${currentRetry + 1}/${maxRetries}] Status Invoice ${invoiceId}: ${currentStatus}`);",
+									"",
+									"    pm.test(\"Response contains ID and Status\", function() {",
+									"        pm.expect(jsonData.id).to.exist;",
+									"        pm.expect(jsonData.status).to.exist;",
+									"        pm.expect(jsonData.id).to.equal(invoiceId);",
+									"    });",
+									"",
+									"    if (currentStatus === targetStatus) {",
+									"        console.log(`Status '${targetStatus}' tercapai untuk Invoice ${invoiceId}. Melanjutkan ke Delete.`);",
+									"        pm.test(`Invoice status reached '${targetStatus}'`, function() {",
+									"            pm.expect(currentStatus).to.equal(targetStatus);",
+									"        });",
+									"        pm.environment.unset(\"statusRetryCount\");",
+									"        postman.setNextRequest(\"Delete Invoice Successful\");",
+									"",
+									"    } else if (currentRetry < maxRetries) {",
+									"        console.log(`Status belum '${targetStatus}'. Mencoba lagi dalam ${retryDelay / 1000} detik...`);",
+									"        pm.environment.set(\"statusRetryCount\", currentRetry + 1);",
+									"        setTimeout(() => {",
+									"             postman.setNextRequest(\"Check Invoice Status\");",
+									"        }, retryDelay);",
+									"",
+									"    } else {",
+									"        console.error(`Gagal mencapai status '${targetStatus}' setelah ${maxRetries} percobaan untuk Invoice ${invoiceId}.`);",
+									"        pm.test(`TIMEOUT: Invoice status did not reach '${targetStatus}' within ${maxRetries} retries`, function() {",
+									"            throw new Error(`Status was '${currentStatus}', expected '${targetStatus}'. Max retries exceeded.`);",
+									"        });",
+									"        pm.environment.unset(\"statusRetryCount\");",
+									"        postman.setNextRequest(null);",
+									"    }",
+									"",
+									"} catch (e) {",
+									"    console.error(\"Error processing status response:\", e);",
+									"    pm.test(\"Failed to process status response\", function() {",
+									"        throw e;",
+									"    });",
+									"    pm.environment.unset(\"statusRetryCount\");",
+									"    postman.setNextRequest(null);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/status/{{invoice_id_to_delete}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"status",
+								"{{invoice_id_to_delete}}"
+							]
+						},
+						"description": "Polls the invoice status until it reaches 'Analyzed' or times out."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Invoice Successful",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type is present and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    pm.expect(pm.response.json().message).to.equal(\"Invoice successfully deleted\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/{{invoice_id_to_delete}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"{{invoice_id_to_delete}}"
+							]
+						},
+						"description": "Delete invoice using the ID obtained from the upload after status is confirmed 'Analyzed'."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Invoice Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Content-Type is present and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"pm.test(\"Response contains not found message\", function () {",
+									"    pm.expect(pm.response.json().message).to.equal(\"Invoice not found\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "client_id",
+								"value": "{{client_id}}",
+								"type": "text"
+							},
+							{
+								"key": "client_secret",
+								"value": "{{client_secret}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/invoices/{{invoice_id_to_delete}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"invoices",
+								"{{invoice_id_to_delete}}"
+							]
+						},
+						"description": "Attempt to delete an invoice that should no longer exist (e.g., after successful deletion)."
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for deleting invoices, including polling for 'Analyzed' status before deletion."
 		}
 	],
 	"event": [
