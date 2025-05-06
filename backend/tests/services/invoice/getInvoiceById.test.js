@@ -1,297 +1,620 @@
-const { InvoiceService } = require('../../../src/services/invoice/invoiceService');
-const { NotFoundError } = require('../../../src/utils/errors');
 const DocumentStatus = require('../../../src/models/enums/DocumentStatus');
+const invoiceService = require('../../../src/services/invoice/invoiceService');
 
-describe('InvoiceService - getInvoiceById', () => {
-  let invoiceService;
-  let mockInvoiceRepository;
-  let mockItemRepository;
-  let mockCustomerRepository;
-  let mockVendorRepository;
-  let mockResponseFormatter;
-  
-  // Sample data for testing
-  const sampleInvoice = {
-    id: '123e4567-e89b-12d3-a456-426614174000',
-    status: DocumentStatus.ANALYZED,
-    file_url: 'https://example.com/invoice.pdf',
-    original_filename: 'invoice.pdf',
-    partner_id: 'partner-123',
-    customer_id: 'customer-123',
-    vendor_id: 'vendor-123',
-    invoice_number: 'INV-001',
-    due_date: '2023-12-31',
-    total_amount: 1000.00
-  };
-  
-  const sampleItems = [
-    { id: 'item-1', description: 'Item 1', quantity: 2, unit: 'pcs', unit_price: 100.00, amount: 200.00 },
-    { id: 'item-2', description: 'Item 2', quantity: 4, unit: 'pcs', unit_price: 200.00, amount: 800.00 }
-  ];
-  
-  const sampleCustomer = { id: 'customer-123', name: 'Customer Inc', tax_id: 'TAX-123', address: '123 Customer St' };
-  const sampleVendor = { id: 'vendor-123', name: 'Vendor Inc', tax_id: 'TAX-456', address: '456 Vendor Ave' };
-  
-  const formattedResponse = {
-    message: "Invoice retrieved successfully",
+// Mock the repositories
+jest.mock('../../../src/repositories/invoiceRepository');
+jest.mock('../../../src/repositories/customerRepository');
+jest.mock('../../../src/repositories/vendorRepository');
+jest.mock('../../../src/repositories/itemRepository');
+jest.mock('../../../src/services/invoice/invoiceResponseFormatter');
+
+// Other mocks needed for invoiceService to initialize properly
+jest.mock('../../../src/services/analysis/azureDocumentAnalyzer');
+jest.mock('../../../src/services/invoice/invoiceValidator');
+jest.mock('../../../src/services/invoiceMapperService/invoiceMapperService');
+
+// Sentry mock
+jest.mock('../../../src/instrument', () => ({
+  init: jest.fn(),
+  startSpan: jest.fn((_, callback) => callback({
+    setAttribute: jest.fn(),
+    setStatus: jest.fn(),
+    end: jest.fn()
+  })),
+  captureMessage: jest.fn(),
+  captureException: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
+
+describe("getInvoiceById", () => {
+  // Setup common response format
+  const mockFormattedResponse = {
     data: {
       documents: [{
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        invoice_number: 'INV-001',
-        total_amount: 1000.00,
-        items: sampleItems,
-        customer: sampleCustomer,
-        vendor: sampleVendor
+        header: {
+          invoice_details: {
+            invoice_number: "INV-001",
+            invoice_date: "2025-02-01"
+          },
+          vendor_details: {
+            name: null,
+            address: "",
+            recipient_name: null,
+            tax_id: null
+          },
+          customer_details: {
+            id: null,
+            name: null,
+            recipient_name: null,
+            address: "",
+            tax_id: null
+          },
+          financial_details: {
+            currency: { currency_symbol: "$", currency_code: "USD" },
+            total_amount: 0,
+            subtotal_amount: 0,
+            discount_amount: 0,
+            total_tax_amount: 0
+          }
+        },
+        items: []
       }]
     }
   };
-  
+
   beforeEach(() => {
-    // Create mock repositories
-    mockInvoiceRepository = {
-      findById: jest.fn()
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+    
+    // Setup default mock behavior
+    invoiceService.responseFormatter.formatInvoiceResponse = jest.fn().mockReturnValue(mockFormattedResponse);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("Should return an invoice when given a valid ID", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_number: "INV-001",
+      status: DocumentStatus.ANALYZED
     };
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+    // Act
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+    expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalledWith('1', 'Invoice');
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice, 
+      [],  // empty items array
+      null, // no customer
+      null  // no vendor
+    );
     
-    mockItemRepository = {
-      findItemsByDocumentId: jest.fn()
+    expect(result).toHaveProperty('data');
+    expect(result.data).toHaveProperty('documents');
+    expect(Array.isArray(result.data.documents)).toBe(true);
+    expect(result.data.documents.length).toBe(1);
+    expect(result.data.documents[0]).toHaveProperty('header');
+    expect(result.data.documents[0]).toHaveProperty('items');
+  });
+
+  test("Should throw an error when invoice is not found", async () => {
+    // Arrange
+    invoiceService.invoiceRepository.findById.mockResolvedValue(null);
+
+    // Act & Assert
+    await expect(invoiceService.getInvoiceById('99999999')).rejects.toThrow("Invoice not found");
+  });
+
+  test("Should throw an error when database fails", async () => {
+    // Arrange
+    invoiceService.invoiceRepository.findById.mockRejectedValue(new Error("Database error"));
+
+    // Act & Assert
+    await expect(invoiceService.getInvoiceById('1')).rejects.toThrow("Failed to retrieve invoice: Database error");
+  });
+
+  test("Should handle case where customer_id exists but customer isn't found", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      customer_id: "missing-customer-uuid",
+      status: DocumentStatus.ANALYZED
     };
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.customerRepository.findById.mockResolvedValue(null);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+    // Customize formatted response for this test
+    const customResponse = JSON.parse(JSON.stringify(mockFormattedResponse));
+    customResponse.data.documents[0].header.invoice_details.invoice_date = "2025-02-01";
+    invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(customResponse);
+
+    // Act
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.customerRepository.findById).toHaveBeenCalledWith("missing-customer-uuid");
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice,
+      [],
+      null,
+      null
+    );
     
-    mockCustomerRepository = {
-      findById: jest.fn()
+    expect(result.data.documents[0].header.invoice_details.invoice_date).toEqual("2025-02-01");
+  });
+
+  test("Should handle case where vendor_id exists but vendor isn't found", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      vendor_id: "missing-vendor-uuid",
+      status: DocumentStatus.ANALYZED
     };
-    
-    mockVendorRepository = {
-      findById: jest.fn()
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.vendorRepository.findById.mockResolvedValue(null);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+    // Act
+    await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.vendorRepository.findById).toHaveBeenCalledWith("missing-vendor-uuid");
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice,
+      [],
+      null,
+      null
+    );
+  });
+
+  test("Should include customer data when customer exists", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      customer_id: "existing-customer-uuid",
+      status: DocumentStatus.ANALYZED
     };
-    
-    mockResponseFormatter = {
-      formatInvoiceResponse: jest.fn()
+
+    const mockCustomer = {
+      uuid: "existing-customer-uuid",
+      name: "Existing Customer",
+      address: "123 Test St"
     };
-    
-    // Create invoice service with mocked dependencies
-    invoiceService = new InvoiceService({
-      invoiceRepository: mockInvoiceRepository,
-      itemRepository: mockItemRepository,
-      customerRepository: mockCustomerRepository,
-      vendorRepository: mockVendorRepository,
-      responseFormatter: mockResponseFormatter
-    });
-  });
-  
-  // Positive test cases
-  
-  test('should return formatted invoice data when invoice exists and is analyzed', (done) => {
-    // Arrange
-    mockInvoiceRepository.findById.mockResolvedValue(sampleInvoice);
-    mockItemRepository.findItemsByDocumentId.mockResolvedValue(sampleItems);
-    mockCustomerRepository.findById.mockResolvedValue(sampleCustomer);
-    mockVendorRepository.findById.mockResolvedValue(sampleVendor);
-    mockResponseFormatter.formatInvoiceResponse.mockReturnValue(formattedResponse);
-    
-    // Act
-    invoiceService.getInvoiceById(sampleInvoice.id).subscribe({
-      next: (result) => {
-        // Assert
-        expect(mockInvoiceRepository.findById).toHaveBeenCalledWith(sampleInvoice.id);
-        expect(mockItemRepository.findItemsByDocumentId).toHaveBeenCalledWith(sampleInvoice.id, 'Invoice');
-        expect(mockCustomerRepository.findById).toHaveBeenCalledWith(sampleInvoice.customer_id);
-        expect(mockVendorRepository.findById).toHaveBeenCalledWith(sampleInvoice.vendor_id);
-        expect(mockResponseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
-          sampleInvoice, sampleItems, sampleCustomer, sampleVendor
-        );
-        expect(result).toEqual(formattedResponse);
-        done();
-      },
-      error: (error) => {
-        done.fail(`Should not have failed with: ${error}`);
-      }
-    });
-  });
-  
-  test('should return formatted invoice data when invoice has no customer or vendor', (done) => {
-    // Arrange
-    const invoiceWithoutRelations = { ...sampleInvoice, customer_id: null, vendor_id: null };
-    mockInvoiceRepository.findById.mockResolvedValue(invoiceWithoutRelations);
-    mockItemRepository.findItemsByDocumentId.mockResolvedValue(sampleItems);
-    mockResponseFormatter.formatInvoiceResponse.mockReturnValue({
-      ...formattedResponse,
-      data: { 
-        documents: [{
-          ...formattedResponse.data.documents[0],
-          customer: null,
-          vendor: null
-        }]
-      }
-    });
-    
-    // Act
-    invoiceService.getInvoiceById(sampleInvoice.id).subscribe({
-      next: (result) => {
-        // Assert
-        expect(mockInvoiceRepository.findById).toHaveBeenCalledWith(sampleInvoice.id);
-        expect(mockItemRepository.findItemsByDocumentId).toHaveBeenCalledWith(sampleInvoice.id, 'Invoice');
-        expect(mockCustomerRepository.findById).not.toHaveBeenCalled();
-        expect(mockVendorRepository.findById).not.toHaveBeenCalled();
-        expect(mockResponseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
-          invoiceWithoutRelations, sampleItems, null, null
-        );
-        expect(result.data.documents[0].customer).toBeNull();
-        expect(result.data.documents[0].vendor).toBeNull();
-        done();
-      },
-      error: (error) => {
-        done.fail(`Should not have failed with: ${error}`);
-      }
-    });
-  });
-  
-  // Negative test cases
-  
-  test('should throw NotFoundError when invoice does not exist', (done) => {
-    // Arrange
-    mockInvoiceRepository.findById.mockResolvedValue(null);
-    
-    // Act
-    invoiceService.getInvoiceById('non-existent-id').subscribe({
-      next: () => {
-        done.fail('Should not have succeeded');
-      },
-      error: (error) => {
-        // Assert
-        expect(error).toBeInstanceOf(NotFoundError);
-        expect(error.message).toBe('Invoice not found');
-        done();
-      }
-    });
-  });
-  
-  test('should return processing message when invoice status is PROCESSING', (done) => {
-    // Arrange
-    const processingInvoice = { ...sampleInvoice, status: DocumentStatus.PROCESSING };
-    mockInvoiceRepository.findById.mockResolvedValue(processingInvoice);
-    
-    // Act
-    invoiceService.getInvoiceById(processingInvoice.id).subscribe({
-      next: (result) => {
-        // Assert
-        expect(result).toEqual({
-          message: "Invoice is still being processed. Please try again later.",
-          data: { documents: [] }
-        });
-        expect(mockItemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
-        done();
-      },
-      error: (error) => {
-        done.fail(`Should not have failed with: ${error}`);
-      }
-    });
-  });
-  
-  test('should return failed message when invoice status is FAILED', (done) => {
-    // Arrange
-    const failedInvoice = { ...sampleInvoice, status: DocumentStatus.FAILED };
-    mockInvoiceRepository.findById.mockResolvedValue(failedInvoice);
-    
-    // Act
-    invoiceService.getInvoiceById(failedInvoice.id).subscribe({
-      next: (result) => {
-        // Assert
-        expect(result).toEqual({
-          message: "Invoice processing failed. Please re-upload the document.",
-          data: { documents: [] }
-        });
-        expect(mockItemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
-        done();
-      },
-      error: (error) => {
-        done.fail(`Should not have failed with: ${error}`);
-      }
-    });
-  });
-  
-  // Edge cases
-  
-  test('should handle errors from repository', (done) => {
-    // Arrange
-    const expectedError = new Error('Database connection error');
-    mockInvoiceRepository.findById.mockRejectedValue(expectedError);
-    
-    // Act
-    invoiceService.getInvoiceById(sampleInvoice.id).subscribe({
-      next: () => {
-        done.fail('Should not have succeeded');
-      },
-      error: (error) => {
-        // Assert
-        expect(error.message).toContain('Failed to retrieve invoice');
-        expect(error.message).toContain(expectedError.message);
-        done();
-      }
-    });
-  });
-  
-  test('should handle when customer exists but vendor does not', (done) => {
-    // Arrange
-    mockInvoiceRepository.findById.mockResolvedValue(sampleInvoice);
-    mockItemRepository.findItemsByDocumentId.mockResolvedValue(sampleItems);
-    mockCustomerRepository.findById.mockResolvedValue(sampleCustomer);
-    mockVendorRepository.findById.mockResolvedValue(null);
-    
-    const expectedResponse = {
-      ...formattedResponse,
-      data: {
-        documents: [{
-          ...formattedResponse.data.documents[0],
-          vendor: null
-        }]
-      }
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.customerRepository.findById.mockResolvedValue(mockCustomer);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+    // Customize formatter response for this test
+    const customResponse = JSON.parse(JSON.stringify(mockFormattedResponse));
+    customResponse.data.documents[0].header.customer_details = {
+      id: "existing-customer-uuid",
+      name: "Existing Customer",
+      address: "123 Test St",
+      recipient_name: null,
+      tax_id: null
     };
-    
-    mockResponseFormatter.formatInvoiceResponse.mockReturnValue(expectedResponse);
-    
+    invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(customResponse);
+
     // Act
-    invoiceService.getInvoiceById(sampleInvoice.id).subscribe({
-      next: (result) => {
-        // Assert
-        expect(result.data.documents[0].customer).toEqual(sampleCustomer);
-        expect(result.data.documents[0].vendor).toBeNull();
-        done();
-      },
-      error: (error) => {
-        done.fail(`Should not have failed with: ${error}`);
-      }
-    });
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.customerRepository.findById).toHaveBeenCalledWith("existing-customer-uuid");
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice,
+      [],
+      mockCustomer,
+      null
+    );
+    
+    expect(result.data.documents[0].header.customer_details.name).toBe('Existing Customer');
+    expect(result.data.documents[0].header.customer_details.id).toBe('existing-customer-uuid');
+    expect(result.data.documents[0].header.customer_details.address).toBe('123 Test St');
   });
-  
-  test('should handle when invoice has no items', (done) => {
+
+  test("Should include vendor data when vendor exists", async () => {
     // Arrange
-    mockInvoiceRepository.findById.mockResolvedValue(sampleInvoice);
-    mockItemRepository.findItemsByDocumentId.mockResolvedValue([]);
-    mockCustomerRepository.findById.mockResolvedValue(sampleCustomer);
-    mockVendorRepository.findById.mockResolvedValue(sampleVendor);
-    
-    const expectedResponse = {
-      ...formattedResponse,
-      data: {
-        documents: [{
-          ...formattedResponse.data.documents[0],
-          items: []
-        }]
-      }
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      vendor_id: "existing-vendor-uuid",
+      status: DocumentStatus.ANALYZED
     };
-    
-    mockResponseFormatter.formatInvoiceResponse.mockReturnValue(expectedResponse);
-    
+
+    const mockVendor = {
+      uuid: "existing-vendor-uuid",
+      name: "Existing Vendor",
+      address: "456 Vendor St"
+    };
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.vendorRepository.findById.mockResolvedValue(mockVendor);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+    // Customize formatter response for this test
+    const customResponse = JSON.parse(JSON.stringify(mockFormattedResponse));
+    customResponse.data.documents[0].header.vendor_details = {
+      name: "Existing Vendor",
+      address: "456 Vendor St",
+      recipient_name: null,
+      tax_id: null
+    };
+    invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(customResponse);
+
     // Act
-    invoiceService.getInvoiceById(sampleInvoice.id).subscribe({
-      next: (result) => {
-        // Assert
-        expect(result.data.documents[0].items).toEqual([]);
-        done();
-      },
-      error: (error) => {
-        done.fail(`Should not have failed with: ${error}`);
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.vendorRepository.findById).toHaveBeenCalledWith("existing-vendor-uuid");
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice,
+      [],
+      null,
+      mockVendor
+    );
+    
+    expect(result.data.documents[0].header.vendor_details.name).toBe('Existing Vendor');
+    expect(result.data.documents[0].header.vendor_details.address).toBe('456 Vendor St');
+  });
+
+  test("Should correctly transform items data to the required format", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      status: DocumentStatus.ANALYZED
+    };
+
+    const mockItems = [
+      {
+        amount: 21.00,
+        description: "Test Item",
+        quantity: 2,
+        unit: "pcs",
+        unit_price: 10.50
       }
+    ];
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue(mockItems);
+
+    // Customize formatter response for this test
+    const customResponse = JSON.parse(JSON.stringify(mockFormattedResponse));
+    customResponse.data.documents[0].items = mockItems;
+    invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(customResponse);
+
+    // Act
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice,
+      mockItems,
+      null,
+      null
+    );
+
+    expect(result.data.documents[0].items).toEqual(mockItems);
+  });
+
+  test("Should handle null address for customer", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      customer_id: "customer-with-null-address",
+      status: DocumentStatus.ANALYZED
+    };
+
+    const mockCustomer = {
+      uuid: "customer-with-null-address",
+      name: "Customer With Null Address",
+      address: null,
+      recipient_name: "John Doe",
+      tax_id: "123-45-6789"
+    };
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.customerRepository.findById.mockResolvedValue(mockCustomer);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+    // Customize formatter response for this test
+    const customResponse = JSON.parse(JSON.stringify(mockFormattedResponse));
+    customResponse.data.documents[0].header.customer_details = {
+      id: "customer-with-null-address",
+      name: "Customer With Null Address",
+      address: "", // Should be empty string
+      recipient_name: "John Doe",
+      tax_id: "123-45-6789"
+    };
+    invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(customResponse);
+
+    // Act
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice,
+      [],
+      mockCustomer,
+      null
+    );
+    
+    expect(result.data.documents[0].header.customer_details.address).toBe('');
+  });
+
+  test("Should handle null address for vendor", async () => {
+    // Arrange
+    const mockInvoice = {
+      id: '1',
+      invoice_date: "2025-02-01",
+      vendor_id: "vendor-with-null-address",
+      status: DocumentStatus.ANALYZED
+    };
+
+    const mockVendor = {
+      uuid: "vendor-with-null-address",
+      name: "Vendor With Null Address",
+      address: null,
+      recipient_name: "Jane Smith",
+      tax_id: "987-65-4321"
+    };
+
+    invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+    invoiceService.vendorRepository.findById.mockResolvedValue(mockVendor);
+    invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+    // Customize formatter response for this test
+    const customResponse = JSON.parse(JSON.stringify(mockFormattedResponse));
+    customResponse.data.documents[0].header.vendor_details = {
+      name: "Vendor With Null Address",
+      address: "", // Should be empty string
+      recipient_name: "Jane Smith",
+      tax_id: "987-65-4321"
+    };
+    invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(customResponse);
+
+    // Act
+    const result = await invoiceService.getInvoiceById('1');
+
+    // Assert
+    expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalledWith(
+      mockInvoice,
+      [],
+      null,
+      mockVendor
+    );
+    
+    expect(result.data.documents[0].header.vendor_details.address).toBe('');
+  });
+
+  describe("Invoice Status Handling", () => {
+    // Positive tests - Each possible status scenario
+    test("Should return processing message when invoice status is PROCESSING", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: DocumentStatus.PROCESSING
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+
+      // Act
+      const result = await invoiceService.getInvoiceById('1');
+
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
+      expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
+      
+      expect(result).toEqual({
+        message: "Invoice is still being processed. Please try again later.",
+        data: { documents: [] }
+      });
+    });
+
+    test("Should return failed message when invoice status is FAILED", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: DocumentStatus.FAILED
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+
+      // Act
+      const result = await invoiceService.getInvoiceById('1');
+
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).not.toHaveBeenCalled();
+      expect(invoiceService.customerRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.vendorRepository.findById).not.toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).not.toHaveBeenCalled();
+      
+      expect(result).toEqual({
+        message: "Invoice processing failed. Please re-upload the document.",
+        data: { documents: [] }
+      });
+    });
+
+    test("Should process invoice normally when status is ANALYZED", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: DocumentStatus.ANALYZED,
+        // Other invoice properties
+        invoice_number: "INV-001"
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+      invoiceService.responseFormatter.formatInvoiceResponse.mockReturnValue(mockFormattedResponse);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+    
+    // Additional positive test with fully populated data
+    test("Should process invoice with all properties when status is ANALYZED", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        due_date: "2025-03-01",
+        invoice_number: "INV-001",
+        total_amount: 1500.00,
+        status: DocumentStatus.ANALYZED,
+        customer_id: "customer-123",
+        vendor_id: "vendor-456"
+      };
+
+      const mockItems = [
+        { description: "Item 1", quantity: 2, unit: "pcs", unit_price: 500, amount: 1000 },
+        { description: "Item 2", quantity: 1, unit: "ea", unit_price: 500, amount: 500 }
+      ];
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue(mockItems);
+      invoiceService.customerRepository.findById.mockResolvedValue({ uuid: "customer-123", name: "Test Customer" });
+      invoiceService.vendorRepository.findById.mockResolvedValue({ uuid: "vendor-456", name: "Test Vendor" });
+      
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.customerRepository.findById).toHaveBeenCalled();
+      expect(invoiceService.vendorRepository.findById).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    // Negative tests
+    test("Should handle case when status property is missing", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        // status is intentionally missing
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    // Corner cases
+    test("Should handle undefined status gracefully", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: undefined
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    test("Should handle null status gracefully", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: null
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    test("Should handle non-standard status values", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: "INVALID_STATUS"  // Non-standard status
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
+    });
+
+    test("Should handle case-insensitive status comparisons", async () => {
+      // Arrange
+      const mockInvoice = {
+        id: '1',
+        invoice_date: "2025-02-01",
+        status: "processing"  // Lowercase version of PROCESSING
+      };
+
+      invoiceService.invoiceRepository.findById.mockResolvedValue(mockInvoice);
+      invoiceService.itemRepository.findItemsByDocumentId.mockResolvedValue([]);
+
+      // Act
+      await invoiceService.getInvoiceById('1');
+
+      // Assert - Should proceed with normal processing (not match PROCESSING)
+      expect(invoiceService.invoiceRepository.findById).toHaveBeenCalledWith('1');
+      expect(invoiceService.itemRepository.findItemsByDocumentId).toHaveBeenCalled();
+      expect(invoiceService.responseFormatter.formatInvoiceResponse).toHaveBeenCalled();
     });
   });
 });
