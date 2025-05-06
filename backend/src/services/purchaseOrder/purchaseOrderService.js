@@ -10,7 +10,9 @@ const PurchaseOrderValidator = require('./purchaseOrderValidator');
 const PurchaseOrderResponseFormatter = require('./purchaseOrderResponseFormatter');
 const { AzurePurchaseOrderMapper } = require('../purchaseOrderMapperService/purchaseOrderMapperService');
 const DocumentStatus = require('../../models/enums/DocumentStatus');
-const {NotFoundError } = require('../../utils/errors');
+const { NotFoundError } = require('../../utils/errors');
+const { from } = require('rxjs');
+const { catchError, map, switchMap } = require('rxjs/operators');
 
 class PurchaseOrderService extends FinancialDocumentService {
   constructor() {
@@ -210,15 +212,15 @@ class PurchaseOrderService extends FinancialDocumentService {
     }
     return purchaseOrder.partner_id;
   }
-  
+
   async analyzePurchaseOrder(documentUrl) {
     return this.documentAnalyzer.analyzeDocument(documentUrl);
   }
-  
+
   async getPurchaseOrderById(id) {
     try {
       const purchaseOrder = await this.purchaseOrderRepository.findById(id);
-      
+
       // Return early with appropriate message for PROCESSING and FAILED states
       if (purchaseOrder.status === DocumentStatus.PROCESSING) {
         return {
@@ -226,29 +228,29 @@ class PurchaseOrderService extends FinancialDocumentService {
           data: { documents: [] }
         };
       }
-      
+
       if (purchaseOrder.status === DocumentStatus.FAILED) {
         return {
           message: "Purchase order processing failed. Please re-upload the document.",
           data: { documents: [] }
         };
       }
-      
+
       // Fetch related data for ANALYZED purchase orders
       const items = await this.itemRepository.findItemsByDocumentId(id, 'PurchaseOrder');
-      
+
       // Get customer data if available
       let customer = null;
       if (purchaseOrder.customer_id) {
         customer = await this.customerRepository.findById(purchaseOrder.customer_id);
       }
-      
+
       // Get vendor data if available
       let vendor = null;
       if (purchaseOrder.vendor_id) {
         vendor = await this.vendorRepository.findById(purchaseOrder.vendor_id);
       }
-      
+
       return this.responseFormatter.formatPurchaseOrderResponse(purchaseOrder, items, customer, vendor);
     } catch (error) {
       console.error("Error retrieving purchase order:", error);
@@ -264,13 +266,13 @@ class PurchaseOrderService extends FinancialDocumentService {
    */
   async getPurchaseOrderStatus(id) {
     try {
-      
+
       const purchaseOrder = await this.purchaseOrderRepository.findById(id);
-      
+
       if (!purchaseOrder) {
         throw new NotFoundError("Purchase order not found");
       }
-      
+
       return {
         id: purchaseOrder.id,
         status: purchaseOrder.status
@@ -280,13 +282,37 @@ class PurchaseOrderService extends FinancialDocumentService {
       if (error.name === "NotFoundError" || error.name === "ValidationError") {
         throw error;
       }
-      
+
       console.error(`Error getting purchase order status: ${error.message}`, error);
       Sentry.captureException(error);
-      
+
       // Wrap other errors
       throw new Error(`Failed to get purchase order status: ${error.message}`);
     }
+  }
+
+  /**
+   * Delete a purchase order by ID
+   * @param {string} id - Purchase order ID to delete
+   * @returns {Observable} Observable with success message or error
+   */
+  deletePurchaseOrderById(id) {
+    return from(Promise.resolve())
+      .pipe(
+        switchMap(() => from(this.purchaseOrderRepository.delete(id))),
+        map(result => {
+          if (result === 0) {
+            const err = new Error(`Failed to delete purchase order with ID: ${id}`);
+            Sentry.captureException(err);
+            throw err;
+          }
+          return { message: "Purchase order successfully deleted" };
+        }),
+        catchError(error => {
+          Sentry.captureException(error);
+          throw new Error(error.message);
+        })
+      );
   }
 }
 

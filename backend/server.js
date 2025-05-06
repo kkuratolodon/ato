@@ -1,7 +1,6 @@
 const http = require('http');
 const Sentry = require("./src/instrument.js");
 const app = require("./src/app");
-
 require('dotenv').config();
 
 const PORT = process.env.PORT || 3000;
