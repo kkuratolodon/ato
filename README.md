@@ -271,3 +271,83 @@ export function teardown() { /* cleanup */ }
 ```
 
 </details>
+
+<details>
+  <summary><strong>Tutorial Penggunaan Authentication Penetration Test</strong></summary>
+
+## Tutorial: Menjalankan Authentication Penetration Testing
+
+Tutorial ini menjelaskan cara menggunakan script penetration testing untuk menguji keamanan mekanisme autentikasi API.
+
+### 1. Prasyarat
+
+Pastikan Anda telah menginstal dependensi Python yang diperlukan:
+
+```bash
+pip install requests colorama
+```
+
+### 2. Menjalankan Penetration Test
+
+```bash
+# Di direktori root proyek
+python backend/tests/auth_pentest.py
+
+# Atau dengan URL kustom (untuk testing di environment lain)
+python backend/tests/auth_pentest.py -u https://api-dev.example.com
+```
+
+### 3. Parameter yang Tersedia
+
+Script pengujian menerima beberapa parameter opsional:
+
+```bash
+# Melihat bantuan
+python backend/tests/auth_pentest.py --help
+
+# Parameter yang tersedia:
+# -u, --url       : URL dasar API (default: http://localhost:3000)
+# -v, --verbose   : Mengaktifkan output yang lebih detail
+```
+
+### 4. Jenis Pengujian yang Dilakukan
+
+Script penetration testing menguji beberapa aspek keamanan autentikasi:
+
+1. **Missing Credentials Test**: Menguji respons API ketika kredensial tidak lengkap atau kosong
+2. **Credential Manipulation Test**: Menguji perlindungan terhadap SQL injection dan serangan manipulasi kredensial lainnya
+3. **Credential Leakage Test**: Memastikan tidak ada kebocoran informasi kredensial dalam respons error
+
+### 5. Memahami Hasil Pengujian
+
+Hasil pengujian ditampilkan dalam format yang mudah dibaca dengan kode warna:
+
+- **[PASS]** 🟢: Pengujian berhasil, sistem merespons dengan benar
+- **[FAIL]** 🔴: Pengujian gagal, menunjukkan potensi kerentanan keamanan
+- **[ERROR]** 🟡: Kesalahan selama pengujian, perlu diperiksa lebih lanjut
+
+Di akhir pengujian, laporan ringkas akan ditampilkan dengan:
+- Jumlah total tes yang dijalankan
+- Jumlah tes yang berhasil/gagal
+- Daftar kerentanan yang ditemukan (jika ada)
+- Rekomendasi perbaikan keamanan
+
+### 6. Best Practice Penggunaan
+
+- Jalankan pengujian di lingkungan pengembangan, bukan di produksi
+- Selalu dapatkan izin sebelum menjalankan pengujian keamanan
+- Perbaiki segera kerentanan yang ditemukan
+- Jalankan pengujian secara berkala sebagai bagian dari pipeline CI/CD
+- Gunakan hasil pengujian untuk meningkatkan keamanan autentikasi secara berkelanjutan
+
+### 7. Tips Pengembangan
+
+Jika ingin menambah pengujian keamanan baru:
+
+1. Tambahkan metode pengujian baru di kelas `AuthenticationPenTester`
+2. Panggil metode tersebut dari metode `run_tests()`
+3. Implementasikan logika pengujian yang sesuai
+4. Pastikan untuk menangani kesalahan dengan blok try-except
+5. Tambahkan rekomendasi yang sesuai di metode `print_report()`
+
+</details>

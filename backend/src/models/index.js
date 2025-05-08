@@ -20,7 +20,7 @@ if (config.use_env_variable && process.env[config.use_env_variable]) {
     host: config.host,
     port: config.port,
     dialect: config.dialect,
-    logging: env === "test" ? false : console.log, // Disable logging in tests
+    logging: false, // Disable SQL query logging to keep console clean
   });
 }
 const Invoice = InvoiceModel(sequelize, DataTypes);

@@ -18,7 +18,7 @@ router.post(
 
 // More specific routes should be placed before general routes
 router.get(
-    '/:id/status',
+    '/status/:id',
     authMiddleware,
     controller.getInvoiceStatus
 );

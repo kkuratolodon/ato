@@ -23,4 +23,10 @@ router.get(
     controller.getPurchaseOrderById
 );
 
+router.delete(
+    '/:id', 
+    authMiddleware, 
+    controller.deletePurchaseOrderById
+);
+
 module.exports = router;

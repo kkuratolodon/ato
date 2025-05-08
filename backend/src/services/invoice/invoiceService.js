@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { from } = require('rxjs');
+const { from, of, forkJoin, throwError } = require('rxjs');
 const { catchError, map, switchMap } = require('rxjs/operators');
 const FinancialDocumentService = require("../financialDocumentService.js");
 const Sentry = require("../../instrument.js");
@@ -13,6 +13,8 @@ const InvoiceResponseFormatter = require('./invoiceResponseFormatter.js');
 const { AzureInvoiceMapper } = require('../invoiceMapperService/invoiceMapperService.js');
 const DocumentStatus = require('../../models/enums/DocumentStatus.js');
 const { NotFoundError } = require('../../utils/errors.js');
+const fs = require('fs').promises;
+const path = require('path');
 
 class InvoiceService extends FinancialDocumentService {
   constructor(dependencies = {}) {
@@ -35,7 +37,7 @@ class InvoiceService extends FinancialDocumentService {
     this.logger = dependencies.logger || this.logger;
   }
   
-  async uploadInvoice(fileData) {
+  async uploadInvoice(fileData, skipAnalysis = false) {
     try {
       this.validator.validateFileData(fileData);
       const { buffer, originalname, partnerId } = fileData;
@@ -61,7 +63,7 @@ class InvoiceService extends FinancialDocumentService {
         file_size: buffer.length,
       });
 
-      this.processInvoiceAsync(invoiceUuid, buffer, partnerId, originalname, invoiceUuid);
+      this.processInvoiceAsync(invoiceUuid, buffer, partnerId, originalname, invoiceUuid, skipAnalysis);
 
       return {
         message: "Invoice upload initiated",
@@ -78,7 +80,7 @@ class InvoiceService extends FinancialDocumentService {
      * Process invoice asynchronously in background
      * @private
      */
-  async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid) {
+  async processInvoiceAsync(invoiceId, buffer, partnerId, originalname, uuid, skipAnalysis = false) {
     try {
       this.logger.logProcessingStart(invoiceId);
       Sentry.addBreadcrumb({
@@ -87,12 +89,22 @@ class InvoiceService extends FinancialDocumentService {
         level: "info"
       });
 
-      // 1. Analisis invoice menggunakan Azure
-      const analysisResult = await this.analyzeInvoice(buffer);
+      let analysisResult;
+      
+      if (skipAnalysis) {
+        // Use sample data instead of analyzing with Azure
+        analysisResult = await this.loadSampleData();
+        this.logger.logAnalysisComplete(invoiceId, "Using sample data");
+      } else {
+        // 1. Analisis invoice menggunakan Azure
+        analysisResult = await this.analyzeInvoice(buffer);
+      }
 
       // 2. Upload hasil OCR ke S3 sebagai JSON dan dapatkan URL-nya
       const jsonUrl = await this.uploadAnalysisResults(analysisResult, invoiceId);
-      this.logger.logAnalysisComplete(invoiceId, jsonUrl);
+      if (!skipAnalysis) {
+        this.logger.logAnalysisComplete(invoiceId, jsonUrl);
+      }
 
       // 3. Map hasil analisis ke model data
       const { invoiceData, customerData, vendorData, itemsData } =
@@ -127,6 +139,17 @@ class InvoiceService extends FinancialDocumentService {
 
       // Update status menjadi "Failed" jika processing gagal
       await this.invoiceRepository.updateStatus(invoiceId, DocumentStatus.FAILED);
+    }
+  }
+
+  async loadSampleData() {
+    try {
+      const filePath = path.resolve(__dirname, '../analysis/sample-invoice.json');
+      const fileContent = await fs.readFile(filePath, 'utf8');
+      return { data: JSON.parse(fileContent) };
+    } catch (error) {
+      console.error('Error loading sample data:', error);
+      throw new Error(`Failed to load sample data: ${error.message}`);
     }
   }
 
@@ -225,50 +248,50 @@ class InvoiceService extends FinancialDocumentService {
     return invoice.partner_id;
   }
 
-  async getInvoiceById(invoiceId) {
-    try {
-      const invoice = await this.invoiceRepository.findById(invoiceId);
-      
-      if (!invoice) {
-        throw new NotFoundError("Invoice not found");
-      }
-
-      // Check invoice status first
-      if (invoice.status === DocumentStatus.PROCESSING) {
-        return {
-          message: "Invoice is still being processed. Please try again later.",
-          data: { documents: [] }
-        };
-      }
-
-      if (invoice.status === DocumentStatus.FAILED) {
-        return {
-          message: "Invoice processing failed. Please re-upload the document.",
-          data: { documents: [] }
-        };
-      }
-
-      const items = await this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice');
-
-      let customer = null;
-      if (invoice.customer_id) {
-        customer = await this.customerRepository.findById(invoice.customer_id);
-      }
-
-      let vendor = null;
-      if (invoice.vendor_id) {
-        vendor = await this.vendorRepository.findById(invoice.vendor_id);
-      }
-
-      return this.responseFormatter.formatInvoiceResponse(invoice, items, customer, vendor);
-    } catch (error) {
-      console.error("Error retrieving invoice:", error);
-      if (error.message === "Invoice not found") {
-        throw error;
-      } else {
-        throw new Error("Failed to retrieve invoice: " + error.message);
-      }
-    }
+  getInvoiceById(invoiceId) {
+    return from(this.invoiceRepository.findById(invoiceId)).pipe(
+      switchMap(invoice => {
+        if (!invoice) {
+          return throwError(() => new NotFoundError("Invoice not found"));
+        }
+  
+        if (invoice.status === DocumentStatus.PROCESSING) {
+          return of({
+            message: "Invoice is still being processed. Please try again later.",
+            data: { documents: [] }
+          });
+        }
+  
+        if (invoice.status === DocumentStatus.FAILED) {
+          return of({
+            message: "Invoice processing failed. Please re-upload the document.",
+            data: { documents: [] }
+          });
+        }
+  
+        const items$ = from(this.itemRepository.findItemsByDocumentId(invoiceId, 'Invoice'));
+        const customer$ = invoice.customer_id 
+          ? from(this.customerRepository.findById(invoice.customer_id)) 
+          : of(null);
+        const vendor$ = invoice.vendor_id 
+          ? from(this.vendorRepository.findById(invoice.vendor_id)) 
+          : of(null);
+  
+        return forkJoin({ items: items$, customer: customer$, vendor: vendor$ }).pipe(
+          map(({ items, customer, vendor }) => 
+            this.responseFormatter.formatInvoiceResponse(invoice, items, customer, vendor)
+          )
+        );
+      }),
+      catchError(error => {
+        console.error("Error retrieving invoice:", error);
+        return throwError(() => 
+          error.message === "Invoice not found" 
+            ? error 
+            : new Error("Failed to retrieve invoice: " + error.message)
+        );
+      })
+    );
   }
 
   deleteInvoiceById(id) {
@@ -291,19 +314,35 @@ class InvoiceService extends FinancialDocumentService {
   }
     
   async getInvoiceStatus(invoiceId) {
-    const invoice = await this.invoiceRepository.findById(invoiceId);
+    try {
+      const invoice = await this.invoiceRepository.findById(invoiceId);
 
-    if (!invoice) {
-      throw new NotFoundError("Invoice not found");
+      if (!invoice) {
+        this.logger.logStatusNotFound?.(invoiceId);
+        throw new NotFoundError("Invoice not found");
+      }
+
+      const status = {
+        id: invoice.id,
+        status: invoice.status
+      };
+      
+      // Log successful status request
+      this.logger.logStatusRequest?.(invoiceId, invoice.status);
+
+      return status;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      
+      // Log error during status retrieval
+      this.logger.logStatusError?.(invoiceId, error);
+      Sentry.captureException(error);
+      console.error("Error getting invoice status:", error);
+      throw new Error(`Failed to get invoice status: ${error.message}`);
     }
-
-    return {
-      id: invoice.id,
-      status: invoice.status
-    };
   }
-
-  
 
   async analyzeInvoice(documentUrl) {
     return this.documentAnalyzer.analyzeDocument(documentUrl);
