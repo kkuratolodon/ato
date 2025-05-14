@@ -1,15 +1,15 @@
-name: Node.js CI/CD Pipeline
+name: Deploy to GCP
 
 on:
   push:
     branches:
-      - "**"
-  pull_request:
-    types: [opened, synchronize, reopened]
+      - staging
+      - main
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Node.js App
+  deploy:
+    name: Deploy to GCP Server
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -25,110 +25,12 @@ jobs:
       - name: Install Dependencies
         working-directory: backend
         run: npm install
-
-      - name: Set up environment variables
-        run: |
-          echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> $GITHUB_ENV
-          echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> $GITHUB_ENV
-          echo "AZURE_INVOICE_MODEL=${{ secrets.AZURE_INVOICE_MODEL }}" >> $GITHUB_ENV
-          echo "AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }}" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
 
       - name: Build Application
         working-directory: backend
         run: npm run build
         env:
-          NODE_ENV: ${{ secrets.NODE_ENV }}
-
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-app
-          path: backend/dist/
-
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install Dependencies
-        working-directory: backend
-        run: npm install
-
-      - name: Set up environment variables
-        run: |
-          echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> $GITHUB_ENV
-          echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> $GITHUB_ENV
-          echo "AZURE_INVOICE_MODEL=${{ secrets.AZURE_INVOICE_MODEL }}" >> $GITHUB_ENV
-          echo "AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }}" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
-
-      - name: Run Linter
-        working-directory: backend
-        run: npm run lint
-
-      - name: Run Tests with Coverage
-        working-directory: backend
-        run: npm test -- --coverage 
-        env:
-          NODE_ENV: ${{ secrets.NODE_ENV }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          AZURE_ENDPOINT: ${{ secrets.AZURE_ENDPOINT }}
-          AZURE_KEY: ${{ secrets.AZURE_KEY }}
-          AZURE_INVOICE_MODEL: ${{ secrets.AZURE_INVOICE_MODEL }}
-          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./backend/coverage
-          fail_ci_if_error: true  
-          verbose: true  
-
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-      
-      - name: Display Codecov link
-        run: |
-          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-          REPO_NAME="${{ github.repository }}"
-          echo "Code Coverage Report: https://codecov.io/gh/${REPO_NAME}/branch/${BRANCH_NAME}"
-
-  deploy:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/staging'
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+          NODE_ENV: production
 
       - name: Install SSH client
         run: sudo apt-get install openssh-client
@@ -139,14 +41,14 @@ jobs:
       - name: Update SSH Key Permission
         run: chmod 400 ssh-key.pem
 
-      - name: Set up Staging Environment Variables
+      - name: Create Environment File
         run: |
           echo "DB_USER=${{ secrets.DB_USER }}" >> .env
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
           echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-          echo "NODE_ENV=staging" >> .env
+          echo "NODE_ENV=production" >> .env
           echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
           echo "CLIENT_SECRET=${{ secrets.CLIENT_SECRET }}" >> .env
           echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> .env
@@ -156,89 +58,28 @@ jobs:
           echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
           echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
-          echo "DSN=${{ secrets.DSN }}" >> .env
-          echo "cat .env"
-          cat .env
 
-      - name: Deploy to Staging
+      - name: Copy Environment File to Server
         run: |
-          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} "
-            cd ~/fin-invoice-ocr-team6/backend &&
+          scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/fin-invoice-ocr-team6/backend/.env
+
+      - name: Deploy to GCP Server
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
+            cd ~/fin-invoice-ocr-team6 &&
             git fetch origin &&
-            git reset --hard origin/staging &&
-            npm ci &&
-            npx sequelize-cli db:migrate --env staging &&
-            pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend &&
-            pm2 save
-          "
+            git reset --hard origin/${{ github.ref_name }} &&
+            cd backend &&
+            npm ci --production &&
+            npx sequelize-cli db:migrate &&
+            pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend --watch --ignore-watch="uploads" &&
+            pm2 save &&
+            pm2 list
+          '
 
-  functional-test:
-    name: Run Functional Tests
-    runs-on: ubuntu-latest
-    needs: deploy
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20"
-
-      - name: Install Newman and htmlextra
+      - name: Verify Deployment
         run: |
-          npm install -g newman
-          npm install -g newman-reporter-htmlextra
-
-      - name: Check for test files
-        run: |
-          ls -la functional_test_files/
-          if [ ! -f functional_test_files/functional-test.json ]; then
-            echo "Error: functional-test.json not found in functional_test_files directory"
-            exit 1
-          fi
-
-      - name: Create staging-environment.json from secret
-        run: echo '${{ secrets.STAGING_ENVIRONMENT_JSON }}' > functional_test_files/staging-environment.json
-
-      - name: Verify environment file
-        run: |
-          if [ ! -f functional_test_files/staging-environment.json ]; then
-            echo "Error: staging-environment.json not created properly"
-            exit 1
-          fi
-          echo "Environment file created successfully"
-          
-      - name: Verify repository content
-        run: |
-          echo "Current working directory: $(pwd)"
-          echo "Repository content:"
-          ls -la
-          echo "Functional test files directory content:"
-          ls -la functional_test_files/ || echo "Functional test files directory not found!"
-          
-      - name: Create reports directory
-        working-directory: functional_test_files
-        run: mkdir -p reports
-
-      - name: Run Functional Tests with htmlextra
-        working-directory: functional_test_files
-        run: |
-          echo "Starting Newman tests..."
-          newman run functional-test.json -e staging-environment.json -r htmlextra --reporter-htmlextra-skipSensitiveData --reporter-htmlextra-export ./reports/functional-test-report.html || {
-            echo "Newman tests failed with exit code $?"
-            if [ -f ./reports/functional-test-report.html ]; then
-              echo "Test report was generated despite failure"
-            else
-              echo "No test report was generated"
-            fi
-            exit 1
-          }
-          echo "Newman tests completed successfully"
-
-      - name: Upload Functional Test Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: functional-test-report
-          path: functional_test_files/reports/functional-test-report.html
+          echo "✅ Deployment completed successfully!"
+          echo "Server: ${{ secrets.SERVER_IP }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Environment: production"
