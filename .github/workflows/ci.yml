@@ -12,7 +12,56 @@ jobs:
     name: Deploy to GCP Server
     runs-on: ubuntu-latest
     steps:
-      # ...other steps...
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Build Application
+        working-directory: backend
+        run: npm run build
+        env:
+          NODE_ENV: staging
+
+      - name: Generate Version ID
+        run: |
+          echo "VERSION=$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::8}" >> $GITHUB_ENV
+
+      - name: Install SSH client
+        run: sudo apt-get install openssh-client
+
+      - name: Create SSH Key
+        run: echo "${{ secrets.SSH_KEY }}" > ssh-key.pem
+
+      - name: Update SSH Key Permission
+        run: chmod 400 ssh-key.pem
+
+      - name: Create Environment File
+        run: |
+          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+          echo "NODE_ENV=staging" >> .env
+          echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
+          echo "CLIENT_SECRET=${{ secrets.CLIENT_SECRET }}" >> .env
+          echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> .env
+          echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> .env
+          echo "AZURE_INVOICE_MODEL=${{ secrets.AZURE_INVOICE_MODEL }}" >> .env
+          echo "AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
 
       - name: Setup Release Directory Structure
         run: |
@@ -50,7 +99,6 @@ jobs:
               echo "No current deployment found to backup"
             fi
           '
-
       - name: Copy Environment File to Server
         run: |
           scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/shared/.env
