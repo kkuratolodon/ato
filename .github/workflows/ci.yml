@@ -65,12 +65,12 @@ jobs:
 
       - name: Setup Release Directory Structure
         run: |
-          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
+          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} "
             # Create releases and shared directories if they don't exist
             mkdir -p ~/ato/releases
             mkdir -p ~/ato/shared
             mkdir -p ~/ato/shared/uploads
-          '
+          "
 
       - name: Copy Environment File to Server
         run: |
