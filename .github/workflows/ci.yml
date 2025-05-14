@@ -75,8 +75,8 @@ jobs:
             cd backend &&
             npm ci --only=production &&
             npx sequelize-cli db:migrate &&
-            pm2 delete invoice-ocr-staging 2>/dev/null || true &&
-            NODE_ENV=staging pm2 start ecosystem.staging.js &&
+            pm2 delete all 2>/dev/null || true &&
+            pm2 start ecosystem.staging.js --env staging &&
             pm2 save
           '
 
