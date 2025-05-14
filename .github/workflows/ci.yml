@@ -128,17 +128,7 @@ jobs:
             echo "PM2 processes after restart:"
             pm2 list
           '
-            
-            # Update current symlink to point to the new release
-            ln -sfn ~/ato/releases/${{ env.VERSION }} ~/ato/current
-            
-            # Start or restart PM2 application
-            cd ~/ato/current/backend
-            pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend --watch --ignore-watch="uploads"
-            pm2 save
-            pm2 list
-          '
-
+          
       - name: Verify Deployment
         run: |
           # Wait for the application to fully start
