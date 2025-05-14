@@ -30,7 +30,7 @@ jobs:
         working-directory: backend
         run: npm run build
         env:
-          NODE_ENV: production
+          NODE_ENV: staging
 
       - name: Install SSH client
         run: sudo apt-get install openssh-client
@@ -48,7 +48,7 @@ jobs:
           echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
           echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-          echo "NODE_ENV=production" >> .env
+          echo "NODE_ENV=staging" >> .env
           echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
           echo "CLIENT_SECRET=${{ secrets.CLIENT_SECRET }}" >> .env
           echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> .env
@@ -67,10 +67,10 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
             cd ~/ato &&
-            git fetch origin &&
+            git fetch origin &&n
             git reset --hard origin/${{ github.ref_name }} &&
             cd backend &&
-            npm ci --production &&
+            npm ci --staging &&
             npx sequelize-cli db:migrate &&
             pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend --watch --ignore-watch="uploads" &&
             pm2 save &&
@@ -82,4 +82,4 @@ jobs:
           echo "✅ Deployment completed successfully!"
           echo "Server: ${{ secrets.SERVER_IP }}"
           echo "Branch: ${{ github.ref_name }}"
-          echo "Environment: production"
+          echo "Environment: staing"
