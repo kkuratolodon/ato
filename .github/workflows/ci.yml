@@ -168,15 +168,6 @@ jobs:
           
           # Check health endpoint
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
-            echo "Checking if rollback script exists..."
-            if [ -f ~/ato/rollback.sh ]; then
-              echo "Rollback script exists."
-              echo "Checking permissions:"
-              ls -la ~/ato/rollback.sh
-            else
-              echo "ERROR: Rollback script does not exist!"
-            fi
-            
             echo "Testing health endpoint..."
             HEALTH_CHECK=$(curl -s http://localhost:3000/health)
             echo "Health check response: $HEALTH_CHECK"
@@ -184,9 +175,13 @@ jobs:
             
             if [ "$STATUS" = "\"status\":\"ok\"" ]; then
               echo "✅ Health check passed!"
+              # Mark this deployment as successful
+              touch ~/ato/current/.deployment-successful
+              echo $(date) > ~/ato/current/.deployment-successful
             else
               echo "❌ Health check failed! Initiating rollback..."
               echo "Executing rollback script with verbose output:"
               bash -x ~/ato/rollback.sh || echo "Rollback script failed with exit code $?"
+              exit 1
             fi
           '
