@@ -75,56 +75,8 @@ jobs:
       
       - name: Create Pre-Deployment Backup
         run: |
-          # Create rollback script file locally
-          cat > rollback.sh << 'EOF'
-          #!/bin/bash
-          
-          # This script performs a rollback to the previous working version
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          CURRENT_RELEASE=$(readlink -f ~/ato/current)
-          
-          # Find the second newest release (previous version)
-          PREV_RELEASE=$(find ~/ato/releases -maxdepth 1 -mindepth 1 -type d | sort -r | sed -n 2p)
-          
-          # Check if we have a backup to restore
-          if [ -z "$PREV_RELEASE" ] && [ ! -d ~/ato/backups ]; then
-            echo "No previous release or backup found to roll back to!"
-            exit 1
-          fi
-          
-          echo "Rolling back from $CURRENT_RELEASE"
-          
-          # If no previous release but we have a backup
-          if [ -z "$PREV_RELEASE" ] && [ -d ~/ato/backups ]; then
-            LATEST_BACKUP=$(find ~/ato/backups -name "backup-*.tar.gz" -type f | sort -r | head -n1)
-            if [ -n "$LATEST_BACKUP" ]; then
-              echo "Using backup: $LATEST_BACKUP"
-              mkdir -p ~/ato/releases/rollback-$TIMESTAMP
-              tar -xzf $LATEST_BACKUP -C ~/ato/releases/rollback-$TIMESTAMP
-              PREV_RELEASE=~/ato/releases/rollback-$TIMESTAMP
-            else
-              echo "No backups found!"
-              exit 1
-            fi
-          else
-            echo "Using previous release: $PREV_RELEASE"
-          fi
-          
-          # Update current symlink to previous release
-          ln -sfn $PREV_RELEASE ~/ato/current
-          echo "Updated current symlink to: $(readlink -f ~/ato/current)"
-          
-          # Restart application
-          cd ~/ato/current/backend
-          pm2 stop invoice-ocr-backend || true
-          pm2 delete invoice-ocr-backend || true
-          pm2 start server.js --name invoice-ocr-backend
-          pm2 save
-          
-          echo "Rollback completed successfully"
-
-          # Copy rollback script to server
-          scp -o StrictHostKeyChecking=no -i ssh-key.pem rollback.sh ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/rollback.sh
+          # Copy rollback script from repository to server
+          scp -o StrictHostKeyChecking=no -i ssh-key.pem backend/scripts/rollback.sh ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/rollback.sh
           
           # Set permissions and create backup
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
@@ -147,10 +99,9 @@ jobs:
               echo "No current deployment found to backup"
             fi
           '
-
-      - name: Copy Environment File to Server
-        run: |
-          scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/shared/.env
+            - name: Copy Environment File to Server
+              run: |
+                scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/shared/.env
 
       - name: Deploy to GCP Server
         run: |
@@ -216,21 +167,25 @@ jobs:
           
           # Check health endpoint
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
+            echo "Checking if rollback script exists..."
+            if [ -f ~/ato/rollback.sh ]; then
+              echo "Rollback script exists."
+              echo "Checking permissions:"
+              ls -la ~/ato/rollback.sh
+            else
+              echo "ERROR: Rollback script does not exist!"
+            fi
+            
+            echo "Testing health endpoint..."
             HEALTH_CHECK=$(curl -s http://localhost:3000/health)
+            echo "Health check response: $HEALTH_CHECK"
             STATUS=$(echo $HEALTH_CHECK | grep -o "\"status\":\"ok\"" || echo "failed")
             
             if [ "$STATUS" = "\"status\":\"ok\"" ]; then
               echo "✅ Health check passed!"
-              echo "Health data: $HEALTH_CHECK"
             else
               echo "❌ Health check failed! Initiating rollback..."
-              ~/ato/rollback.sh
-              exit 1
+              echo "Executing rollback script with verbose output:"
+              bash -x ~/ato/rollback.sh || echo "Rollback script failed with exit code $?"
             fi
           '
-          
-          echo "✅ Deployment completed successfully!"
-          echo "Server: ${{ secrets.SERVER_IP }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Version: ${{ env.VERSION }}"
-          echo "Environment: staging"
