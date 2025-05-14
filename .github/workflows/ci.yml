@@ -111,6 +111,27 @@ jobs:
             # Update current symlink to point to the new release
             ln -sfn ~/ato/releases/${{ env.VERSION }} ~/ato/current
             
+            # Show diagnostics
+            echo "Current symlink points to: $(readlink -f ~/ato/current)"
+            echo "PM2 processes before restart:"
+            pm2 list
+            
+            # Stop existing process if running
+            pm2 stop invoice-ocr-backend || true
+            pm2 delete invoice-ocr-backend || true
+            
+            # Start with the new code (explicit path)
+            cd ~/ato/current/backend
+            pm2 start server.js --name invoice-ocr-backend
+            pm2 save
+            
+            echo "PM2 processes after restart:"
+            pm2 list
+          '
+            
+            # Update current symlink to point to the new release
+            ln -sfn ~/ato/releases/${{ env.VERSION }} ~/ato/current
+            
             # Start or restart PM2 application
             cd ~/ato/current/backend
             pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend --watch --ignore-watch="uploads"
