@@ -61,12 +61,12 @@ jobs:
 
       - name: Copy Environment File to Server
         run: |
-          scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/fin-invoice-ocr-team6/backend/.env
+          scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/backend/.env
 
       - name: Deploy to GCP Server
         run: |
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
-            cd ~/fin-invoice-ocr-team6 &&
+            cd ~/ato &&
             git fetch origin &&
             git reset --hard origin/${{ github.ref_name }} &&
             cd backend &&
