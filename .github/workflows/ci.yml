@@ -3,8 +3,7 @@ name: Deploy Application
 on:
   push:
     branches:
-      - staging
-      - main
+      - "**"
   workflow_dispatch:
 
 jobs:
@@ -51,7 +50,6 @@ jobs:
           echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
           echo "NODE_ENV=staging" >> .env
-          echo "PORT=3000" >> .env
           echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
           echo "CLIENT_SECRET=${{ secrets.CLIENT_SECRET }}" >> .env
           echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> .env
@@ -75,9 +73,9 @@ jobs:
             cd backend &&
             npm ci --only=production &&
             npx sequelize-cli db:migrate &&
-            pm2 delete all 2>/dev/null || true &&
-            pm2 start ecosystem.staging.js --env staging &&
-            pm2 save
+            pm2 restart invoice-ocr-staging || pm2 start ecosystem.staging.js &&
+            pm2 save &&
+            pm2 list
           '
 
       - name: Verify Deployment
@@ -86,7 +84,6 @@ jobs:
           echo "Server: ${{ secrets.SERVER_IP }}"
           echo "Branch: staging"
           echo "Environment: staging"
-          echo "Port: 3000"
 
   deploy-production:
     name: Deploy to Production Environment
@@ -131,7 +128,6 @@ jobs:
           echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
           echo "NODE_ENV=production" >> .env
-          echo "PORT=3000" >> .env
           echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
           echo "CLIENT_SECRET=${{ secrets.CLIENT_SECRET }}" >> .env
           echo "AZURE_ENDPOINT=${{ secrets.AZURE_ENDPOINT }}" >> .env
@@ -155,9 +151,9 @@ jobs:
             cd backend &&
             npm ci --only=production &&
             npx sequelize-cli db:migrate &&
-            pm2 delete invoice-ocr-production 2>/dev/null || true &&
-            pm2 start server.js --name invoice-ocr-production --env production &&
-            pm2 save
+            pm2 restart invoice-ocr-production || pm2 start ecosystem.production.js &&
+            pm2 save &&
+            pm2 list
           '
 
       - name: Verify Deployment
@@ -166,4 +162,3 @@ jobs:
           echo "Server: ${{ secrets.SERVER_IP }}"
           echo "Branch: main"
           echo "Environment: production"
-          echo "Port: 3000"
