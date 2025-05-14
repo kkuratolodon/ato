@@ -120,6 +120,23 @@ jobs:
 
       - name: Verify Deployment
         run: |
+          # Wait for the application to fully start
+          sleep 5
+          
+          # Check health endpoint
+          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
+            HEALTH_CHECK=$(curl -s http://localhost:3000/health)
+            STATUS=$(echo $HEALTH_CHECK | grep -o "\"status\":\"ok\"" || echo "failed")
+            
+            if [ "$STATUS" = "\"status\":\"ok\"" ]; then
+              echo "✅ Health check passed!"
+              echo "Health data: $HEALTH_CHECK"
+            else
+              echo "❌ Health check failed!"
+              exit 1
+            fi
+          '
+          
           echo "✅ Deployment completed successfully!"
           echo "Server: ${{ secrets.SERVER_IP }}"
           echo "Branch: ${{ github.ref_name }}"
