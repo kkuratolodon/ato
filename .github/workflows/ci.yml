@@ -79,7 +79,7 @@ jobs:
           scp -o StrictHostKeyChecking=no -i ssh-key.pem backend/scripts/rollback.sh ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/rollback.sh
           
           # Set permissions and create backup
-          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
+          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} << 'EOF'
             chmod +x ~/ato/rollback.sh
             echo "Rollback script updated"
             
@@ -98,7 +98,7 @@ jobs:
             else
               echo "No current deployment found to backup"
             fi
-          '
+          EOF
 
       - name: Copy Environment File to Server
         run: |
