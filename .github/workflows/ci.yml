@@ -99,6 +99,7 @@ jobs:
               echo "No current deployment found to backup"
             fi
           '
+
       - name: Copy Environment File to Server
         run: |
           scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/shared/.env
