@@ -66,11 +66,85 @@ jobs:
       - name: Setup Release Directory Structure
         run: |
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} "
-            # Create releases and shared directories if they don't exist
+            # Create releases, backups, and shared directories if they don't exist
             mkdir -p ~/ato/releases
+            mkdir -p ~/ato/backups
             mkdir -p ~/ato/shared
             mkdir -p ~/ato/shared/uploads
           "
+      
+      - name: Create Pre-Deployment Backup
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
+            # Create backup directory if it doesn't exist
+            mkdir -p ~/ato/backups
+            
+            # Create rollback script if it doesn't exist
+            if [ ! -f ~/ato/rollback.sh ]; then
+              cat > ~/ato/rollback.sh << "EOF"
+            #!/bin/bash
+            
+            # This script performs a rollback to the previous working version
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+            CURRENT_RELEASE=$(readlink -f ~/ato/current)
+            
+            # Find the second newest release (previous version)
+            PREV_RELEASE=$(find ~/ato/releases -maxdepth 1 -mindepth 1 -type d | sort -r | sed -n 2p)
+            
+            # Check if we have a backup to restore
+            if [ -z "$PREV_RELEASE" ] && [ ! -d "~/ato/backups" ]; then
+              echo "No previous release or backup found to roll back to!"
+              exit 1
+            fi
+            
+            echo "Rolling back from $CURRENT_RELEASE"
+            
+            # If no previous release but we have a backup
+            if [ -z "$PREV_RELEASE" ] && [ -d "~/ato/backups" ]; then
+              LATEST_BACKUP=$(find ~/ato/backups -name "backup-*.tar.gz" -type f | sort -r | head -n1)
+              if [ -n "$LATEST_BACKUP" ]; then
+                echo "Using backup: $LATEST_BACKUP"
+                mkdir -p ~/ato/releases/rollback-$TIMESTAMP
+                tar -xzf $LATEST_BACKUP -C ~/ato/releases/rollback-$TIMESTAMP
+                PREV_RELEASE=~/ato/releases/rollback-$TIMESTAMP
+              else
+                echo "No backups found!"
+                exit 1
+              fi
+            else
+              echo "Using previous release: $PREV_RELEASE"
+            fi
+            
+            # Update current symlink to previous release
+            ln -sfn $PREV_RELEASE ~/ato/current
+            echo "Updated current symlink to: $(readlink -f ~/ato/current)"
+            
+            # Restart application
+            cd ~/ato/current/backend
+            pm2 stop invoice-ocr-backend || true
+            pm2 delete invoice-ocr-backend || true
+            pm2 start server.js --name invoice-ocr-backend
+            pm2 save
+            
+            echo "Rollback completed successfully"
+            EOF
+              chmod +x ~/ato/rollback.sh
+              echo "Created rollback script"
+            fi
+            
+            # Check if current symlink exists and points to a valid directory
+            if [ -e ~/ato/current ] && [ -d "$(readlink -f ~/ato/current)" ]; then
+              echo "Creating backup of current deployment"
+              BACKUP_FILE=~/ato/backups/backup-$(date +%Y%m%d%H%M%S).tar.gz
+              tar -czf $BACKUP_FILE -C ~/ato/current .
+              echo "Backup created at $BACKUP_FILE"
+              
+              # Keep only last 5 backups
+              ls -t ~/ato/backups/backup-*.tar.gz | tail -n +6 | xargs rm -f 2>/dev/null || true
+            else
+              echo "No current deployment found to backup"
+            fi
+          '
 
       - name: Copy Environment File to Server
         run: |
@@ -127,6 +201,10 @@ jobs:
             
             echo "PM2 processes after restart:"
             pm2 list
+            
+            # Cleanup old releases (keep only the last 5)
+            cd ~/ato/releases
+            ls -td */ | tail -n +6 | xargs rm -rf 2>/dev/null || true
           '
           
       - name: Verify Deployment
@@ -143,7 +221,8 @@ jobs:
               echo "✅ Health check passed!"
               echo "Health data: $HEALTH_CHECK"
             else
-              echo "❌ Health check failed!"
+              echo "❌ Health check failed! Initiating rollback..."
+              ~/ato/rollback.sh
               exit 1
             fi
           '
