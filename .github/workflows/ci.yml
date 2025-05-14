@@ -32,6 +32,10 @@ jobs:
         env:
           NODE_ENV: staging
 
+      - name: Generate Version ID
+        run: |
+          echo "VERSION=$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::8}" >> $GITHUB_ENV
+
       - name: Install SSH client
         run: sudo apt-get install openssh-client
 
@@ -59,21 +63,58 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
           echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
 
+      - name: Setup Release Directory Structure
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
+            # Create releases and shared directories if they don't exist
+            mkdir -p ~/ato/releases
+            mkdir -p ~/ato/shared
+            mkdir -p ~/ato/shared/uploads
+          '
+
       - name: Copy Environment File to Server
         run: |
-          scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/backend/.env
+          scp -o StrictHostKeyChecking=no -i ssh-key.pem .env ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }}:~/ato/shared/.env
 
       - name: Deploy to GCP Server
         run: |
           ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} '
-            cd ~/ato &&
-            git fetch origin &&
-            git reset --hard origin/${{ github.ref_name }} &&
-            cd backend &&
-            npm ci --staging &&
-            npx sequelize-cli db:migrate &&
-            pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend --watch --ignore-watch="uploads" &&
-            pm2 save &&
+            # Create new release directory
+            mkdir -p ~/ato/releases/${{ env.VERSION }}
+            
+            # Clone repo into the new release directory
+            cd ~/ato/releases/${{ env.VERSION }}
+            git clone --depth 1 -b ${{ github.ref_name }} https://github.com/${{ github.repository }} .
+            
+            # Install dependencies and build in release directory
+            cd backend
+            npm ci --staging
+            
+            # Create symbolic link to shared .env file
+            ln -sf ~/ato/shared/.env ./.env
+            
+            # Create symbolic link to shared uploads directory
+            ln -sf ~/ato/shared/uploads ./uploads
+            
+            # Run migrations
+            npx sequelize-cli db:migrate
+            
+            # Create release metadata file
+            echo "{
+              \"version\": \"${{ env.VERSION }}\",
+              \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\",
+              \"branch\": \"${{ github.ref_name }}\",
+              \"commit\": \"${{ github.sha }}\",
+              \"actor\": \"${{ github.actor }}\"
+            }" > ../release.json
+            
+            # Update current symlink to point to the new release
+            ln -sfn ~/ato/releases/${{ env.VERSION }} ~/ato/current
+            
+            # Start or restart PM2 application
+            cd ~/ato/current/backend
+            pm2 restart invoice-ocr-backend || pm2 start server.js --name invoice-ocr-backend --watch --ignore-watch="uploads"
+            pm2 save
             pm2 list
           '
 
@@ -82,4 +123,5 @@ jobs:
           echo "✅ Deployment completed successfully!"
           echo "Server: ${{ secrets.SERVER_IP }}"
           echo "Branch: ${{ github.ref_name }}"
+          echo "Version: ${{ env.VERSION }}"
           echo "Environment: staging"
